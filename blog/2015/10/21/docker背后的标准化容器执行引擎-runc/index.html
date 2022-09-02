@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="robots" content="all,follow">
+  <meta name="googlebot" content="index,follow,snippet,archive">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <title>Docker背后的标准化容器执行引擎——runC</title>
+  <meta name="author" content="孙健波" />
+  
+  
+  
+  
+  <meta name="keywords" content="Docker, runc, runtime">
+  
+  
+  <meta name="description" content="本文从OCI组织的成立开始讲起，描述了开放容器格式的标准及其宗旨，这其实就是runC的由来。继而针对具体的runC特性及其启动进行了详细介绍。OCI的成立表明了社区及各大厂商对容器技术的肯定以及加快容器技术发展进步的强烈决心，相信在不久的将来，符合OCI标准的开放容器项目会越来越多，容器技术将更加欣欣向荣地不断前进。">
+
+  <meta name="generator" content="Hugo 0.68.3" />
+
+  
+  <link href='//fonts.googleapis.com/css?family=Roboto:400,100,100italic,300,300italic,500,700,800' rel='stylesheet' type='text/css'>
+
+  
+  
+  
+  
+  
+
+  <link href="/css/all.css" rel="stylesheet">
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+
+  
+  <link href="/css/animate.css" rel="stylesheet">
+
+  
+  
+    <link href="/css/style.default.css" rel="stylesheet" id="theme-stylesheet">
+  
+
+  
+  <link href="/css/custom.css" rel="stylesheet">
+
+  
+  
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+        <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  
+
+  
+  <link rel="shortcut icon" href="/img/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
+
+  
+  <link href="/css/owl.carousel.css" rel="stylesheet">
+  <link href="/css/owl.theme.css" rel="stylesheet">
+
+  
+  <link rel="alternate" href="https://Congrool.github.io/index.xml" type="application/rss+xml" title="浙大SEL实验室">
+
+  
+  
+  
+  
+  
+  
+  <meta property="og:updated_time" content="2015-10-21T19:44:38Z">
+  
+    
+    
+    <meta property="article:section" content="Docker">
+    <meta property="article:tag" content="Docker">
+    <meta property="article:tag" content="runc">
+    <meta property="article:tag" content="runtime">
+    
+    
+    <meta property="article:published_time" content="2015-10-21T19:44:38Z">
+    <meta property="article:modified_time" content="2015-10-21T19:44:38Z">
+  
+
+  
+  <meta name="twitter:card" content="summary">
+  
+  <meta name="twitter:title" content="Docker背后的标准化容器执行引擎——runC">
+  
+  <meta name="twitter:description" content="本文从OCI组织的成立开始讲起，描述了开放容器格式的标准及其宗旨，这其实就是runC的由来。继而针对具体的runC特性及其启动进行了详细介绍。OCI的成立表明了社区及各大厂商对容器技术的肯定以及加快容器技术发展进步的强烈决心，相信在不久的将来，符合OCI标准的开放容器项目会越来越多，容器技术将更加欣欣向荣地不断前进。">
+  
+  
+</head>
+
+
+  <body>
+
+    <div id="all">
+
+        <header class="navbar-affixed-top" data-spy="affix" data-offset-top="62">
+    <div class="navbar navbar-default yamm" role="navigation" id="navbar" style="background-color:white;">    
+        <div class="container">
+            <div class="navbar-header">
+                <a class="navbar-brand home" href="/">
+                    <img src="/img/sel.png" alt="Docker背后的标准化容器执行引擎——runC" class="hidden-xs hidden-sm img-responsive">
+                    
+                    <span class="sr-only">Docker背后的标准化容器执行引擎——runC - </span>
+                </a>
+                <div class="navbar-buttons">
+                    <button type="button" class="navbar-toggle btn-template-main" data-toggle="collapse" data-target="#navigation">
+                      <span class="sr-only"></span>
+                        <i class="fas fa-align-justify"></i>
+                    </button>
+                </div>
+            </div>
+            
+
+            <div class="navbar-collapse collapse" id="navigation">
+                <ul class="nav navbar-nav navbar-right">
+                  
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/">主页</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/blog/">博客</a>
+                    
+                  </li>
+
+                  <li class="dropdown">
+                    
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">社区 <span class="caret"></span></a>
+                  <ul class="dropdown-menu">
+                    
+                      <li><a href="https://www.servicemesher.com/">ServiceMesh社区</a></li>
+                    
+                      <li><a href="">kubeedge社区</a></li>
+
+                      <li><a href="http://www.icsoft.zju.edu.cn/index.php">浙江大学智能计算与软件中心</a></li>
+                    
+                  </ul>
+
+                  <li class="dropdown">
+                    
+                    <a href="/archives/">归档</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/contact/">关于</a>
+                    
+                  </li>
+                  
+                </li>
+
+                
+                
+
+                
+                </ul>
+            </div>
+            
+
+            <div class="collapse clearfix" id="search">    
+                <form class="navbar-form" role="search">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search">
+                        <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main"><i class="fas fa-search"></i></button>
+                </span>
+                    </div>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+
+    
+</header>
+
+
+
+
+        <div id="heading-breadcrumbs">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h1>Docker背后的标准化容器执行引擎——runC</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+        <div id="content">
+            <div class="container">
+
+                <div class="row">
+
+                    
+
+                    <div class="col-md-9" id="blog-post">
+
+                        
+                          <p class="text-muted text-uppercase mb-small text-right">
+                             <a href="#">孙健波</a>
+                             | 
+                            2015-10-21
+                          </p>
+                        
+
+                        <div id="post-content">
+                          <p>随着容器技术发展的愈发火热，Linux基金会于2015年6月成立<a href="https://www.opencontainers.org/">OCI（Open Container Initiative）</a>组织，旨在围绕容器格式和运行时制定一个开放的工业化标准。该组织一成立便得到了包括谷歌、微软、亚马逊、华为等一系列云计算厂商的支持。而runC就是Docker贡献出来的，按照该开放容器格式标准（OCF, Open Container Format）制定的一种具体实现。</p>
+
+<h2 id="1-容器格式标准是什么">1. 容器格式标准是什么？</h2>
+
+<p>制定容器格式标准的<strong>宗旨</strong>概括来说就是不受上层结构的绑定，如特定的客户端、编排栈等，同时也不受特定的供应商或项目的绑定，即不限于某种特定操作系统、硬件、CPU架构、公有云等。 该标准目前由<a href="https://github.com/docker/libcontainer">libcontainer</a>和<a href="https://github.com/appc/spec">appc</a>的项目负责人（maintainer）进行维护和制定，其规范文档就作为一个项目在Github上维护，地址为<a href="https://github.com/opencontainers/specs">https://github.com/opencontainers/specs</a>。</p>
+
+<h3 id="1-1-容器标准化宗旨">1.1 容器标准化宗旨</h3>
+
+<p>标准化容器的宗旨具体分为如下五条。</p>
+
+<ul>
+<li><p><strong>操作标准化</strong>：容器的标准化操作包括使用标准容器感觉创建、启动、停止容器，使用标准文件系统工具复制和创建容器快照，使用标准化网络工具进行下载和上传。</p></li>
+
+<li><p><strong>内容无关</strong>：内容无关指不管针对的具体容器内容是什么，容器标准操作执行后都能产生同样的效果。如容器可以用同样的方式上传、启动，不管是php应用还是mysql数据库服务。</p></li>
+
+<li><p><strong>基础设施无关</strong>：无论是个人的笔记本电脑还是AWS S3，亦或是Openstack，或者其他基础设施，都应该对支持容器的各项操作。</p></li>
+
+<li><p><strong>为自动化量身定制</strong>：制定容器统一标准，是的操作内容无关化、平台无关化的根本目的之一，就是为了可以使容器操作全平台自动化。</p></li>
+
+<li><p><strong>工业级交付</strong>：制定容器标准一大目标，就是使软件分发可以达到工业级交付成为现实。</p></li>
+</ul>
+
+<h3 id="1-2-容器标准包-bundle-和配置">1.2 容器标准包（bundle）和配置</h3>
+
+<p>一个标准的容器包具体应该至少包含三块部分：</p>
+
+<ul>
+<li><code>config.json</code>： 基本配置文件，包括与宿主机独立的和应用相关的特定信息，如安全权限、环境变量和参数等。具体如下：
+
+<ul>
+<li>容器格式版本</li>
+<li>rootfs路径及是否只读</li>
+<li>各类文件挂载点及相应容器内挂载目录（此配置信息必须与<code>runtime.json</code>配置中保持一致）</li>
+<li>初始进程配置信息，包括是否绑定终端、运行可执行文件的工作目录、环境变量配置、可执行文件及执行参数、uid、gid以及额外需要加入的gid、hostname、低层操作系统及cpu架构信息。</li>
+</ul></li>
+<li><code>runtime.json</code>： 运行时配置文件，包含运行时与主机相关的信息，如内存限制、本地设备访问权限、挂载点等。除了上述配置信息以外，运行时配置文件还提供了“钩子(hooks)”的特性，这样可以在容器运行前和停止后各执行一些自定义脚本。hooks的配置包含执行脚本路径、参数、环境变量等。</li>
+<li><code>rootfs/</code>：根文件系统目录，包含了容器执行所需的必要环境依赖，如<code>/bin</code>、<code>/var</code>、<code>/lib</code>、<code>/dev</code>、<code>/usr</code>等目录及相应文件。rootfs目录必须与包含配置信息的<code>config.json</code>文件同时存在容器目录最顶层。</li>
+</ul>
+
+<h3 id="1-3-容器运行时和生命周期">1.3 容器运行时和生命周期</h3>
+
+<p>容器标准格式也要求容器把自身运行时的状态持久化到磁盘中，这样便于外部的其他工具对此信息使用和演绎。该运行时状态以JSON格式编码存储。推荐把运行时状态的json文件存储在临时文件系统中以便系统重启后会自动移除。 基于Linux内核的操作系统，该信息应该统一地存储在<code>/run/opencontainer/containers</code>目录，该目录结构下以容器ID命名的文件夹（<code>/run/opencontainer/containers/&lt;containerID&gt;/state.json</code>）中存放容器的状态信息并实时更新。有了这样默认的容器状态信息存储位置以后，外部的应用程序就可以在系统上简便地找到所有运行着的容器了。 <code>state.json</code>文件中包含的具体信息需要有：</p>
+
+<ul>
+<li>版本信息：存放OCI标准的具体版本号。</li>
+<li>容器ID：通常是一个哈希值，也可以是一个易读的字符串。在<code>state.json</code>文件中加入容器ID是为了便于之前提到的运行时hooks只需载入<code>state.json</code>就可以定位到容器，然后检测<code>state.json</code>，发现文件不见了就认为容器关停，再执行相应预定义的脚本操作。</li>
+<li>PID：容器中运行的首个进程在宿主机上的进程号。</li>
+<li>容器文件目录：存放容器rootfs及相应配置的目录。外部程序只需读取<code>state.json</code>就可以定位到宿主机上的容器文件目录。</li>
+</ul>
+
+<p>标准的容器生命周期应该包含三个基本过程。</p>
+
+<ul>
+<li>容器创建：创建包括文件系统、namespaces、cgroups、用户权限在内的各项内容。</li>
+<li>容器进程的启动：运行容器进程，进程的可执行文件定义在的<code>config.json</code>中，<code>args</code>项。</li>
+<li>容器暂停：容器实际上作为进程可以被外部程序关停(kill)，然后容器标准规范应该包含对容器暂停信号的捕获，并做相应资源回收的处理，避免孤儿进程的出现。</li>
+</ul>
+
+<h3 id="1-4-基于开放容器格式-ocf-标准的具体实现">1.4 基于开放容器格式（OCF）标准的具体实现</h3>
+
+<p>从上述几点中总结来看，开放容器规范的格式要求非常宽松，它并不限定具体的实现技术也不限定相应框架，目前已经有基于OCF的具体实现，相信不久后会有越来越多的项目出现。</p>
+
+<ul>
+<li>容器运行时<a href="https://github.com/opencontainers/runc">opencontainers/runc</a>，即本文所讲的runc项目，是后来者的参照标准。</li>
+<li>虚拟机运行时<a href="https://github.com/hyperhq/runv">hyperhq/runv</a>，基于Hypervisor技术的开放容器规范实现。</li>
+<li>测试<a href="https://github.com/huawei-openlab/oct">huawei-openlab/oct</a>基于开放容器规范的测试框架。</li>
+</ul>
+
+<h2 id="2-runc工作原理与实现方式">2. runC工作原理与实现方式</h2>
+
+<p>runC的前身实际上是Docker的libcontainer项目，笔者曾经写过一篇文章<a href="http://www.infoq.com/cn/articles/docker-container-management-libcontainer-depth-analysis">《Docker背后的容器管理——Libcontainer深度解析》</a>专门对libcontainer进行源码分析和解读，感兴趣的读者可以先阅读一下，目前runC也是对libcontainer包的调用，libcontainer包变化并不大。所以此文将不再花费太多笔墨分析其源码，我们将着重讲解其中的变化。</p>
+
+<h3 id="2-1-runc从libcontainer的变迁">2.1 runC从libcontainer的变迁</h3>
+
+<p>从本质上来说，容器是提供一个与宿主机系统共享内核但与系统中的其他进程资源相隔离的执行环境。Docker通过调用libcontainer包对namespaces、cgroups、capabilities以及文件系统的管理和分配来“隔离”出一个上述执行环境。同样的，runC也是对libcontainer包进行调用，去除了Docker包含的诸如镜像、Volume等高级特性，以最朴素简洁的方式达到符合OCF标准的容器管理实现。 总体而言，从libcontainer项目转变为runC项目至今，其功能和特性并没有太多变化，具体有如下几点。</p>
+
+<ol>
+<li>把原先的<code>nsinit</code>移除，放到外面，命令名称改为<code>runc</code>，同样使用<a href="https://github.com/codegangsta/cli"><code>cli.go</code></a>实现，一目了然。</li>
+<li>按照开放容器标准把原先所有信息混在一起的一个配置文件拆分成<code>config.json</code>和<code>runtime.json</code>两个。</li>
+<li>增加了按照开放容器标准设定的容器运行前和停止后执行的<code>hook</code>脚本功能。</li>
+<li>相比原先的<code>nsinit</code>时期的指令，增加了<code>runc kill</code>命令，用于发送一个<code>SIG_KILL</code>信号给指定容器ID的<code>init</code>进程。</li>
+</ol>
+
+<p>总体而言，runC希望包含的特征有:</p>
+
+<ul>
+<li>支持所有的Linux namespaces，包括user namespaces。目前user namespaces尚未包含。</li>
+<li>支持Linux系统上原有的所有安全相关的功能，包括Selinux、 Apparmor、seccomp、cgroups、capability drop、pivot_root、 uid/gid dropping等等。目前已完成上述功能的支持。</li>
+<li>支持容器热迁移，通过CRIU技术实现。目前功能已经实现，但是使用起来还会产生问题。</li>
+<li>支持Windows 10 平台上的容器运行，由微软的工程师开发中。目前只支持Linux平台。</li>
+<li>支持Arm、Power、Sparc硬件架构，将由Arm、Intel、Qualcomm、IBM及整个硬件制造商生态圈提供支持。</li>
+<li>计划支持尖端的硬件功能，如DPDK、sr-iov、tpm、secure enclave等等。</li>
+<li>生产环境下的高性能适配优化，由Google工程师基于他们在生产环境下的容器部署经验而贡献。</li>
+<li>作为一个正式真实而全面具体的标准存在！</li>
+</ul>
+
+<h3 id="2-2-runc是如何启动容器的">2.2 runC是如何启动容器的？</h3>
+
+<p>从开放容器标准中我们已经定义了关于容器的两份配置文件和一个依赖包，runc就是通过这些来启动一个容器的。首先我们按照官方的步骤来操作一下。</p>
+
+<p>runc运行时需要有rootfs，最简单的就是你本地已经安装好了Docker，通过 <code>docker pull busybox</code> 下载一个基本的镜像，然后通过 <code>docker export $(docker create busybox) &gt; busybox.tar</code> 导出容器镜像的rootfs文件压缩包，命名为<code>busybox.tar</code>。</p>
+
+<p>然后解压缩为<code>rootfs</code>目录。 <code>mkdir rootfs tar -C rootfs -xf busybox.tar</code> 这时我们就有了OCF标准的rootfs目录，需要说明的是，我们使用Docker只是为了获取rootfs目录的方便，runc的运行本身不依赖Docker。</p>
+
+<p>接下来你还需要<code>config.json</code>和<code>runtime.json</code>，使用 <code>runc spec</code> 可以生成一份标准的<code>config.json</code>和<code>runtime.json</code>配置文件，当然你也可以按照格式自己编写。</p>
+
+<p>如果你还没有安装<code>runc</code>，那就需要按照如下步骤安装一下，目前<code>runc</code>暂时只支持Linux平台。</p>
+
+<h3 id="安装-runc">安装<code>runc</code></h3>
+
+<p>Create a &lsquo;github.com/opencontainers&rsquo; in your GOPATH/src:</p>
+
+<p>cd github.com/opencontainers git clone <a href="https://github.com/opencontainers/runc">https://github.com/opencontainers/runc</a> cd runc make sudo make install `<code>\</code></p>
+
+<p>最后执行 <code>runc start</code> 你就启动了一个容器了。</p>
+
+<p>可以看到，我们对容器的所有定义，均包含在两份配置文件中，一份简略的<code>config.json</code>配置文件类似如下，已用省略号省去部分信息，完整的可以查看<a href="https://github.com/opencontainers/runc#oci-container-json-format">官方github</a>。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml">{<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">&#34;version&#34;: </span><span style="color:#c30">&#34;0.1.0&#34;</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">&#34;platform&#34;: </span>{<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">&#34;os&#34;: </span><span style="color:#c30">&#34;linux&#34;</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">&#34;arch&#34;: </span><span style="color:#c30">&#34;amd64&#34;</span><span style="color:#bbb">
+</span><span style="color:#bbb">  </span>},<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">&#34;process&#34;: </span>{<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">&#34;terminal&#34;: </span><span style="color:#069;font-weight:bold">true</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">&#34;user&#34;: </span>{<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;uid&#34;: </span><span style="color:#f60">0</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;gid&#34;: </span><span style="color:#f60">0</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;additionalGids&#34;: </span><span style="color:#069;font-weight:bold">null</span><span style="color:#bbb">
+</span><span style="color:#bbb">    </span>},<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">&#34;args&#34;: </span>[<span style="color:#c30">&#34;sh&#34;</span>],<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">&#34;env&#34;: </span>[<span style="color:#c30">&#34;PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin&#34;</span>,<span style="color:#bbb"> </span><span style="color:#c30">&#34;TERM=xterm&#34;</span>],<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">&#34;cwd&#34;: </span><span style="color:#c30">&#34;&#34;</span><span style="color:#bbb">
+</span><span style="color:#bbb">  </span>},<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">&#34;root&#34;: </span>{<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">&#34;path&#34;: </span><span style="color:#c30">&#34;rootfs&#34;</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">&#34;readonly&#34;: </span><span style="color:#069;font-weight:bold">true</span><span style="color:#bbb">
+</span><span style="color:#bbb">  </span>},<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">&#34;hostname&#34;: </span><span style="color:#c30">&#34;shell&#34;</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">&#34;mounts&#34;: </span>[{<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">&#34;name&#34;: </span><span style="color:#c30">&#34;proc&#34;</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">&#34;path&#34;: </span><span style="color:#c30">&#34;/proc&#34;</span><span style="color:#bbb">
+</span><span style="color:#bbb">  </span>},<span style="color:#bbb"> 
+</span><span style="color:#bbb">  </span>……<span style="color:#bbb"> 
+</span><span style="color:#bbb">  </span>{<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">&#34;name&#34;: </span><span style="color:#c30">&#34;cgroup&#34;</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">&#34;path&#34;: </span><span style="color:#c30">&#34;/sys/fs/cgroup&#34;</span><span style="color:#bbb">
+</span><span style="color:#bbb">  </span>}],<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">&#34;linux&#34;: </span>{<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">&#34;capabilities&#34;: </span>[<span style="color:#c30">&#34;CAP_AUDIT_WRITE&#34;</span>,<span style="color:#bbb"> </span><span style="color:#c30">&#34;CAP_KILL&#34;</span>,<span style="color:#bbb"> </span><span style="color:#c30">&#34;CAP_NET_BIND_SERVICE&#34;</span>]<span style="color:#bbb">
+</span><span style="color:#bbb">  </span>}<span style="color:#bbb">
+</span><span style="color:#bbb"></span>}</code></pre></div>
+<p>各部分表示的意思在1.2节中已经讲解，针对具体的内容我们可以看到，版本是0.10，该配置文件针对的是AMD64架构下的Linux系统，启动容器后执行的命令就是<code>sh</code>，配置的环境变量有两个，是<code>PATH</code>和<code>TERM</code>，启动后user的uid和gid都为0，表示进入后是root用户。<code>cwd</code>项为空表示工作目录为当前目录。capabilities能力方面则使用白名单的形式，从配置上可以看到只允许三个能力，功能分别为允许写入审计日志、允许发送信号、允许绑定socket到网络端口。 一份简略的<code>runtime.json</code>配置则如下，同样用省略号省去了部分内容：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml">{<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">&#34;mounts&#34;: </span>{<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">&#34;proc&#34;: </span>{<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;type&#34;: </span><span style="color:#c30">&#34;proc&#34;</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;source&#34;: </span><span style="color:#c30">&#34;proc&#34;</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;options&#34;: </span><span style="color:#069;font-weight:bold">null</span><span style="color:#bbb">
+</span><span style="color:#bbb">    </span>},<span style="color:#bbb">
+</span><span style="color:#bbb">    </span>……<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">&#34;cgroup&#34;: </span>{<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;type&#34;: </span><span style="color:#c30">&#34;cgroup&#34;</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;source&#34;: </span><span style="color:#c30">&#34;cgroup&#34;</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;options&#34;: </span>[<span style="color:#c30">&#34;nosuid&#34;</span>,<span style="color:#bbb"> </span><span style="color:#c30">&#34;noexec&#34;</span>,<span style="color:#bbb"> </span><span style="color:#c30">&#34;nodev&#34;</span>,<span style="color:#bbb"> </span><span style="color:#c30">&#34;relatime&#34;</span>,<span style="color:#bbb"> </span><span style="color:#c30">&#34;ro&#34;</span>]<span style="color:#bbb">
+</span><span style="color:#bbb">    </span>}<span style="color:#bbb">
+</span><span style="color:#bbb">  </span>},<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">&#34;hooks&#34;: </span>{<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">&#34;prestart&#34;: </span><span style="color:#069;font-weight:bold">null</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">&#34;poststop&#34;: </span><span style="color:#069;font-weight:bold">null</span><span style="color:#bbb">
+</span><span style="color:#bbb">  </span>},<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">&#34;linux&#34;: </span>{<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">&#34;uidMappings&#34;: </span><span style="color:#069;font-weight:bold">null</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">&#34;gidMappings&#34;: </span><span style="color:#069;font-weight:bold">null</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">&#34;rlimits&#34;: </span>[{<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;type&#34;: </span><span style="color:#c30">&#34;RLIMIT_NOFILE&#34;</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;hard&#34;: </span><span style="color:#f60">1024</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;soft&#34;: </span><span style="color:#f60">1024</span><span style="color:#bbb">
+</span><span style="color:#bbb">    </span>}],<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">&#34;sysctl&#34;: </span><span style="color:#069;font-weight:bold">null</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">&#34;resources&#34;: </span>{<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;disableOOMKiller&#34;: </span><span style="color:#069;font-weight:bold">false</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;memory&#34;: </span>{<span style="color:#bbb">
+</span><span style="color:#bbb">        </span><span style="color:#069;font-weight:bold">&#34;limit&#34;: </span><span style="color:#f60">0</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">        </span><span style="color:#069;font-weight:bold">&#34;reservation&#34;: </span><span style="color:#f60">0</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">        </span><span style="color:#069;font-weight:bold">&#34;swap&#34;: </span><span style="color:#f60">0</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">        </span><span style="color:#069;font-weight:bold">&#34;kernel&#34;: </span><span style="color:#f60">0</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">        </span><span style="color:#069;font-weight:bold">&#34;swappiness&#34;: </span>-<span style="color:#f60">1</span><span style="color:#bbb">
+</span><span style="color:#bbb">      </span>},<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;cpu&#34;: </span>{<span style="color:#bbb">
+</span><span style="color:#bbb">        </span><span style="color:#069;font-weight:bold">&#34;shares&#34;: </span><span style="color:#f60">0</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">        </span><span style="color:#069;font-weight:bold">&#34;quota&#34;: </span><span style="color:#f60">0</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">        </span><span style="color:#069;font-weight:bold">&#34;period&#34;: </span><span style="color:#f60">0</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">        </span><span style="color:#069;font-weight:bold">&#34;realtimeRuntime&#34;: </span><span style="color:#f60">0</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">        </span><span style="color:#069;font-weight:bold">&#34;realtimePeriod&#34;: </span><span style="color:#f60">0</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">        </span><span style="color:#069;font-weight:bold">&#34;cpus&#34;: </span><span style="color:#c30">&#34;&#34;</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">        </span><span style="color:#069;font-weight:bold">&#34;mems&#34;: </span><span style="color:#c30">&#34;&#34;</span><span style="color:#bbb">
+</span><span style="color:#bbb">      </span>},<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;pids&#34;: </span>{<span style="color:#bbb">
+</span><span style="color:#bbb">        </span><span style="color:#069;font-weight:bold">&#34;limit&#34;: </span><span style="color:#f60">0</span><span style="color:#bbb">
+</span><span style="color:#bbb">      </span>},<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;blockIO&#34;: </span>{<span style="color:#bbb">
+</span><span style="color:#bbb">        </span><span style="color:#069;font-weight:bold">&#34;blkioWeight&#34;: </span><span style="color:#f60">0</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">        </span><span style="color:#069;font-weight:bold">&#34;blkioWeightDevice&#34;: </span><span style="color:#c30">&#34;&#34;</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">        </span><span style="color:#069;font-weight:bold">&#34;blkioThrottleReadBpsDevice&#34;: </span><span style="color:#c30">&#34;&#34;</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">        </span><span style="color:#069;font-weight:bold">&#34;blkioThrottleWriteBpsDevice&#34;: </span><span style="color:#c30">&#34;&#34;</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">        </span><span style="color:#069;font-weight:bold">&#34;blkioThrottleReadIopsDevice&#34;: </span><span style="color:#c30">&#34;&#34;</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">        </span><span style="color:#069;font-weight:bold">&#34;blkioThrottleWriteIopsDevice&#34;: </span><span style="color:#c30">&#34;&#34;</span><span style="color:#bbb">
+</span><span style="color:#bbb">      </span>},<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;hugepageLimits&#34;: </span><span style="color:#069;font-weight:bold">null</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;network&#34;: </span>{<span style="color:#bbb">
+</span><span style="color:#bbb">        </span><span style="color:#069;font-weight:bold">&#34;classId&#34;: </span><span style="color:#c30">&#34;&#34;</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">        </span><span style="color:#069;font-weight:bold">&#34;priorities&#34;: </span><span style="color:#069;font-weight:bold">null</span><span style="color:#bbb">
+</span><span style="color:#bbb">      </span>}<span style="color:#bbb">
+</span><span style="color:#bbb">    </span>},<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">&#34;cgroupsPath&#34;: </span><span style="color:#c30">&#34;&#34;</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">&#34;namespaces&#34;: </span>[{<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;type&#34;: </span><span style="color:#c30">&#34;pid&#34;</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;path&#34;: </span><span style="color:#c30">&#34;&#34;</span><span style="color:#bbb">
+</span><span style="color:#bbb">    </span>},<span style="color:#bbb"> </span>{<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;type&#34;: </span><span style="color:#c30">&#34;network&#34;</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;path&#34;: </span><span style="color:#c30">&#34;&#34;</span><span style="color:#bbb">
+</span><span style="color:#bbb">    </span>},<span style="color:#bbb"> </span>{<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;type&#34;: </span><span style="color:#c30">&#34;ipc&#34;</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;path&#34;: </span><span style="color:#c30">&#34;&#34;</span><span style="color:#bbb">
+</span><span style="color:#bbb">    </span>},<span style="color:#bbb"> </span>{<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;type&#34;: </span><span style="color:#c30">&#34;uts&#34;</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;path&#34;: </span><span style="color:#c30">&#34;&#34;</span><span style="color:#bbb">
+</span><span style="color:#bbb">    </span>},<span style="color:#bbb"> </span>{<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;type&#34;: </span><span style="color:#c30">&#34;mount&#34;</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;path&#34;: </span><span style="color:#c30">&#34;&#34;</span><span style="color:#bbb">
+</span><span style="color:#bbb">    </span>}],<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">&#34;devices&#34;: </span>[{<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;path&#34;: </span><span style="color:#c30">&#34;/dev/null&#34;</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;type&#34;: </span><span style="color:#f60">99</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;major&#34;: </span><span style="color:#f60">1</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;minor&#34;: </span><span style="color:#f60">3</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;permissions&#34;: </span><span style="color:#c30">&#34;rwm&#34;</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;fileMode&#34;: </span><span style="color:#f60">438</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;uid&#34;: </span><span style="color:#f60">0</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;gid&#34;: </span><span style="color:#f60">0</span><span style="color:#bbb">
+</span><span style="color:#bbb">    </span>},<span style="color:#bbb"> </span>……<span style="color:#bbb"> 
+</span><span style="color:#bbb">    </span>{<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;path&#34;: </span><span style="color:#c30">&#34;/dev/urandom&#34;</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;type&#34;: </span><span style="color:#f60">99</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;major&#34;: </span><span style="color:#f60">1</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;minor&#34;: </span><span style="color:#f60">9</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;permissions&#34;: </span><span style="color:#c30">&#34;rwm&#34;</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;fileMode&#34;: </span><span style="color:#f60">438</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;uid&#34;: </span><span style="color:#f60">0</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;gid&#34;: </span><span style="color:#f60">0</span><span style="color:#bbb">
+</span><span style="color:#bbb">    </span>}],<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">&#34;apparmorProfile&#34;: </span><span style="color:#c30">&#34;&#34;</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">&#34;selinuxProcessLabel&#34;: </span><span style="color:#c30">&#34;&#34;</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">&#34;seccomp&#34;: </span>{<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;defaultAction&#34;: </span><span style="color:#c30">&#34;SCMP_ACT_ALLOW&#34;</span>,<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">&#34;syscalls&#34;: </span>[]<span style="color:#bbb">
+</span><span style="color:#bbb">    </span>},<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">&#34;rootfsPropagation&#34;: </span><span style="color:#c30">&#34;&#34;</span><span style="color:#bbb">
+</span><span style="color:#bbb">  </span>}<span style="color:#bbb">
+</span><span style="color:#bbb"></span>}</code></pre></div>
+<p>可以看到基本的几项配置分别为挂载点信息、启动前与停止后hooks脚本、然后就是针对Linux的特性支持的诸如用户uid/gid绑定，rlimit配置、namespace设置、cgroups资源限额、设备权限配置、apparmor配置项目录、selinux标记以及seccomp配置。其中，<a href="http://www.infoq.com/cn/articles/docker-kernel-knowledge-namespace-resource-isolation">namespaces</a>和<a href="http://www.infoq.com/cn/articles/docker-kernel-knowledge-cgroups-resource-isolation">cgroups</a>笔者均有写文章详细介绍过。</p>
+
+<p>再下面的工作便都由libcontainer完成了，大家可以阅读这个系列前一篇文章<a href="http://www.infoq.com/cn/articles/docker-container-management-libcontainer-depth-analysis">《Docker背后的容器管理——Libcontainer深度解析》</a>或者购买书籍<a href="http://item.jd.com/11757034.html">《Docker容器与容器云》</a>，里面均有详细介绍。 简单来讲，有了配置文件以后，runC就开始借助libcontainer处理以下事情：</p>
+
+<ul>
+<li>创建libcontainer构建容器需要使用的进程，称为Process；</li>
+<li>设置容器的输出管道，这里使用的就是daemon提供的pipes；</li>
+<li>使用名为Factory的工厂类，通过factory.Create(&lt;容器ID&gt;, &lt;填充好的容器模板container&gt;)创建一个逻辑上的容器，称为Container；</li>
+<li>执行Container.Start(Process)启动物理的容器；</li>
+<li>runC等待Process的所有工作都完成。</li>
+</ul>
+
+<p>可以看到，具体的执行者是libcontainer，它是对容器的一层抽象，它定义了Process和Container来对应Linux中“进程”与“容器”的关系。一旦上述物理的容器创建成功，其他调用者就可以通过ID获取这个容器，接着使用Container.Stats得到容器的资源使用信息，或者执行Container.Destory来销毁这个容器。</p>
+
+<p>综上，runC实际上是把配置交给libcontainer，然后由libcontainer完成容器的启动，而libcontainer中最主要的内容是Process、Container以及Factory这3个逻辑实体的实现原理。runC或者其他调用者只要依次执行“使用Factory创建逻辑容器Container”、“用Process启动逻辑容器Container”即可。</p>
+
+<h2 id="3-总结">3. 总结</h2>
+
+<p>本文从OCI组织的成立开始讲起，描述了开放容器格式的标准及其宗旨，这其实就是runC的由来。继而针对具体的runC特性及其启动进行了详细介绍。笔者在后续的文章中还将针对runC中诸如CRIU热迁移、selinux、apparmor及seccomp配置等特性进行具体的介绍。可以看到OCI的成立表明了社区及各大厂商对容器技术的肯定以及加快容器技术发展进步的强烈决心，相信在不久的将来，符合OCI标准的开放容器项目会越来越多，容器技术将更加欣欣向荣地不断前进。</p>
+                        </div>
+                        
+                        
+                        
+                        
+                        
+                        
+
+                        
+                        <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+                        <script src="https://unpkg.com/gitalk@latest/dist/gitalk.min.js"></script> 
+                        <script type="text/javascript" src="/assets/js/md5.min.js"></script>
+                        <div id="gitalk-container"></div>     
+                        <script type="text/javascript">
+                            var gitalk = new Gitalk({
+                              clientID: '835183d2dcbd1167ac28', 
+                            
+                              clientSecret: 'd873919fac3cc76921ee0800172c2279bc612f8d', 
+                            
+                              repo: 'Sel-Website-talk',
+                              owner: 'Peeknut',
+                              admin: ['Peeknut','Rachel-Shao'],
+                              id: location.href.split("/").pop().substring(0, 49),      
+                              distractionFreeMode: false  
+                            })
+                            gitalk.render('gitalk-container')
+                        </script> 
+                        
+
+                    </div>
+                    
+
+                    
+
+                    
+
+                    <div class="col-md-3">
+
+                        
+
+                        
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+      <h3 class="panel-title">搜索栏</h3>
+      
+    </div>
+
+    <div class="panel-body">
+        
+        <div class="search" id="search">
+            <div class="input-group">
+                <input type="text" name="q" class="form-control" placeholder="请输入文章标题或摘要..." id="search-key">
+                <input type="hidden" name="sitesearch" value="https://Congrool.github.io/">
+                <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main" onclick="search()"><i class="fas fa-search"></i></button>
+                </span>
+            </div>
+            <h1 id="search-tip" style="color: red;text-align: center;display: none;font-size: medium;">搜索中，请稍后 ...</h1>
+        </div>
+        <script type="text/javascript">
+            
+            window.onload = function() {
+                      document.onkeydown = function(ev) {
+                        var event = ev || event
+                        if (event.keyCode == 13) {
+                          search()
+                        }
+                      }
+                    }
+            
+            function search() {
+                    
+                      key = document.getElementById("search-key").value;
+                      if (key === "") {
+                        
+                        return;
+                      }
+                      key = key.toLowerCase();
+                      document.getElementById("search-key").value = "";
+                  
+                      
+                      document.getElementById("search-tip").innerText = "搜索中，请稍后 ...";
+                      document.getElementById("search-tip").style.display = "block";
+                  
+                      
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      var childs = el.childNodes;
+                      for (var i = childs.length - 1; i >= 0; i--) {
+                        el.removeChild(childs[i]);
+                      }
+                  
+                      
+                      xmltext = new XMLHttpRequest;
+                      xmltext.open("GET", "/index.xml", false);
+                      xmltext.send();
+                      resp = xmltext.responseXML;
+                      
+                      items = resp.getElementsByTagName("item");
+                      
+                      var i = 0;
+                      haveResult = false;
+                      while (i < items.length) {
+                        txt = items[i].getElementsByTagName("title")[0].innerHTML + items[i].getElementsByTagName("description")[0].innerHTML
+                        txt = txt.toLowerCase();
+                        if (txt.indexOf(key) > -1) {
+                          haveResult = true;
+                          title = items[i].getElementsByTagName("title")[0].innerHTML;
+                          link = items[i].getElementsByTagName("link")[0].innerHTML;
+                          time = items[i].getElementsByTagName("pubDate")[0].innerHTML;
+                          mark = items[i].getElementsByTagName("description")[0].innerHTML;
+                          time = time.slice(0, -5);
+                          addItem(title, link, time, mark)
+                        }
+                        i++;
+                      }
+                      if (!haveResult) {
+                        document.getElementById("search-tip").innerText = "搜索完毕，未发现结果 ...";
+                        document.getElementById("search-tip").style.display = "block";
+                      }
+
+                      
+                      var el = document.getElementById("blog-head");
+                      el.innerHTML="Blogs"
+                    }
+                  
+                    
+                    function addItem(title, link, time, mark) {
+                      document.getElementById("search-tip").style.display = "none";
+                      tmpl = "<article class=\"post\" style=\"border-bottom: 1px solid #e6e6e6;\" >" +
+                        "<header class=\"post-header\">" +
+                        "<h1 class=\"post-title\"><a class=\"post-link\" href=\"" + link + "\" target=\"_blank\">" + title + "</a></h1>" +
+                        "<div class=\"post-meta\">" +
+                        " <span class=\"post-time\">" + time + "</span>" +
+                        "</div>" +
+                        " </header>" +
+                        "<div class=\"post-content\">" +
+                        "<div class=\"post-summary\">" + mark + "</div>" +
+                        "<div class=\"read-more\">" +
+                        "<a href=" + link + " class=\"read-more-link\" target=\"_blank\">阅读更多</a>" +
+                        "</div>" +
+                        " </div>" +
+                        "</article>"
+                      div = document.createElement("div")
+                      div.innerHTML = tmpl;
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      el.appendChild(div)
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+
+        </script>
+        
+    </div>
+</div>
+
+
+
+
+
+
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">归档栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="nav nav-pills nav-stacked">
+            
+            
+            <li>
+                <a href="/categories/bosh">bosh (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloud_controller_ng">cloud_controller_ng (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloudfoundry">cloudfoundry (15)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/containerd">containerd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/docker">docker (19)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/etcd">etcd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/haproxy">haproxy (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/healthmanager">healthmanager (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/karmada">karmada (4)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubeedge">kubeedge (5)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubernetes">kubernetes (14)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/network">network (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/openyurt">openyurt (2)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/service-mesh">service-mesh (4)</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+<div class="panel sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">标签栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="tag-cloud">
+            
+            
+            <li>
+                <a href="/tags/agent"><i class="fas fa-tags"></i> agent</a>
+            </li>
+            
+            <li>
+                <a href="/tags/apiserver"><i class="fas fa-tags"></i> apiserver</a>
+            </li>
+            
+            <li>
+                <a href="/tags/books"><i class="fas fa-tags"></i> books</a>
+            </li>
+            
+            <li>
+                <a href="/tags/bosh"><i class="fas fa-tags"></i> bosh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/ccng"><i class="fas fa-tags"></i> ccng</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cf-release"><i class="fas fa-tags"></i> cf-release</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cgroups"><i class="fas fa-tags"></i> cgroups</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudfoundry"><i class="fas fa-tags"></i> cloudfoundry</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudnative"><i class="fas fa-tags"></i> cloudnative</a>
+            </li>
+            
+            <li>
+                <a href="/tags/collector"><i class="fas fa-tags"></i> collector</a>
+            </li>
+            
+            <li>
+                <a href="/tags/containerd"><i class="fas fa-tags"></i> containerd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cri"><i class="fas fa-tags"></i> cri</a>
+            </li>
+            
+            <li>
+                <a href="/tags/dea"><i class="fas fa-tags"></i> dea</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker"><i class="fas fa-tags"></i> docker</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker-network"><i class="fas fa-tags"></i> docker-network</a>
+            </li>
+            
+            <li>
+                <a href="/tags/edgecomputing"><i class="fas fa-tags"></i> edgecomputing</a>
+            </li>
+            
+            <li>
+                <a href="/tags/etcd"><i class="fas fa-tags"></i> etcd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/gorouter"><i class="fas fa-tags"></i> gorouter</a>
+            </li>
+            
+            <li>
+                <a href="/tags/haproxy"><i class="fas fa-tags"></i> haproxy</a>
+            </li>
+            
+            <li>
+                <a href="/tags/healthmanager"><i class="fas fa-tags"></i> healthmanager</a>
+            </li>
+            
+            <li>
+                <a href="/tags/istio"><i class="fas fa-tags"></i> istio</a>
+            </li>
+            
+            <li>
+                <a href="/tags/karmada"><i class="fas fa-tags"></i> karmada</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubeedge"><i class="fas fa-tags"></i> kubeedge</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubelet"><i class="fas fa-tags"></i> kubelet</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubernetes"><i class="fas fa-tags"></i> kubernetes</a>
+            </li>
+            
+            <li>
+                <a href="/tags/libcontainer"><i class="fas fa-tags"></i> libcontainer</a>
+            </li>
+            
+            <li>
+                <a href="/tags/micro-service"><i class="fas fa-tags"></i> micro-service</a>
+            </li>
+            
+            <li>
+                <a href="/tags/namespace"><i class="fas fa-tags"></i> namespace</a>
+            </li>
+            
+            <li>
+                <a href="/tags/nats"><i class="fas fa-tags"></i> nats</a>
+            </li>
+            
+            <li>
+                <a href="/tags/news"><i class="fas fa-tags"></i> news</a>
+            </li>
+            
+            <li>
+                <a href="/tags/openyurt"><i class="fas fa-tags"></i> openyurt</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pipework"><i class="fas fa-tags"></i> pipework</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pouch"><i class="fas fa-tags"></i> pouch</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runc"><i class="fas fa-tags"></i> runc</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runtime"><i class="fas fa-tags"></i> runtime</a>
+            </li>
+            
+            <li>
+                <a href="/tags/security"><i class="fas fa-tags"></i> security</a>
+            </li>
+            
+            <li>
+                <a href="/tags/serverless"><i class="fas fa-tags"></i> serverless</a>
+            </li>
+            
+            <li>
+                <a href="/tags/service-mesh"><i class="fas fa-tags"></i> service-mesh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/syslog_aggregator"><i class="fas fa-tags"></i> syslog_aggregator</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+                        
+
+                    </div>
+                    
+
+                    
+
+                </div>
+                
+
+            </div>
+            
+        </div>
+        
+
+        <footer id="footer">
+    <div class="container">
+
+        
+        <div class="col-md-4 col-sm-6">
+            <h4></h4>
+
+            <p><strong>关于我们：<strong> <p>浙大SEL实验室</p><p>地址：杭州市浙大路38号曹光彪西楼405室</p><p><strong></strong>
+            <a href="/contact" class="btn btn-small btn-template-main" >跳转到关于</a>
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+        <div class="col-md-4 col-sm-6">
+
+             
+            <h4>最新博客</h4>
+            
+
+            <div class="blog-entries">
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/27/overview.png" class="img-responsive" alt="基于KubeEdge的边缘节点分组管理设计与实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">基于KubeEdge的边缘节点分组管理设计与实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/20/karmada-scheduler.png" class="img-responsive" alt="多云环境下的资源调度：karmada scheduler的框架和实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">多云环境下的资源调度：karmada scheduler的框架和实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">
+                          
+                            <img src="/img/blogs/19/karmada-arch.jpg" class="img-responsive" alt="多云环境下的成员集群管理，看看开源项目karmada是如何做到的">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">多云环境下的成员集群管理，看看开源项目karmada是如何做到的</a></h5>
+                    </div>
+                </div>
+                
+            </div>
+
+            <hr class="hidden-md hidden-lg">
+             
+
+        </div>
+        
+
+        
+        <div class="col-md-4 col-sm-6">
+
+          <h4></h4>
+
+            <p><strong>联系我们: 
+                                    <p>团队负责人：丁轶群 yiqunding@zju.edu.cn</p>
+                                    <p>网站维护人：刘佳文 839809484@qq.com</p>                
+    </strong>
+
+            
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+    </div>
+    
+</footer>
+
+
+
+
+
+
+
+<div id="copyright">
+    <div class="container">
+        <div class="col-md-12">
+            
+            <p class="pull-left">Copyright ©️ 2020 SEL Laboratory , ZJ University all rights reserved.</p>
+            
+            <p class="pull-right">
+               <a href="https://bootstrapious.com/p/universal-business-e-commerce-template">Bootstrapious</a>.
+              
+
+               <a href="https://github.com/devcows/hugo-universal-theme">DevCows</a>.
+            </p>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+    </div>
+    
+
+    
+
+
+<script src="/js/jquery.min.js"></script>
+<script src="/js/bootstrap.min.js"></script>
+
+
+
+<script src="/js/jquery.cookie.min.js"></script>
+<script src="/js/jquery.waypoints.min.js"></script>
+<script src="/js/jquery.counterup.min.js"></script>
+<script src="/js/jquery-parallax.js"></script>
+
+
+<script src="/js/front.js"></script>
+
+
+<script src="/js/owl.carousel.min.js"></script>
+
+
+
+  </body>
+</html>

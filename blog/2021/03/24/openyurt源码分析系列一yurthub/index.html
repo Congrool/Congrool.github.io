@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="robots" content="all,follow">
+  <meta name="googlebot" content="index,follow,snippet,archive">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <title>openyurt源码分析系列（一）：YurtHub</title>
+  <meta name="author" content="张逸飞" />
+  
+  
+  
+  
+  <meta name="keywords" content="openyurt">
+  
+  
+  <meta name="description" content="YurtHub的功能主要是对客户端Request的反向代理。本文基于Openyurt 0.3版本（commit: e1c1651405aeeb61f0ad264a9acdf8d08e917a4d）的源码，提供了对反向代理功能的解析（不包括YurtHub的本地缓存管理：CacheManager，storage和GC）">
+
+  <meta name="generator" content="Hugo 0.68.3" />
+
+  
+  <link href='//fonts.googleapis.com/css?family=Roboto:400,100,100italic,300,300italic,500,700,800' rel='stylesheet' type='text/css'>
+
+  
+  
+  
+  
+  
+
+  <link href="/css/all.css" rel="stylesheet">
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+
+  
+  <link href="/css/animate.css" rel="stylesheet">
+
+  
+  
+    <link href="/css/style.default.css" rel="stylesheet" id="theme-stylesheet">
+  
+
+  
+  <link href="/css/custom.css" rel="stylesheet">
+
+  
+  
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+        <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  
+
+  
+  <link rel="shortcut icon" href="/img/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
+
+  
+  <link href="/css/owl.carousel.css" rel="stylesheet">
+  <link href="/css/owl.theme.css" rel="stylesheet">
+
+  
+  <link rel="alternate" href="https://Congrool.github.io/index.xml" type="application/rss+xml" title="浙大SEL实验室">
+
+  
+  
+  
+  
+  
+  
+  <meta property="og:updated_time" content="2021-03-24T10:00:11Z">
+  
+    
+    
+    <meta property="article:section" content="openyurt">
+    <meta property="article:tag" content="openyurt">
+    
+    
+    <meta property="article:published_time" content="2021-03-24T10:00:11Z">
+    <meta property="article:modified_time" content="2021-03-24T10:00:11Z">
+  
+
+  
+  <meta name="twitter:card" content="summary">
+  
+  <meta name="twitter:title" content="openyurt源码分析系列（一）：YurtHub">
+  
+  <meta name="twitter:description" content="YurtHub的功能主要是对客户端Request的反向代理。本文基于Openyurt 0.3版本（commit: e1c1651405aeeb61f0ad264a9acdf8d08e917a4d）的源码，提供了对反向代理功能的解析（不包括YurtHub的本地缓存管理：CacheManager，storage和GC）">
+  
+  
+</head>
+
+
+  <body>
+
+    <div id="all">
+
+        <header class="navbar-affixed-top" data-spy="affix" data-offset-top="62">
+    <div class="navbar navbar-default yamm" role="navigation" id="navbar" style="background-color:white;">    
+        <div class="container">
+            <div class="navbar-header">
+                <a class="navbar-brand home" href="/">
+                    <img src="/img/sel.png" alt="openyurt源码分析系列（一）：YurtHub" class="hidden-xs hidden-sm img-responsive">
+                    
+                    <span class="sr-only">openyurt源码分析系列（一）：YurtHub - </span>
+                </a>
+                <div class="navbar-buttons">
+                    <button type="button" class="navbar-toggle btn-template-main" data-toggle="collapse" data-target="#navigation">
+                      <span class="sr-only"></span>
+                        <i class="fas fa-align-justify"></i>
+                    </button>
+                </div>
+            </div>
+            
+
+            <div class="navbar-collapse collapse" id="navigation">
+                <ul class="nav navbar-nav navbar-right">
+                  
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/">主页</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/blog/">博客</a>
+                    
+                  </li>
+
+                  <li class="dropdown">
+                    
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">社区 <span class="caret"></span></a>
+                  <ul class="dropdown-menu">
+                    
+                      <li><a href="https://www.servicemesher.com/">ServiceMesh社区</a></li>
+                    
+                      <li><a href="">kubeedge社区</a></li>
+
+                      <li><a href="http://www.icsoft.zju.edu.cn/index.php">浙江大学智能计算与软件中心</a></li>
+                    
+                  </ul>
+
+                  <li class="dropdown">
+                    
+                    <a href="/archives/">归档</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/contact/">关于</a>
+                    
+                  </li>
+                  
+                </li>
+
+                
+                
+
+                
+                </ul>
+            </div>
+            
+
+            <div class="collapse clearfix" id="search">    
+                <form class="navbar-form" role="search">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search">
+                        <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main"><i class="fas fa-search"></i></button>
+                </span>
+                    </div>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+
+    
+</header>
+
+
+
+
+        <div id="heading-breadcrumbs">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h1>openyurt源码分析系列（一）：YurtHub</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+        <div id="content">
+            <div class="container">
+
+                <div class="row">
+
+                    
+
+                    <div class="col-md-9" id="blog-post">
+
+                        
+                          <p class="text-muted text-uppercase mb-small text-right">
+                             <a href="#">张逸飞</a>
+                             | 
+                            2021-03-24
+                          </p>
+                        
+
+                        <div id="post-content">
+                          <p>YurtHub的功能主要是对客户端Request的反向代理。本文基于Openyurt 0.3版本（commit: <code>e1c1651405aeeb61f0ad264a9acdf8d08e917a4d</code>）的源码，提供了对反向代理功能的解析（不包括YurtHub的本地缓存管理：CacheManager，storage和GC）。</p>
+
+<h2 id="一-yurthubserver源码分析">一、YurtHubServer源码分析</h2>
+
+<p>YurtHubServer是执行ListenAndServe的主体，其主要结构和功能是YurtReverseProxy，即边缘节点的反向代理。YurtHubServer将YurtReverseProxy挂载在几乎所有路径（以<code>/</code>为前缀的路径，但也有一些路径另作他用）上，当HTTP请求的URL路径满足条件就会交由YurtReverseProxy处理，但在此之前会对request通过context添加一些额外的信息。</p>
+
+<h3 id="挂载的路径和功能">挂载的路径和功能</h3>
+
+<p>YurtHubServer挂载的路径，方法和handler的对应关系：</p>
+
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Method</th>
+<th>Handler</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>/v1/token</code></td>
+<td>POST, GET</td>
+<td>updateToken</td>
+</tr>
+
+<tr>
+<td><code>/v1/healthz</code></td>
+<td>GET</td>
+<td>healthz</td>
+</tr>
+
+<tr>
+<td><code>/debug/pprof</code> and <code>/debug/pprof/</code></td>
+<td>ALL</td>
+<td>pprof.Index</td>
+</tr>
+
+<tr>
+<td><code>/debug/pprof/profile</code></td>
+<td>ALL</td>
+<td>pprof.Profile</td>
+</tr>
+
+<tr>
+<td><code>/debug/pprof/symbol</code></td>
+<td>ALL</td>
+<td>pprof.Symbol</td>
+</tr>
+
+<tr>
+<td><code>/debug/pprof/trace</code></td>
+<td>ALL</td>
+<td>pprof.Trace</td>
+</tr>
+
+<tr>
+<td>Others</td>
+<td>ALL</td>
+<td>proxyHandler</td>
+</tr>
+</tbody>
+</table>
+
+<p>其中：</p>
+
+<p>updateToken是用来更新节点的证书。</p>
+
+<p>healthz是直接返回StatusOK，用于其它节点对本节点的健康检查。</p>
+
+<p>pprof相关的handler是用来提供profile服务。</p>
+
+<p>proxyHandler提供其主要的反向代理功能。</p>
+
+<h3 id="proxyhandler功能">proxyHandler功能</h3>
+
+<p>YurtHubServer在接收到HTTP request后，在通过YurtReverseProxy转发前，会先对request进行处理。流程如下：</p>
+
+<ol>
+<li>检查是否超过服务器request上限：当pending的request数量超过设置的阈值，拒绝请求。</li>
+
+<li><p>提取requestInfo：从request中提取具体信息requestInfo，其中包括verb（例如Watch, List），是否是resource请求等信息，并将requestInfo以键值对<code>requestInfoKey:requestInfo</code>的形式通过context附加在request上。</p></li>
+
+<li><p>附加ClientComponent信息：如果是resource请求，从<code>request.Header</code>中提取出<code>User-Agent</code>对应的值，以键值对<code>ProxyClientComponent:component</code>的形式通过context附加在request上。（component信息表示发送请求的是哪个部件，如kubelet，kube-proxy等）</p></li>
+
+<li><p>是否设置Timeout：如果<code>verb == Watch</code>，从request中提取Timeout（如果有的话）参数，以context with deadline的形式附加在request上。</p></li>
+
+<li><p>是否需要缓存：根据request.Header中<code>Edge-Cache</code>键对应的值<code>needToCache</code>（bool），以键值对<code>ProxyReqCanCache:needToCache</code>的形式通过context  附加在request上。</p></li>
+
+<li><p>附加ContentType信息：将request.Header中<code>Accept</code>键对应的值<code>contentType</code>，以键值对<code>ProxyReqContentType:contentType</code>的形式通过context附加在request上。</p></li>
+
+<li><p>跟踪response状态码</p></li>
+</ol>
+
+<p>在这之后才会将request转交给YurtReverseProxy。</p>
+
+<p>其构造handler的函数源码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> (p <span style="color:#555">*</span>yurtReverseProxy) <span style="color:#c0f">buildHandlerChain</span>(handler http.Handler) http.Handler {
+	handler = util.<span style="color:#c0f">WithRequestTrace</span>(handler)
+	handler = util.<span style="color:#c0f">WithRequestContentType</span>(handler)
+	handler = util.<span style="color:#c0f">WithCacheHeaderCheck</span>(handler)
+	handler = util.<span style="color:#c0f">WithRequestTimeout</span>(handler)
+	handler = util.<span style="color:#c0f">WithRequestClientComponent</span>(handler)
+	handler = filters.<span style="color:#c0f">WithRequestInfo</span>(handler, p.resolver)
+	handler = util.<span style="color:#c0f">WithMaxInFlightLimit</span>(handler, p.maxRequestsInFlight)
+	<span style="color:#069;font-weight:bold">return</span> handler
+}</code></pre></div>
+<p>这里值得注意的是其执行顺序，当接收到request后，其通过的顺序应该是由下而上的。其中<code>With*</code>函数大体都是如下模式：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> With<span style="color:#555">*</span>(handler http.handler, other<span style="color:#555">-</span>parameters) http.Handler{
+	<span style="color:#069;font-weight:bold">return</span> http.<span style="color:#c0f">HandlerFunc</span>(<span style="color:#069;font-weight:bold">func</span>(w http.ResponseWriter, req <span style="color:#555">*</span>http.Request) {
+		<span style="color:#09f;font-style:italic">// some statements
+</span><span style="color:#09f;font-style:italic"></span>        handler.<span style="color:#c0f">ServeHTTP</span>(w,req)
+	})
+}</code></pre></div>
+<p>因此在执行完<code>handler = util.WithRequestTrace(handler)</code>后，handler变为<code>with*</code>函数的返回值函数，但原先的handler并没有消失，而是在返回值函数中以<code>handler.ServeHTTP(w,req)</code>的形式存在。因此<code>with*</code>函数相当于在handler执行逻辑上增加了一些执行语句（some statements），对request处理时从最上面的语句开始执行，即从最后的<code>with*</code>函数逻辑开始向上执行。</p>
+
+<h3 id="links">Links</h3>
+
+<p>Next:  <a href="#YurtReverseProxy源码分析">YurtReverseProxy源码分析</a></p>
+
+<p></br></p>
+
+<p></br></p>
+
+<h2 id="二-yurtreverseproxy源码分析">二、YurtReverseProxy源码分析</h2>
+
+<h3 id="yurtreverseproxy主要功能">YurtReverseProxy主要功能</h3>
+
+<p>代理来自边缘节点（Kubelet，Kube-Proxy等）的REST请求，根据APIServer的健康状况，如果健康则将该请求通过Load Balancer转发到APIServer处理，否则在本地节点Local Proxy中进行处理。最后将reponse返回给请求方。</p>
+
+<p><img src="https://res.cloudinary.com/rachel725/image/upload/v1616579999/sel/22271616579851_.pic_hd_r9pnx5.png" alt="arch" style="zoom:30%;" /></p>
+
+<h3 id="yurtreverseproxy结构">YurtReverseProxy结构</h3>
+
+<p>YurtReverseProxy内有：</p>
+
+<ol>
+<li>LoadBalacer：能判断APIServer的健康状态，并能将请求转发到APIServer处理。</li>
+<li>LocalProxy：能根据本地缓存情况处理请求。</li>
+<li>CacheManager：用来管理本地缓存（交由LocalProxy使用，YurtReverseProxy并不直接使用）。</li>
+<li>RequestInfoResolver：用来解析request得到requestInfo。</li>
+</ol>
+
+<p>结构体如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">type</span> yurtReverseProxy <span style="color:#069;font-weight:bold">struct</span> {
+	resolver            apirequest.RequestInfoResolver
+	loadBalancer        remote.LoadBalancer
+	localProxy          <span style="color:#555">*</span>local.LocalProxy
+	cacheMgr            cachemanager.CacheManager
+	maxRequestsInFlight <span style="color:#078;font-weight:bold">int</span> <span style="color:#09f;font-style:italic">// 用来限制pending request数量的上限
+</span><span style="color:#09f;font-style:italic"></span>	stopCh              <span style="color:#555">&lt;-</span><span style="color:#069;font-weight:bold">chan</span> <span style="color:#069;font-weight:bold">struct</span>{}
+}</code></pre></div>
+<h3 id="yurtreverseproxy工作流程">YurtReverseProxy工作流程</h3>
+
+<p>作为YurtHubServer的一个组件，它接受YurtHubServer指定Path（除了<code>/v1/token</code>，<code>/v1/healthz</code>和一些<code>/debug</code>下的路径外）的request，并进行处理。</p>
+
+<p>通过LoadBalancer判断APIServer的健康状况，如果健康则调用LoadBalancer处理请求，否则调用LocalProxy处理请求。</p>
+
+<p>具体源码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> (p <span style="color:#555">*</span>yurtReverseProxy) <span style="color:#c0f">ServeHTTP</span>(rw http.ResponseWriter, req <span style="color:#555">*</span>http.Request) {
+	<span style="color:#069;font-weight:bold">if</span> p.loadBalancer.<span style="color:#c0f">IsHealthy</span>() {
+		p.loadBalancer.<span style="color:#c0f">ServeHTTP</span>(rw, req)
+	} <span style="color:#069;font-weight:bold">else</span> {
+		p.localProxy.<span style="color:#c0f">ServeHTTP</span>(rw, req)
+	}
+}</code></pre></div>
+<h3 id="links-1">Links</h3>
+
+<p>Previous：<a href="#YurtHubServer源码分析">YurtHubServer源码分析</a></p>
+
+<p>Next:</p>
+
+<ol>
+<li><p><a href="#LoadBalancer源码分析">LoadBalancer源码分析</a></p></li>
+
+<li><p><a href="#LocalProxy源码分析">LocalProxy源码分析</a></p></li>
+</ol>
+
+<p></br></p>
+
+<p></br></p>
+
+<h2 id="三-loadbalancer源码分析">三、LoadBalancer源码分析</h2>
+
+<h3 id="loadbalancer的主要功能">LoadBalancer的主要功能</h3>
+
+<p>在APIServer处于健康状态时，LoadBalancer接收来自YurtReverseProxy的request，并转发到APIServer。LoadBalancer中记录了多个能处理request的APIServer的地址，在转发request时会采取一定的负载均衡策略。</p>
+
+<h3 id="结构">结构</h3>
+
+<h4 id="loadbalancer的结构">LoadBalancer的结构</h4>
+
+<p>LoadBalancer内主要有APIServer代理列表（<code>[]*RemoteProxy</code>)和负载均衡策略（<code>loadBalancerAlgo</code>）。APIServer代理（RemoteProxy）代理一个能处理request的APIServer。LoadBalancer根据设置的负载均衡策略，挑选一个APIServer代理，将request通过APIServer代理转发到APIServer。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">type</span> loadBalancer <span style="color:#069;font-weight:bold">struct</span> {
+	backends    []<span style="color:#555">*</span>RemoteProxy
+	algo        loadBalancerAlgo
+	certManager interfaces.YurtCertificateManager
+}</code></pre></div>
+<h4 id="remoteproxy的结构">RemoteProxy的结构</h4>
+
+<p>RemoteProxy内置有</p>
+
+<ul>
+<li>RemoteProxy：利用<code>net/http/httputil</code>中的ReverseProxy来完成代理的主要工作。</li>
+<li>CacheManager：利用缓存中的信息修改从APIServer返回的response</li>
+<li>HealthChecker，用来判断APIServer是否健康</li>
+
+<li><p>RemoteServer，用来记录APIServer的信息。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// RemoteProxy is an reverse proxy for remote server
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">type</span> RemoteProxy <span style="color:#069;font-weight:bold">struct</span> {
+	checker      healthchecker.HealthChecker
+	reverseProxy <span style="color:#555">*</span>httputil.ReverseProxy
+	cacheMgr     cachemanager.CacheManager
+	remoteServer <span style="color:#555">*</span>url.URL
+	stopCh       <span style="color:#555">&lt;-</span><span style="color:#069;font-weight:bold">chan</span> <span style="color:#069;font-weight:bold">struct</span>{}
+}</code></pre></div></li>
+</ul>
+
+<h3 id="loadbalancer的工作流程">LoadBalancer的工作流程</h3>
+
+<ol>
+<li>根据一定的负载均衡策略选择一个健康的APIServer</li>
+<li>将request交APIServer代理处理</li>
+</ol>
+
+<p>源码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> (lb <span style="color:#555">*</span>loadBalancer) <span style="color:#c0f">ServeHTTP</span>(rw http.ResponseWriter, req <span style="color:#555">*</span>http.Request){
+    <span style="color:#09f;font-style:italic">// 通过策略选择一个APIServer代理
+</span><span style="color:#09f;font-style:italic"></span>	b <span style="color:#555">:=</span> lb.algo.<span style="color:#c0f">PickOne</span>()
+    
+    <span style="color:#09f;font-style:italic">// ...
+</span><span style="color:#09f;font-style:italic"></span>	<span style="color:#09f;font-style:italic">// omit code of error handling and logging
+</span><span style="color:#09f;font-style:italic"></span>    <span style="color:#09f;font-style:italic">// ...
+</span><span style="color:#09f;font-style:italic"></span>    
+    <span style="color:#09f;font-style:italic">// 交由APIServer代理处理
+</span><span style="color:#09f;font-style:italic"></span>	b.<span style="color:#c0f">ServeHTTP</span>(rw, req)
+}</code></pre></div>
+<p>APIServer代理收到request后直接调用httputil中的RemoteProxy处理。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> (rp <span style="color:#555">*</span>RemoteProxy) <span style="color:#c0f">ServeHTTP</span>(rw http.ResponseWriter, req <span style="color:#555">*</span>http.Request) {
+	rp.reverseProxy.<span style="color:#c0f">ServeHTTP</span>(rw, req)
+}</code></pre></div>
+<p>除了默认的处理流程外，将收到response发回前可能还会对response的内容进行处理和修改。主要为：</p>
+
+<ol>
+<li>如果request的操作为&rdquo;watch&rdquo;，会在response.Header中添加<code>Transfer-Encoding:chunked</code>，使用长连接处理watch请求。</li>
+<li>如果request设置了缓存（根据request的context的<code>ProxyReqCanCache:needToCache</code>，或是使用其它条件判断），则会调用CacheManager将reponse的内容缓存到本地。</li>
+</ol>
+
+<h3 id="负载均衡策略">负载均衡策略</h3>
+
+<p>目前LoadBalancer中内置了两种负载均衡策略：Round-Robin和基于优先级的策略。一个LoadBalancer采用哪种负载均衡策略在创建时由<code>lbMode</code>参数指定：<code>rr</code>表示Round-Robin，<code>priority</code>表示基于优先级的调度策略。默认使用的Round-Robin。LoadBalancer统一通过策略的PickOne()接口来选出一个能够转发请求的APIServer。</p>
+
+<p><strong>策略结构</strong></p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">type</span> loadBalancerAlgo <span style="color:#069;font-weight:bold">interface</span> {
+	<span style="color:#c0f">PickOne</span>() <span style="color:#555">*</span>RemoteProxy
+	<span style="color:#c0f">Name</span>() <span style="color:#078;font-weight:bold">string</span>
+}</code></pre></div>
+<p><strong>Roud-Robin策略原理</strong></p>
+
+<p>如果没有健康的APIServer，则返回nil。否则通过不回退的轮询来找到第一个健康的APIServer。</p>
+
+<p>轮询部分的源码：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">hasFound <span style="color:#555">:=</span> <span style="color:#069;font-weight:bold">false</span>
+selected <span style="color:#555">:=</span> rr.next <span style="color:#09f;font-style:italic">// next 是上次轮询的终点位置
+</span><span style="color:#09f;font-style:italic">// rr.backends是记录的所有APIServer的序列
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">for</span> i <span style="color:#555">:=</span> <span style="color:#f60">0</span>; i &lt; <span style="color:#366">len</span>(rr.backends); i<span style="color:#555">++</span> {
+    selected = (rr.next <span style="color:#555">+</span> i) <span style="color:#555">%</span> <span style="color:#366">len</span>(rr.backends)
+    <span style="color:#069;font-weight:bold">if</span> rr.backends[selected].<span style="color:#c0f">IsHealthy</span>() {
+        hasFound = <span style="color:#069;font-weight:bold">true</span>
+        <span style="color:#069;font-weight:bold">break</span>
+    }
+}
+
+<span style="color:#069;font-weight:bold">if</span> hasFound {
+    rr.next = (selected <span style="color:#555">+</span> <span style="color:#f60">1</span>) <span style="color:#555">%</span> <span style="color:#366">len</span>(rr.backends)
+    <span style="color:#069;font-weight:bold">return</span> rr.backends[selected]
+}</code></pre></div>
+<p><strong>基于优先级的策略</strong></p>
+
+<p>使用基于优先级的策略时，需要手动按优先级将APIServer序列排序。策略本身的实现是从头开始的轮询。</p>
+
+<p>实现源码：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// prio.backends是记录的所有APIServer的序列
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">for</span> i <span style="color:#555">:=</span> <span style="color:#f60">0</span>; i &lt; <span style="color:#366">len</span>(prio.backends); i<span style="color:#555">++</span> {
+    <span style="color:#069;font-weight:bold">if</span> prio.backends[i].<span style="color:#c0f">IsHealthy</span>() {
+    	<span style="color:#069;font-weight:bold">return</span> prio.backends[i]
+    }
+}</code></pre></div>
+<h3 id="links-2">Links</h3>
+
+<p>Previous: <a href="#YurtReverseProxy源码分析">YurtReverseProxy源码分析</a></p>
+
+<p></br></p>
+
+<p></br></p>
+
+<h2 id="四-localproxy源码分析">四、LocalProxy源码分析</h2>
+
+<h3 id="localproxy的主要功能">LocalProxy的主要功能</h3>
+
+<p>在APIServer非健康状态下，接受来自YurtReverseProxy的request，并根据本地缓存和request的内容进行处理。目前只支持ResourceRequest。处理内容主要是根据ResourceRequest中对资源的操作类型（verb）来更新本地缓存。</p>
+
+<h3 id="localproxy的结构">LocalProxy的结构</h3>
+
+<p>LocalProxy内有：</p>
+
+<ol>
+<li>CacheManager：用来管理本地缓存</li>
+<li>IsHealthy：是传入的LoadBalancer功能，用来判断APIServer是否健康</li>
+</ol>
+
+<p>结构体如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// LocalProxy is responsible for handling requests when remote servers are unhealthy
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">type</span> LocalProxy <span style="color:#069;font-weight:bold">struct</span> {
+	cacheMgr  manager.CacheManager
+	isHealthy IsHealthy
+}</code></pre></div>
+<h3 id="localproxy的处理流程">LocalProxy的处理流程</h3>
+
+<ol>
+<li><p>过滤非ResourceRequest，并返回BadRequest Response</p></li>
+
+<li><p>根据操作类型分别进行处理：</p>
+
+<ul>
+<li><strong>watch：</strong></li>
+</ul>
+
+<p>在Response.Header中设置<code>Transfer-Encoding:chuncked</code>，以长连接处理watch请求。然而目前LocalProxy并不支持本地处理watch，因此直到Timeout都在周期性探测APIServer是否健康，如果感知到APIserver恢复健康则直接返回nil，下次watch将由LoadBalancer处理。</p>
+
+<ul>
+<li><strong>create：</strong></li>
+</ul>
+
+<p>如果请求的resource是event，则调用<code>CacheManager.CacheResponse</code>将请求的内容缓存到本地。并总会返回一个response，header和body与request相同，状态码为201(StatusCreated)。</p>
+
+<ul>
+<li><strong>delete || deletecollection：</strong></li>
+</ul>
+
+<p>LocalProxy不支持对resource的delete请求，因此返回的Response的Reason为&rdquo;Forbidden&rdquo;，状态码为200(StatusOK)。</p>
+
+<ul>
+<li><strong>list || get || update || patch：</strong></li>
+</ul>
+
+<p>根据request中的信息生成key，调用<code>CacheManager.QueryCache</code>根据key找到缓存中的runtime.object(s)，将其写入response并返回。</p></li>
+</ol>
+
+<p>服务功能的伪代码如下：</p>
+<pre><code>if reqestInfo != nil and requestInfo.IsResourceRequest{
+	switch requestInfo.Verb{
+	case &#34;watch&#34;:
+		localWatch(request)
+	case &#34;create&#34;：
+		localPost(request)
+	case &#34;delete&#34; or &#34;deletecollection&#34;:
+		localDelete(request)
+	default:
+		localReqCache(request)
+	}
+}
+else{
+	resp.Write(errors.BadRequest)
+}</code></pre>
+<h3 id="links-3">Links</h3>
+
+<p>Previous: <a href="#YurtReverseProxy源码分析">YurtReverseProxy源码分析</a></p>
+                        </div>
+                        
+                        
+                        
+                        
+                        
+                        
+
+                        
+                        <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+                        <script src="https://unpkg.com/gitalk@latest/dist/gitalk.min.js"></script> 
+                        <script type="text/javascript" src="/assets/js/md5.min.js"></script>
+                        <div id="gitalk-container"></div>     
+                        <script type="text/javascript">
+                            var gitalk = new Gitalk({
+                              clientID: '835183d2dcbd1167ac28', 
+                            
+                              clientSecret: 'd873919fac3cc76921ee0800172c2279bc612f8d', 
+                            
+                              repo: 'Sel-Website-talk',
+                              owner: 'Peeknut',
+                              admin: ['Peeknut','Rachel-Shao'],
+                              id: location.href.split("/").pop().substring(0, 49),      
+                              distractionFreeMode: false  
+                            })
+                            gitalk.render('gitalk-container')
+                        </script> 
+                        
+
+                    </div>
+                    
+
+                    
+
+                    
+
+                    <div class="col-md-3">
+
+                        
+
+                        
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+      <h3 class="panel-title">搜索栏</h3>
+      
+    </div>
+
+    <div class="panel-body">
+        
+        <div class="search" id="search">
+            <div class="input-group">
+                <input type="text" name="q" class="form-control" placeholder="请输入文章标题或摘要..." id="search-key">
+                <input type="hidden" name="sitesearch" value="https://Congrool.github.io/">
+                <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main" onclick="search()"><i class="fas fa-search"></i></button>
+                </span>
+            </div>
+            <h1 id="search-tip" style="color: red;text-align: center;display: none;font-size: medium;">搜索中，请稍后 ...</h1>
+        </div>
+        <script type="text/javascript">
+            
+            window.onload = function() {
+                      document.onkeydown = function(ev) {
+                        var event = ev || event
+                        if (event.keyCode == 13) {
+                          search()
+                        }
+                      }
+                    }
+            
+            function search() {
+                    
+                      key = document.getElementById("search-key").value;
+                      if (key === "") {
+                        
+                        return;
+                      }
+                      key = key.toLowerCase();
+                      document.getElementById("search-key").value = "";
+                  
+                      
+                      document.getElementById("search-tip").innerText = "搜索中，请稍后 ...";
+                      document.getElementById("search-tip").style.display = "block";
+                  
+                      
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      var childs = el.childNodes;
+                      for (var i = childs.length - 1; i >= 0; i--) {
+                        el.removeChild(childs[i]);
+                      }
+                  
+                      
+                      xmltext = new XMLHttpRequest;
+                      xmltext.open("GET", "/index.xml", false);
+                      xmltext.send();
+                      resp = xmltext.responseXML;
+                      
+                      items = resp.getElementsByTagName("item");
+                      
+                      var i = 0;
+                      haveResult = false;
+                      while (i < items.length) {
+                        txt = items[i].getElementsByTagName("title")[0].innerHTML + items[i].getElementsByTagName("description")[0].innerHTML
+                        txt = txt.toLowerCase();
+                        if (txt.indexOf(key) > -1) {
+                          haveResult = true;
+                          title = items[i].getElementsByTagName("title")[0].innerHTML;
+                          link = items[i].getElementsByTagName("link")[0].innerHTML;
+                          time = items[i].getElementsByTagName("pubDate")[0].innerHTML;
+                          mark = items[i].getElementsByTagName("description")[0].innerHTML;
+                          time = time.slice(0, -5);
+                          addItem(title, link, time, mark)
+                        }
+                        i++;
+                      }
+                      if (!haveResult) {
+                        document.getElementById("search-tip").innerText = "搜索完毕，未发现结果 ...";
+                        document.getElementById("search-tip").style.display = "block";
+                      }
+
+                      
+                      var el = document.getElementById("blog-head");
+                      el.innerHTML="Blogs"
+                    }
+                  
+                    
+                    function addItem(title, link, time, mark) {
+                      document.getElementById("search-tip").style.display = "none";
+                      tmpl = "<article class=\"post\" style=\"border-bottom: 1px solid #e6e6e6;\" >" +
+                        "<header class=\"post-header\">" +
+                        "<h1 class=\"post-title\"><a class=\"post-link\" href=\"" + link + "\" target=\"_blank\">" + title + "</a></h1>" +
+                        "<div class=\"post-meta\">" +
+                        " <span class=\"post-time\">" + time + "</span>" +
+                        "</div>" +
+                        " </header>" +
+                        "<div class=\"post-content\">" +
+                        "<div class=\"post-summary\">" + mark + "</div>" +
+                        "<div class=\"read-more\">" +
+                        "<a href=" + link + " class=\"read-more-link\" target=\"_blank\">阅读更多</a>" +
+                        "</div>" +
+                        " </div>" +
+                        "</article>"
+                      div = document.createElement("div")
+                      div.innerHTML = tmpl;
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      el.appendChild(div)
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+
+        </script>
+        
+    </div>
+</div>
+
+
+
+
+
+
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">归档栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="nav nav-pills nav-stacked">
+            
+            
+            <li>
+                <a href="/categories/bosh">bosh (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloud_controller_ng">cloud_controller_ng (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloudfoundry">cloudfoundry (15)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/containerd">containerd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/docker">docker (19)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/etcd">etcd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/haproxy">haproxy (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/healthmanager">healthmanager (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/karmada">karmada (4)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubeedge">kubeedge (5)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubernetes">kubernetes (14)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/network">network (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/openyurt">openyurt (2)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/service-mesh">service-mesh (4)</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+<div class="panel sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">标签栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="tag-cloud">
+            
+            
+            <li>
+                <a href="/tags/agent"><i class="fas fa-tags"></i> agent</a>
+            </li>
+            
+            <li>
+                <a href="/tags/apiserver"><i class="fas fa-tags"></i> apiserver</a>
+            </li>
+            
+            <li>
+                <a href="/tags/books"><i class="fas fa-tags"></i> books</a>
+            </li>
+            
+            <li>
+                <a href="/tags/bosh"><i class="fas fa-tags"></i> bosh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/ccng"><i class="fas fa-tags"></i> ccng</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cf-release"><i class="fas fa-tags"></i> cf-release</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cgroups"><i class="fas fa-tags"></i> cgroups</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudfoundry"><i class="fas fa-tags"></i> cloudfoundry</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudnative"><i class="fas fa-tags"></i> cloudnative</a>
+            </li>
+            
+            <li>
+                <a href="/tags/collector"><i class="fas fa-tags"></i> collector</a>
+            </li>
+            
+            <li>
+                <a href="/tags/containerd"><i class="fas fa-tags"></i> containerd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cri"><i class="fas fa-tags"></i> cri</a>
+            </li>
+            
+            <li>
+                <a href="/tags/dea"><i class="fas fa-tags"></i> dea</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker"><i class="fas fa-tags"></i> docker</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker-network"><i class="fas fa-tags"></i> docker-network</a>
+            </li>
+            
+            <li>
+                <a href="/tags/edgecomputing"><i class="fas fa-tags"></i> edgecomputing</a>
+            </li>
+            
+            <li>
+                <a href="/tags/etcd"><i class="fas fa-tags"></i> etcd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/gorouter"><i class="fas fa-tags"></i> gorouter</a>
+            </li>
+            
+            <li>
+                <a href="/tags/haproxy"><i class="fas fa-tags"></i> haproxy</a>
+            </li>
+            
+            <li>
+                <a href="/tags/healthmanager"><i class="fas fa-tags"></i> healthmanager</a>
+            </li>
+            
+            <li>
+                <a href="/tags/istio"><i class="fas fa-tags"></i> istio</a>
+            </li>
+            
+            <li>
+                <a href="/tags/karmada"><i class="fas fa-tags"></i> karmada</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubeedge"><i class="fas fa-tags"></i> kubeedge</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubelet"><i class="fas fa-tags"></i> kubelet</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubernetes"><i class="fas fa-tags"></i> kubernetes</a>
+            </li>
+            
+            <li>
+                <a href="/tags/libcontainer"><i class="fas fa-tags"></i> libcontainer</a>
+            </li>
+            
+            <li>
+                <a href="/tags/micro-service"><i class="fas fa-tags"></i> micro-service</a>
+            </li>
+            
+            <li>
+                <a href="/tags/namespace"><i class="fas fa-tags"></i> namespace</a>
+            </li>
+            
+            <li>
+                <a href="/tags/nats"><i class="fas fa-tags"></i> nats</a>
+            </li>
+            
+            <li>
+                <a href="/tags/news"><i class="fas fa-tags"></i> news</a>
+            </li>
+            
+            <li>
+                <a href="/tags/openyurt"><i class="fas fa-tags"></i> openyurt</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pipework"><i class="fas fa-tags"></i> pipework</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pouch"><i class="fas fa-tags"></i> pouch</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runc"><i class="fas fa-tags"></i> runc</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runtime"><i class="fas fa-tags"></i> runtime</a>
+            </li>
+            
+            <li>
+                <a href="/tags/security"><i class="fas fa-tags"></i> security</a>
+            </li>
+            
+            <li>
+                <a href="/tags/serverless"><i class="fas fa-tags"></i> serverless</a>
+            </li>
+            
+            <li>
+                <a href="/tags/service-mesh"><i class="fas fa-tags"></i> service-mesh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/syslog_aggregator"><i class="fas fa-tags"></i> syslog_aggregator</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+                        
+
+                    </div>
+                    
+
+                    
+
+                </div>
+                
+
+            </div>
+            
+        </div>
+        
+
+        <footer id="footer">
+    <div class="container">
+
+        
+        <div class="col-md-4 col-sm-6">
+            <h4></h4>
+
+            <p><strong>关于我们：<strong> <p>浙大SEL实验室</p><p>地址：杭州市浙大路38号曹光彪西楼405室</p><p><strong></strong>
+            <a href="/contact" class="btn btn-small btn-template-main" >跳转到关于</a>
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+        <div class="col-md-4 col-sm-6">
+
+             
+            <h4>最新博客</h4>
+            
+
+            <div class="blog-entries">
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/27/overview.png" class="img-responsive" alt="基于KubeEdge的边缘节点分组管理设计与实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">基于KubeEdge的边缘节点分组管理设计与实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/20/karmada-scheduler.png" class="img-responsive" alt="多云环境下的资源调度：karmada scheduler的框架和实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">多云环境下的资源调度：karmada scheduler的框架和实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">
+                          
+                            <img src="/img/blogs/19/karmada-arch.jpg" class="img-responsive" alt="多云环境下的成员集群管理，看看开源项目karmada是如何做到的">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">多云环境下的成员集群管理，看看开源项目karmada是如何做到的</a></h5>
+                    </div>
+                </div>
+                
+            </div>
+
+            <hr class="hidden-md hidden-lg">
+             
+
+        </div>
+        
+
+        
+        <div class="col-md-4 col-sm-6">
+
+          <h4></h4>
+
+            <p><strong>联系我们: 
+                                    <p>团队负责人：丁轶群 yiqunding@zju.edu.cn</p>
+                                    <p>网站维护人：刘佳文 839809484@qq.com</p>                
+    </strong>
+
+            
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+    </div>
+    
+</footer>
+
+
+
+
+
+
+
+<div id="copyright">
+    <div class="container">
+        <div class="col-md-12">
+            
+            <p class="pull-left">Copyright ©️ 2020 SEL Laboratory , ZJ University all rights reserved.</p>
+            
+            <p class="pull-right">
+               <a href="https://bootstrapious.com/p/universal-business-e-commerce-template">Bootstrapious</a>.
+              
+
+               <a href="https://github.com/devcows/hugo-universal-theme">DevCows</a>.
+            </p>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+    </div>
+    
+
+    
+
+
+<script src="/js/jquery.min.js"></script>
+<script src="/js/bootstrap.min.js"></script>
+
+
+
+<script src="/js/jquery.cookie.min.js"></script>
+<script src="/js/jquery.waypoints.min.js"></script>
+<script src="/js/jquery.counterup.min.js"></script>
+<script src="/js/jquery-parallax.js"></script>
+
+
+<script src="/js/front.js"></script>
+
+
+<script src="/js/owl.carousel.min.js"></script>
+
+
+
+  </body>
+</html>

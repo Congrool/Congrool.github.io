@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Kubernetes on 浙大SEL实验室</title>
+    <link>https://Congrool.github.io/categories/kubernetes/</link>
+    <description>Recent content in Kubernetes on 浙大SEL实验室</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Thu, 29 Nov 2018 16:55:37 +0000</lastBuildDate>
+    
+	<atom:link href="https://Congrool.github.io/categories/kubernetes/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>kubeedge源码分析系列（一）：总体架构分析</title>
+      <link>https://Congrool.github.io/blog/2018/11/29/kubeedge%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90%E7%B3%BB%E5%88%97%E4%B8%80%E6%80%BB%E4%BD%93%E6%9E%B6%E6%9E%84%E5%88%86%E6%9E%90/</link>
+      <pubDate>Thu, 29 Nov 2018 16:55:37 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2018/11/29/kubeedge%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90%E7%B3%BB%E5%88%97%E4%B8%80%E6%80%BB%E4%BD%93%E6%9E%B6%E6%9E%84%E5%88%86%E6%9E%90/</guid>
+      <description>&lt;p&gt;kubeedge是华为在KubeCon CloudNativeCon China 2018上发布的面向边缘环境容器管理平台。kubeedge能够接入云端Kubernetes集群，使得边缘端应用的管理可以跟云端应用的管理一样，采用广为熟知的Kubernetes API。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>knative serving开发环境搭建</title>
+      <link>https://Congrool.github.io/blog/2018/10/11/knative-serving%E5%BC%80%E5%8F%91%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA/</link>
+      <pubDate>Thu, 11 Oct 2018 20:11:02 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2018/10/11/knative-serving%E5%BC%80%E5%8F%91%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA/</guid>
+      <description>本文基官方knative serving的开发环境搭建文档，加自己的实践，给出以下knative serving开发环境的搭建方案。</description>
+    </item>
+    
+    <item>
+      <title>PouchContainer CRI的设计与实现</title>
+      <link>https://Congrool.github.io/blog/2018/05/29/pouchcontainer-cri%E7%9A%84%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/</link>
+      <pubDate>Tue, 29 May 2018 10:35:04 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2018/05/29/pouchcontainer-cri%E7%9A%84%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/</guid>
+      <description>&lt;h3 id=&#34;1-cri简介&#34;&gt;1. CRI简介&lt;/h3&gt;
+
+&lt;p&gt;在每个Kubernetes节点的最底层都有一个程序负责具体的容器创建删除工作，Kubernetes会对其接口进行调用，从而完成容器的编排调度。我们将这一层软件称之为容器运行时（Container Runtime），大名鼎鼎的Docker就是其中的代表。&lt;/p&gt;
+
+&lt;p&gt;当然，容器运行时并非只有Docker一种，包括CoreOS的rkt，hyper.sh的runV，Google的gvisor，以及本文的主角PouchContainer，都包含了完整的容器操作，能够用来创建特性各异的容器。不同的容器运行时有着各自独特的优点，能够满足不同用户的需求，因此Kubernetes支持多种容器运行时势在必行。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>Kubernetes全球代码贡献量排行，浙江大学第六</title>
+      <link>https://Congrool.github.io/blog/2016/11/30/k8s%E4%BB%A3%E7%A0%81%E8%B4%A1%E7%8C%AE%E6%B5%99%E6%B1%9F%E5%A4%A7%E5%AD%A6%E6%8E%92%E5%90%8D%E7%AC%AC%E5%85%AD/</link>
+      <pubDate>Wed, 30 Nov 2016 18:12:46 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2016/11/30/k8s%E4%BB%A3%E7%A0%81%E8%B4%A1%E7%8C%AE%E6%B5%99%E6%B1%9F%E5%A4%A7%E5%AD%A6%E6%8E%92%E5%90%8D%E7%AC%AC%E5%85%AD/</guid>
+      <description>全球企业Kubernetes开源社区代码贡献排名：浙江大学SEL实验室排名第六。请看来自Stackalytics|Kubernetes community contribution官方网站截图。</description>
+    </item>
+    
+    <item>
+      <title>kubernetes apiserver源码分析——api请求的认证过程</title>
+      <link>https://Congrool.github.io/blog/2015/08/09/kubernetes-apiserver%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90-api%E8%AF%B7%E6%B1%82%E7%9A%84%E8%AE%A4%E8%AF%81%E8%BF%87%E7%A8%8B/</link>
+      <pubDate>Sun, 09 Aug 2015 11:25:44 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2015/08/09/kubernetes-apiserver%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90-api%E8%AF%B7%E6%B1%82%E7%9A%84%E8%AE%A4%E8%AF%81%E8%BF%87%E7%A8%8B/</guid>
+      <description>&lt;h2 id=&#34;解决什么问题&#34;&gt;&lt;strong&gt;解决什么问题&lt;/strong&gt;&lt;/h2&gt;
+
+&lt;p&gt;笔者之前希望全面分析一下k8apiserver的源码，后来发现这样并不十分有效，其一没有针对性，其二由于代码本身比较复杂，涉及到的功能较多，面面俱到也不太现实。&lt;/p&gt;
+
+&lt;p&gt;于是我们就回到最初的需求，到底需要解决什么问题，第一个问题就是，apiserver启动的时候，使用secure模式，参数应该如何设置，相关的机制又是怎样？&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>kubernetes node components - kubelet</title>
+      <link>https://Congrool.github.io/blog/2015/08/07/kubernetes-node-components-kubelet/</link>
+      <pubDate>Fri, 07 Aug 2015 19:46:42 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2015/08/07/kubernetes-node-components-kubelet/</guid>
+      <description>&lt;p&gt;kubelet作为k8s集群node上的重要组件，一直饱受关注。下面请随笔者一起walk through the code.&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>4S: Services Account, Secret, Security Context and Security in Kubernetes</title>
+      <link>https://Congrool.github.io/blog/2015/07/30/4s-services-account-secret-security-context-and-security-in-kubernetes/</link>
+      <pubDate>Thu, 30 Jul 2015 13:41:07 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2015/07/30/4s-services-account-secret-security-context-and-security-in-kubernetes/</guid>
+      <description>&lt;p&gt;Service Account, Secrets和Security Contexts作为保证kubernetes集群Security的策略被引入，相关代码一直处于快速变更与迭代中。本文谨从design和初级实践的视角对其进行概略性的分析，以飨读者。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>Kubernetes代码走读之Minion Node 组件 kube-proxy</title>
+      <link>https://Congrool.github.io/blog/2015/01/22/kubernetes-minion-node-%E7%BB%84%E4%BB%B6-kube-proxy-%E7%BB%84%E4%BB%B6/</link>
+      <pubDate>Thu, 22 Jan 2015 14:16:32 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2015/01/22/kubernetes-minion-node-%E7%BB%84%E4%BB%B6-kube-proxy-%E7%BB%84%E4%BB%B6/</guid>
+      <description>&lt;p&gt;Kube-proxy是kubernetes 里运行在minion节点上的一个组件, 它起的作用是一个服务代理的角色. 本文的内容将分为以下两部分, 源代码来自kubernetes release-0.8.1, 代码有删节，省略的代码或log输出用．．．表示:&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;1 Kube-proxy 简介&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;2 Kube-proxy代码解读&lt;/em&gt;&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>Kubernetes Minion Node 组件 之 Kubelet</title>
+      <link>https://Congrool.github.io/blog/2015/01/13/kubernetes-minion-node-%E7%BB%84%E4%BB%B6-%E4%B9%8B-kubelet/</link>
+      <pubDate>Tue, 13 Jan 2015 15:50:51 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2015/01/13/kubernetes-minion-node-%E7%BB%84%E4%BB%B6-%E4%B9%8B-kubelet/</guid>
+      <description>&lt;p&gt;Kubelet是Google Kubernetes 集群minion工作节点上的一个重要组件.本文将作者阅读代码和亲身的使用经验相结合带你深入理解kubelet. 因为kubernetes代码处在火热迭代开发中,版本日新月异, 本文的源代码来自2014年12月22日github上kubernetes的master最新代码, commit id 119fe37f064905d, 由于kubelet代码量大,变量多,所以文中展示的代码有删节,省略的部分用&amp;hellip;表示.&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>Google Kubernetes设计文档之Volumes</title>
+      <link>https://Congrool.github.io/blog/2015/01/02/google-kubernetes%E8%AE%BE%E8%AE%A1%E6%96%87%E6%A1%A3%E4%B9%8Bvolumes/</link>
+      <pubDate>Fri, 02 Jan 2015 10:56:38 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2015/01/02/google-kubernetes%E8%AE%BE%E8%AE%A1%E6%96%87%E6%A1%A3%E4%B9%8Bvolumes/</guid>
+      <description>&lt;p&gt;&lt;strong&gt;摘要：&lt;/strong&gt;Kubernetes是Google开源的容器集群管理系统，构建于Docker之上，为容器化的应用提供资源调度、部署运行、服务发现、扩容缩容等功能。本文描述了Kubernetes中Volumes的使用情况，Volume是一个能够被容器访问的目录。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>Google Kubernetes设计文档之网络篇</title>
+      <link>https://Congrool.github.io/blog/2014/12/29/google-kubernetes%E8%AE%BE%E8%AE%A1%E6%96%87%E6%A1%A3%E4%B9%8B%E7%BD%91%E7%BB%9C%E7%AF%87/</link>
+      <pubDate>Mon, 29 Dec 2014 15:32:24 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2014/12/29/google-kubernetes%E8%AE%BE%E8%AE%A1%E6%96%87%E6%A1%A3%E4%B9%8B%E7%BD%91%E7%BB%9C%E7%AF%87/</guid>
+      <description>&lt;p&gt;&lt;strong&gt;摘要&lt;/strong&gt;： Kubernetes是Google开源的容器集群管理系统，构建于Docker之上，为容器化的应用提供资源调度、部署运行、服务发现、扩容缩容等功能。其从Docker默认网络模型中独立出来形成了一套自己的网络模型，本文将详细介绍。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>Google Kubernetes设计文档之服务篇</title>
+      <link>https://Congrool.github.io/blog/2014/12/23/google-kubernetes%E8%AE%BE%E8%AE%A1%E6%96%87%E6%A1%A3%E4%B9%8B%E6%9C%8D%E5%8A%A1%E7%AF%87/</link>
+      <pubDate>Tue, 23 Dec 2014 10:20:47 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2014/12/23/google-kubernetes%E8%AE%BE%E8%AE%A1%E6%96%87%E6%A1%A3%E4%B9%8B%E6%9C%8D%E5%8A%A1%E7%AF%87/</guid>
+      <description>&lt;p&gt;&lt;strong&gt;摘要：&lt;/strong&gt; Kubernetes是Google开源的容器集群管理系统，构建于Docker之上，为容器化的应用提供资源调度、部署运行、服务发现、扩容缩容等功能。 Pod是创建、调度和管理的最小部署单位，本文详细介绍这些Pod之间的通信和调度。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>Google Kubernetes设计文档之Pod篇</title>
+      <link>https://Congrool.github.io/blog/2014/12/19/google-kubernetes%E8%AE%BE%E8%AE%A1%E6%96%87%E6%A1%A3%E4%B9%8Bpod%E7%AF%87/</link>
+      <pubDate>Fri, 19 Dec 2014 10:46:07 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2014/12/19/google-kubernetes%E8%AE%BE%E8%AE%A1%E6%96%87%E6%A1%A3%E4%B9%8Bpod%E7%AF%87/</guid>
+      <description>&lt;p&gt;摘要：Kubernetes是Google开源的容器集群管理系统，构建于Docker之上，为容器化的应用提供资源调度、部署运行、服务发现、扩容缩容等功能。CSDN联合浙江大学SEL实验室共同翻译其设计文档，本文为系列的第二篇：Pod。&lt;/p&gt;
+
+&lt;p&gt;在Kubernetes中，创建、调度和管理的最小部署单位是Pod，而不是容器。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>Google Kubernetes设计文档之安全篇</title>
+      <link>https://Congrool.github.io/blog/2014/12/11/google-kubernetes%E8%AE%BE%E8%AE%A1%E6%96%87%E6%A1%A3%E4%B9%8B%E5%AE%89%E5%85%A8%E7%AF%87/</link>
+      <pubDate>Thu, 11 Dec 2014 21:04:21 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2014/12/11/google-kubernetes%E8%AE%BE%E8%AE%A1%E6%96%87%E6%A1%A3%E4%B9%8B%E5%AE%89%E5%85%A8%E7%AF%87/</guid>
+      <description>&lt;p&gt;摘要：Kubernetes是Google开源的容器集群管理系统，构建于Docker之上，为容器化的应用提供资源调度、部署运行、服务发现、扩容缩容等功能。本文为其设计文档系列的第一篇：安全。&lt;/p&gt;</description>
+    </item>
+    
+  </channel>
+</rss>

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>syslog_aggregator on 浙大SEL实验室</title>
+    <link>https://Congrool.github.io/tags/syslog_aggregator/</link>
+    <description>Recent content in syslog_aggregator on 浙大SEL实验室</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Wed, 07 May 2014 10:19:32 +0000</lastBuildDate>
+    
+	<atom:link href="https://Congrool.github.io/tags/syslog_aggregator/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>Cloud Foundry中syslog_aggregator的实现分析</title>
+      <link>https://Congrool.github.io/blog/2014/05/07/cloud-foundry%E4%B8%ADsyslog-aggregator%E7%9A%84%E5%AE%9E%E7%8E%B0%E5%88%86%E6%9E%90/</link>
+      <pubDate>Wed, 07 May 2014 10:19:32 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2014/05/07/cloud-foundry%E4%B8%ADsyslog-aggregator%E7%9A%84%E5%AE%9E%E7%8E%B0%E5%88%86%E6%9E%90/</guid>
+      <description>&lt;p&gt;在Cloud Foundry中，用来收集Cloud Foundry各组件日志信息的组件，名为syslog_aggregator。&lt;/p&gt;
+
+&lt;p&gt;syslog_aggregator可以做到方便的收集Cloud Foundry中所有组件的日志信息，并将这些信息进行初步处理，比如说：将不同月份产生的日志，进行分类存储；另外还对同一月份内产生的日志，将其通过不同的日期进行分类。这样的话，当Cloud Foundry平台的开发者，在运营该平台时需要查看Cloud Foundry中某一个组件产生的日志时，可以方便的查找到对应日期的日志。syslog_aggregator除了可以对日志进行分组件，分月份，分日期进行存储外，还提供一些对日志进行打包或剪枝的功能，比如：syslog_aggregator会将一定期限内的日志，进行压缩，以达到节省存储空间的功能；另外syslog_aggregator还会定期对日志进行清除，比如只保存一定期限时间长度的日志，当日志超过该时限，syslog_aggregator会将其清除。&lt;/p&gt;</description>
+    </item>
+    
+  </channel>
+</rss>

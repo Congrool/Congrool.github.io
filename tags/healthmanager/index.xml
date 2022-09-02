@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>healthmanager on 浙大SEL实验室</title>
+    <link>https://Congrool.github.io/tags/healthmanager/</link>
+    <description>Recent content in healthmanager on 浙大SEL实验室</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Tue, 15 Apr 2014 15:14:56 +0000</lastBuildDate>
+    
+	<atom:link href="https://Congrool.github.io/tags/healthmanager/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>Health_Manager2.0源码分析</title>
+      <link>https://Congrool.github.io/blog/2014/04/15/health-manager2-0%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/</link>
+      <pubDate>Tue, 15 Apr 2014 15:14:56 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2014/04/15/health-manager2-0%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/</guid>
+      <description>&lt;p&gt;在Cloud Foundry v2版本中，Health_Manager_next已经替代v1版本中的Health_Manager。&lt;/p&gt;
+
+&lt;p&gt;笔者写这篇文档之前，在Github上，Health_Manager_next作为一个单独的项目，存在于Cloud Foundry之下；然而在笔者写这篇文档的时候，Health_Manager_next项目在Cloud Foundry下已经不复存在，然而进入原先的Health_Manager项目，可以发现，Health_Manager项目的项目说明已经成为HealthManager 2.0，因此可见之前的Health_Manager_next项目，也就是HealthManager 2.0如今改名为Health_Manager项目，并覆盖Cloud Foundry v1版本的Health_Manager项目。下文对于该部分的称呼全部使用Health_Manager，而非之前的Health_Manager_next。&lt;/p&gt;</description>
+    </item>
+    
+  </channel>
+</rss>

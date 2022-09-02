@@ -1,0 +1,366 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Tags on 浙大SEL实验室</title>
+    <link>https://Congrool.github.io/tags/</link>
+    <description>Recent content in Tags on 浙大SEL实验室</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Fri, 26 Aug 2022 20:09:00 +0000</lastBuildDate>
+    
+	<atom:link href="https://Congrool.github.io/tags/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>kubeedge</title>
+      <link>https://Congrool.github.io/tags/kubeedge/</link>
+      <pubDate>Fri, 26 Aug 2022 20:09:00 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/kubeedge/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>karmada</title>
+      <link>https://Congrool.github.io/tags/karmada/</link>
+      <pubDate>Wed, 22 Sep 2021 10:00:11 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/karmada/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>openyurt</title>
+      <link>https://Congrool.github.io/tags/openyurt/</link>
+      <pubDate>Thu, 13 May 2021 10:00:11 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/openyurt/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>cloudnative</title>
+      <link>https://Congrool.github.io/tags/cloudnative/</link>
+      <pubDate>Thu, 29 Nov 2018 16:55:37 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/cloudnative/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>edgecomputing</title>
+      <link>https://Congrool.github.io/tags/edgecomputing/</link>
+      <pubDate>Thu, 29 Nov 2018 16:55:37 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/edgecomputing/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>istio</title>
+      <link>https://Congrool.github.io/tags/istio/</link>
+      <pubDate>Thu, 11 Oct 2018 20:11:02 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/istio/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>Kubernetes</title>
+      <link>https://Congrool.github.io/tags/kubernetes/</link>
+      <pubDate>Thu, 11 Oct 2018 20:11:02 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/kubernetes/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>serverless</title>
+      <link>https://Congrool.github.io/tags/serverless/</link>
+      <pubDate>Thu, 11 Oct 2018 20:11:02 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/serverless/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>containerd</title>
+      <link>https://Congrool.github.io/tags/containerd/</link>
+      <pubDate>Sun, 05 Aug 2018 19:03:13 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/containerd/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>Docker</title>
+      <link>https://Congrool.github.io/tags/docker/</link>
+      <pubDate>Sun, 05 Aug 2018 19:03:13 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/docker/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>micro service</title>
+      <link>https://Congrool.github.io/tags/micro-service/</link>
+      <pubDate>Fri, 27 Jul 2018 14:28:25 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/micro-service/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>service mesh</title>
+      <link>https://Congrool.github.io/tags/service-mesh/</link>
+      <pubDate>Fri, 27 Jul 2018 14:28:25 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/service-mesh/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>cri</title>
+      <link>https://Congrool.github.io/tags/cri/</link>
+      <pubDate>Tue, 29 May 2018 10:35:04 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/cri/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>kubelet</title>
+      <link>https://Congrool.github.io/tags/kubelet/</link>
+      <pubDate>Tue, 29 May 2018 10:35:04 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/kubelet/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>pouch</title>
+      <link>https://Congrool.github.io/tags/pouch/</link>
+      <pubDate>Tue, 29 May 2018 10:35:04 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/pouch/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>runc</title>
+      <link>https://Congrool.github.io/tags/runc/</link>
+      <pubDate>Thu, 10 May 2018 10:16:40 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/runc/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>runtime</title>
+      <link>https://Congrool.github.io/tags/runtime/</link>
+      <pubDate>Thu, 10 May 2018 10:16:40 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/runtime/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>Docker Network</title>
+      <link>https://Congrool.github.io/tags/docker-network/</link>
+      <pubDate>Wed, 14 Mar 2018 11:23:35 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/docker-network/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>news</title>
+      <link>https://Congrool.github.io/tags/news/</link>
+      <pubDate>Wed, 30 Nov 2016 18:12:46 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/news/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>books</title>
+      <link>https://Congrool.github.io/tags/books/</link>
+      <pubDate>Wed, 30 Nov 2016 17:41:43 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/books/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>apiserver</title>
+      <link>https://Congrool.github.io/tags/apiserver/</link>
+      <pubDate>Sun, 09 Aug 2015 11:25:44 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/apiserver/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>security</title>
+      <link>https://Congrool.github.io/tags/security/</link>
+      <pubDate>Thu, 30 Jul 2015 13:41:07 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/security/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>agent</title>
+      <link>https://Congrool.github.io/tags/agent/</link>
+      <pubDate>Tue, 23 Jun 2015 11:14:25 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/agent/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>libcontainer</title>
+      <link>https://Congrool.github.io/tags/libcontainer/</link>
+      <pubDate>Wed, 03 Jun 2015 13:29:26 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/libcontainer/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>cgroups</title>
+      <link>https://Congrool.github.io/tags/cgroups/</link>
+      <pubDate>Wed, 22 Apr 2015 10:03:07 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/cgroups/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>namespace</title>
+      <link>https://Congrool.github.io/tags/namespace/</link>
+      <pubDate>Fri, 13 Mar 2015 13:54:32 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/namespace/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>etcd</title>
+      <link>https://Congrool.github.io/tags/etcd/</link>
+      <pubDate>Sun, 01 Feb 2015 15:27:24 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/etcd/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>pipework</title>
+      <link>https://Congrool.github.io/tags/pipework/</link>
+      <pubDate>Fri, 16 Jan 2015 14:20:20 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/pipework/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>Bosh</title>
+      <link>https://Congrool.github.io/tags/bosh/</link>
+      <pubDate>Wed, 17 Dec 2014 16:03:01 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/bosh/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>cf-release</title>
+      <link>https://Congrool.github.io/tags/cf-release/</link>
+      <pubDate>Wed, 17 Dec 2014 16:03:01 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/cf-release/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>cloudfoundry</title>
+      <link>https://Congrool.github.io/tags/cloudfoundry/</link>
+      <pubDate>Wed, 17 Dec 2014 16:03:01 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/cloudfoundry/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>dea</title>
+      <link>https://Congrool.github.io/tags/dea/</link>
+      <pubDate>Tue, 02 Dec 2014 17:19:09 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/dea/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>gorouter</title>
+      <link>https://Congrool.github.io/tags/gorouter/</link>
+      <pubDate>Fri, 21 Nov 2014 13:04:13 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/gorouter/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>haproxy</title>
+      <link>https://Congrool.github.io/tags/haproxy/</link>
+      <pubDate>Tue, 28 Oct 2014 17:02:26 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/haproxy/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>collector</title>
+      <link>https://Congrool.github.io/tags/collector/</link>
+      <pubDate>Wed, 07 May 2014 10:19:45 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/collector/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>syslog_aggregator</title>
+      <link>https://Congrool.github.io/tags/syslog_aggregator/</link>
+      <pubDate>Wed, 07 May 2014 10:19:32 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/syslog_aggregator/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>healthmanager</title>
+      <link>https://Congrool.github.io/tags/healthmanager/</link>
+      <pubDate>Tue, 15 Apr 2014 15:14:56 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/healthmanager/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>ccng</title>
+      <link>https://Congrool.github.io/tags/ccng/</link>
+      <pubDate>Thu, 03 Apr 2014 14:15:12 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/ccng/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>nats</title>
+      <link>https://Congrool.github.io/tags/nats/</link>
+      <pubDate>Mon, 02 Dec 2013 13:04:57 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/tags/nats/</guid>
+      <description></description>
+    </item>
+    
+  </channel>
+</rss>

@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="robots" content="all,follow">
+  <meta name="googlebot" content="index,follow,snippet,archive">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <title>kubeedge源码分析系列（二）：cloudhub</title>
+  <meta name="author" content="沈铁成" />
+  
+  
+  
+  
+  <meta name="keywords" content="kubeedge">
+  
+  
+  <meta name="description" content="本文基于KubeEdge官方文档，加上作者的亲身实践，给出以下KubeEdge1.3.0版本下Cloudcore模块中cloudhub模组的源码分析。">
+
+  <meta name="generator" content="Hugo 0.68.3" />
+
+  
+  <link href='//fonts.googleapis.com/css?family=Roboto:400,100,100italic,300,300italic,500,700,800' rel='stylesheet' type='text/css'>
+
+  
+  
+  
+  
+  
+
+  <link href="/css/all.css" rel="stylesheet">
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+
+  
+  <link href="/css/animate.css" rel="stylesheet">
+
+  
+  
+    <link href="/css/style.default.css" rel="stylesheet" id="theme-stylesheet">
+  
+
+  
+  <link href="/css/custom.css" rel="stylesheet">
+
+  
+  
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+        <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  
+
+  
+  <link rel="shortcut icon" href="/img/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
+
+  
+  <link href="/css/owl.carousel.css" rel="stylesheet">
+  <link href="/css/owl.theme.css" rel="stylesheet">
+
+  
+  <link rel="alternate" href="https://Congrool.github.io/index.xml" type="application/rss+xml" title="浙大SEL实验室">
+
+  
+  
+  
+  
+  
+  
+  <meta property="og:updated_time" content="2020-12-21T10:00:11Z">
+  
+    
+    
+    <meta property="article:section" content="kubeedge">
+    <meta property="article:tag" content="kubeedge">
+    
+    
+    <meta property="article:published_time" content="2020-12-21T10:00:11Z">
+    <meta property="article:modified_time" content="2020-12-21T10:00:11Z">
+  
+
+  
+  <meta name="twitter:card" content="summary">
+  
+  <meta name="twitter:title" content="kubeedge源码分析系列（二）：cloudhub">
+  
+  <meta name="twitter:description" content="本文基于KubeEdge官方文档，加上作者的亲身实践，给出以下KubeEdge1.3.0版本下Cloudcore模块中cloudhub模组的源码分析。">
+  
+  
+</head>
+
+
+  <body>
+
+    <div id="all">
+
+        <header class="navbar-affixed-top" data-spy="affix" data-offset-top="62">
+    <div class="navbar navbar-default yamm" role="navigation" id="navbar" style="background-color:white;">    
+        <div class="container">
+            <div class="navbar-header">
+                <a class="navbar-brand home" href="/">
+                    <img src="/img/sel.png" alt="kubeedge源码分析系列（二）：cloudhub" class="hidden-xs hidden-sm img-responsive">
+                    
+                    <span class="sr-only">kubeedge源码分析系列（二）：cloudhub - </span>
+                </a>
+                <div class="navbar-buttons">
+                    <button type="button" class="navbar-toggle btn-template-main" data-toggle="collapse" data-target="#navigation">
+                      <span class="sr-only"></span>
+                        <i class="fas fa-align-justify"></i>
+                    </button>
+                </div>
+            </div>
+            
+
+            <div class="navbar-collapse collapse" id="navigation">
+                <ul class="nav navbar-nav navbar-right">
+                  
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/">主页</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/blog/">博客</a>
+                    
+                  </li>
+
+                  <li class="dropdown">
+                    
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">社区 <span class="caret"></span></a>
+                  <ul class="dropdown-menu">
+                    
+                      <li><a href="https://www.servicemesher.com/">ServiceMesh社区</a></li>
+                    
+                      <li><a href="">kubeedge社区</a></li>
+
+                      <li><a href="http://www.icsoft.zju.edu.cn/index.php">浙江大学智能计算与软件中心</a></li>
+                    
+                  </ul>
+
+                  <li class="dropdown">
+                    
+                    <a href="/archives/">归档</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/contact/">关于</a>
+                    
+                  </li>
+                  
+                </li>
+
+                
+                
+
+                
+                </ul>
+            </div>
+            
+
+            <div class="collapse clearfix" id="search">    
+                <form class="navbar-form" role="search">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search">
+                        <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main"><i class="fas fa-search"></i></button>
+                </span>
+                    </div>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+
+    
+</header>
+
+
+
+
+        <div id="heading-breadcrumbs">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h1>kubeedge源码分析系列（二）：cloudhub</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+        <div id="content">
+            <div class="container">
+
+                <div class="row">
+
+                    
+
+                    <div class="col-md-9" id="blog-post">
+
+                        
+                          <p class="text-muted text-uppercase mb-small text-right">
+                             <a href="#">沈铁成</a>
+                             | 
+                            2020-12-21
+                          </p>
+                        
+
+                        <div id="post-content">
+                          <p>本文基于KubeEdge官方文档，加上作者的亲身实践，给出以下KubeEdge1.3.0版本下Cloudcore模块中cloudhub模组的源码分析。</p>
+
+<h2 id="总览">总览</h2>
+
+<p>CloudHub是cloudcore的一个模块，是Controller和Edge端之间的中介。它负责下行分发消息(其内封装了k8s资源事件，如pod update等)，也负责接收并发送边缘节点上行消息至controllers。其中下行的消息在应用层增强了传输的可靠性，以应对云边的弱网络环境。</p>
+
+<p>到边缘的连接（通过EdgeHub模块）是通过可选的websocket/quic连接完成的。对于Cloudcore内部通信，Cloudhub直接与Controller通讯。Controller发送到CloudHub的所有请求，与用于存储这个边缘节点的事件对象的通道一起存储在channelq中。</p>
+
+<p><img src="https://res.cloudinary.com/rachel725/image/upload/v1608540647/sel/Cloudhub-1_qrjf4h.png" alt="Cloudhub-1" style="zoom:50%;" /></p>
+
+<p>Cloudhub内部主要有以下几个重要结构：</p>
+
+<ul>
+<li><p><strong>MessageDispatcher：</strong>下行消息分发中心，也是下行消息队列的生产者，DispatchMessage函数中实现。</p></li>
+
+<li><p><strong>NodeMessageQueue：</strong>每个边缘节点有一个专属的消息队列，总体构成一个队列池，以Node UID作为区分，ChannelMessageQueue结构体实现</p></li>
+
+<li><p><strong>WriteLoop：</strong>负责将消息写入底层连接，是上述消息队列的消费者</p></li>
+
+<li><p><strong>Connection server：</strong>接收边缘节点访问，支持websocket协议和quick协议连接</p></li>
+
+<li><p><strong>Http server：</strong>为边缘节点提供证书服务，如证书签发与证书轮转</p></li>
+</ul>
+
+<p><img src="https://res.cloudinary.com/rachel725/image/upload/v1608540707/sel/Cloudhub-2_gnjn3m.png" alt="Cloudhub-2" style="zoom:33%;" /></p>
+
+<p>云边消息格式的结构如下：</p>
+
+<ul>
+<li>Header，由beehive框架调用NewMessage函数提供，主要包括ID、ParentID、TimeStamp</li>
+<li>Body，包含消息源，消息Group，消息资源，资源对应的操作</li>
+</ul>
+
+<h2 id="源码分析">源码分析</h2>
+
+<h3 id="入口">入口</h3>
+
+<p>Cloudhub在Cloudcore启动时注册，通过beehive消息通信框架调用Start()函数启动Cloudhub模块。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">cloudhub.<span style="color:#c0f">Register</span>(c.Modules.CloudHub, c.KubeAPIConfig)</code></pre></div>
+<h3 id="启动流程">启动流程</h3>
+
+<p>Cloudhub首先启动ObjectSyncController，ObjectSyncController是自定义的CRD对象ObjectSync和ClusterObjectSync的控制器，KubeEdge使用K8s CRD存储已成功发送到Edge的资源的最新resourceVersion。当cloudcore重新启动或正常启动时，它将检查resourceVersion以避免发送旧消息。ClusterObjectSync用于保存群集范围的对象，而ObjectSync用于保存命名空间范围的对象。 它们的名称由相关的节点名称和对象UUID组成。当前版本的ClusterObjectSync当前还未使用，属于代码编写阶段，未来会扩充。</p>
+
+<p>接下来，自动生成CA和CloudCore的证书用于后面安全通讯。再生成token，作为是否给EdgeCore签发证书的凭据。StartHTTPServer()启动服务器监听，主要用于EdgeCore申请证书，它将等待edgecore发来请求，获取证书。</p>
+
+<p>然后，启动cloudhub服务，具体的操作是启动一个服务器，等待edgecore发来连接的请求，协议可以是基于tcp的websocket或基于udp的quic。</p>
+
+<p>Cloudhub在服务器启动前会生成一个CloudhubHandler处理边端与云端的消息，结构体如下，主要包括KeepaliveInterval（心跳检测间隔）、WriteTimeout（写入msg的超时时间）、Nodes（存储node的在线情况）、nodeConns（存储connection）、nodeLocks（存储读写connection的互斥锁）、MessageQueue（消息队列）、KeepaliveChannel（心跳通道）、NodeLimit（节点限制，超过节点限制Cloudhub报错）、Handlers（通信的主要处理方法）、MessageAcks（消息确认）。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">type</span> MessageHandle <span style="color:#069;font-weight:bold">struct</span> {
+	KeepaliveInterval <span style="color:#078;font-weight:bold">int</span>
+	WriteTimeout      <span style="color:#078;font-weight:bold">int</span>
+	Nodes             sync.Map
+	nodeConns         sync.Map
+	nodeLocks         sync.Map
+	MessageQueue      <span style="color:#555">*</span>channelq.ChannelMessageQueue
+	Handlers          []HandleFunc
+	NodeLimit         <span style="color:#078;font-weight:bold">int</span>
+	KeepaliveChannel  <span style="color:#069;font-weight:bold">map</span>[<span style="color:#078;font-weight:bold">string</span>]<span style="color:#069;font-weight:bold">chan</span> <span style="color:#069;font-weight:bold">struct</span>{}
+	MessageAcks       sync.Map
+}</code></pre></div>
+<p>当edgecore第一次连接cloudcore时，服务器会触发messageHandle的OnRegister方法注册节点，否则将复用之前的连接。</p>
+
+<p>OnRegister方法调用ServeConn方法，ServeConn调用RegisterNode方法，完成节点的注册。节点的注册具体包含以下几步：1.分配消息队列和缓存给注册的节点。2.将连接的消息根据路由发送给DeviceController或EdgeController。3.将Node ID存入Nodes、nodeConns、nodeLocks这三个表。</p>
+
+<p>注册成功后循环启动messageHandler的handler协程，分别是KeepaliveCheckLoop检查edge-node是否alive、MessageWriteLoop处理所有写入请求、ListMessageWriteLoop处理所有list类型的请求。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">CloudhubHandler.Handlers = []HandleFunc{
+   CloudhubHandler.KeepaliveCheckLoop,
+   CloudhubHandler.MessageWriteLoop,
+   CloudhubHandler.ListMessageWriteLoop,
+}</code></pre></div>
+<p>如果handler过程中检测到异常，会发送信息到exitServe通道，如果ServeConn检测到ExitCode，会进行相应的UnRegister操作。</p>
+
+<p>如果没有检测到异常，就会执行handleMessage方法进行消息处理，首先检查消息类型是否合法，然后如果是list资源类型的message的请求，则不做消息可靠性处理，根据node ID取出信息组装成msg写入连接，并删除缓存。</p>
+
+<h2 id="消息可靠性">消息可靠性</h2>
+
+<p>如果是message类型，则表示EdgeController和devicecontroller需要同步到边端的消息。这时需要Cloudhub和Edgehub作消息通信。但考虑到云与边缘之间的不稳定网络会导致边缘节点频繁断开连接。如果cloudcore或edgecore重启或离线一段时间，可能会导致发送到边缘节点的消息丢失，而这些消息在没有消息可靠性前是无法到达的。如果没有将新事件成功发送到边缘，这将导致云和边缘之间的不一致。所以云边通信需要一个可靠的消息传输机制。它需要覆盖以下几种情况：1.如果cloudcore重新启动或离线一段时间，则每当cloudcore重新上线时，将最新事件发送到边缘节点（如果有任何更新要发送）。2.如果edgenode重新启动或离线一段时间，无论何时该节点上线时，cloudcore都会发送最新事件以使其保持最新状态。</p>
+
+<h3 id="消息可靠机制">消息可靠机制</h3>
+
+<p>有三种类型的消息传递机制：</p>
+
+<p>1.最多一次 At-Most-Once
+2.恰好一次 Exactly-Once
+3.至少一次 At-Least-Once</p>
+
+<p>第一种方法“At-Most-Once”是不可靠的，第二种方法“Exactly-Once”代价非常高，虽然它提供了可靠的消息传递，没有消息丢失或重复的现象，但是性能比第三种差很多。 由于KubeEdge遵循Kubernetes最终的一致性设计原则，因此，只要消息是最新消息，边缘节点重复接收相同消息不是问题。因此，KubeEdge采用At-Least-Once建议。</p>
+
+<h3 id="at-least-once">At-Least-Once</h3>
+
+<p>下面显示的是消息从云传递到边缘的具体流程。</p>
+
+<p><img src="https://res.cloudinary.com/rachel725/image/upload/v1608540807/sel/reliablemessage-workflow_nxqnay.png" alt="reliablemessage-workflow" style="zoom:90%;" /></p>
+
+<p>1.KubeEdge使用K8s CRD存储已成功发送到Edge的资源的最新resourceVersion。当cloudcore重新启动或正常启动时，它将检查resourceVersion以避免发送旧消息。</p>
+
+<p>2.EdgeController和devicecontroller将消息发送到Cloudhub，MessageDispatcher将根据消息中的节点名称将消息发送到相应的NodeMessageQueue。</p>
+
+<p>3.CloudHub将顺序地将数据从NodeMessageQueue发送到相应的边缘节点[5]，并将消息ID存储在ACK通道中[4]。当收到来自边缘节点的ACK消息时，ACK通道将触发以将消息resourceVersion作为CRD保存到K8s[11]，并发送下一条消息。</p>
+
+<p>4.当Edgecore收到消息时，它将首先将消息保存到本地数据存储中，然后将ACK消息返回到云中。如果cloudhub在此间隔内未收到ACK消息，它将继续重新发送该消息5次。如果所有5次重试均失败，cloudhub将丢弃该事件。</p>
+
+<p>5.SyncController将处理这些失败的事件。即使边缘节点接收到该消息，返回的ACK消息也可能在传输过程中丢失。在这种情况下，cloudhub将再次发送消息，并且边缘可以处理重复的消息。</p>
+
+<h3 id="synccontroller-cloudcore组件之一">SyncController(cloudcore组件之一)</h3>
+
+<p><img src="https://res.cloudinary.com/rachel725/image/upload/v1608540848/sel/sync-controller_uni4mn.png" alt="sync-controller" style="zoom:120%;" /></p>
+
+<p>SyncController将定期比较保存的对象resourceVersion与K8s中的对象，然后触发诸如重试和删除之类的事件。当cloudhub将事件添加到nodeMessageQueue时，它将与nodeMessageQueue中的相应对象进行比较。 如果nodeMessageQueue中的对象较新，它将直接丢弃这些事件。</p>
+
+<h3 id="messagequeue">MessageQueue</h3>
+
+<p>当每个边缘节点成功连接到云时，将创建一个消息队列，该消息队列将缓存所有发送到边缘节点的消息。KubeEdge使用来自kubernetes/client-go的workQueue和cacheStore来实现消息队列和对象存储。 使用Kubernetes workQueue，将合并重复事件以提高传输效率。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">type</span> ChannelMessageQueue <span style="color:#069;font-weight:bold">struct</span> {
+   queuePool sync.Map
+   storePool sync.Map
+
+   listQueuePool sync.Map
+   listStorePool sync.Map
+
+   ObjectSyncController <span style="color:#555">*</span>hubconfig.ObjectSyncController
+}</code></pre></div>
+<ul>
+<li><p>Add message to the queue:</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">key,_<span style="color:#555">:=</span><span style="color:#c0f">getMsgKey</span>(<span style="color:#555">&amp;</span>message)
+nodeStore.<span style="color:#c0f">Add</span>(message)
+nodeQueue.<span style="color:#c0f">Add</span>(key)</code></pre></div></li>
+
+<li><p>Get the message from the queue:</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">key,_<span style="color:#555">:=</span>nodeQueue.<span style="color:#c0f">Get</span>()
+msg,_,_<span style="color:#555">:=</span>nodeStore.<span style="color:#c0f">GetByKey</span>(key.(<span style="color:#078;font-weight:bold">string</span>))</code></pre></div></li>
+
+<li><p>Structure of the message key:</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">Key = resourceType<span style="color:#555">/</span>resourceNamespace<span style="color:#555">/</span>resourceName</code></pre></div></li>
+</ul>
+
+<h3 id="ack-message-format">ACK message Format</h3>
+
+<p>Ack消息将遵循以下格式：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">AckMessage.ParentID = receivedMessage.ID
+AckMessage.Operation = <span style="color:#c30">&#34;response&#34;</span></code></pre></div>
+<p>由此实现了以下不同情况的相应处理：</p>
+
+<p>1.CloudCore重新启动
+当cloudcore重新启动或正常启动时，它将检查resourceVersion以避免发送旧消息。在cloudcore重新启动期间，如果删除了某些对象，则此时的删除事件可能会丢失。 SyncController将处理这种情况。这里需要使用对象GC机制来确保删除：比较存储在CRD中的对象是否存在于K8s中。如果不是，则SyncController将生成并发送删除事件到边缘，并在收到ACK时删除CRD中的对象。</p>
+
+<p>2.EdgeCore重新启动
+当edgecore重新启动或离线一段时间后，节点消息队列将缓存所有消息，每当节点重新上线时，将发送消息。当边缘节点离线时，cloudhub将停止发送消息，直到边缘节点重新上线后才重试。</p>
+
+<p>3.EdgeNode已删除
+从云中删除边缘节点后，cloudcore将删除相应的消息队列和存储。</p>
+                        </div>
+                        
+                        
+                        
+                        
+                        
+                        
+
+                        
+                        <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+                        <script src="https://unpkg.com/gitalk@latest/dist/gitalk.min.js"></script> 
+                        <script type="text/javascript" src="/assets/js/md5.min.js"></script>
+                        <div id="gitalk-container"></div>     
+                        <script type="text/javascript">
+                            var gitalk = new Gitalk({
+                              clientID: '835183d2dcbd1167ac28', 
+                            
+                              clientSecret: 'd873919fac3cc76921ee0800172c2279bc612f8d', 
+                            
+                              repo: 'Sel-Website-talk',
+                              owner: 'Peeknut',
+                              admin: ['Peeknut','Rachel-Shao'],
+                              id: location.href.split("/").pop().substring(0, 49),      
+                              distractionFreeMode: false  
+                            })
+                            gitalk.render('gitalk-container')
+                        </script> 
+                        
+
+                    </div>
+                    
+
+                    
+
+                    
+
+                    <div class="col-md-3">
+
+                        
+
+                        
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+      <h3 class="panel-title">搜索栏</h3>
+      
+    </div>
+
+    <div class="panel-body">
+        
+        <div class="search" id="search">
+            <div class="input-group">
+                <input type="text" name="q" class="form-control" placeholder="请输入文章标题或摘要..." id="search-key">
+                <input type="hidden" name="sitesearch" value="https://Congrool.github.io/">
+                <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main" onclick="search()"><i class="fas fa-search"></i></button>
+                </span>
+            </div>
+            <h1 id="search-tip" style="color: red;text-align: center;display: none;font-size: medium;">搜索中，请稍后 ...</h1>
+        </div>
+        <script type="text/javascript">
+            
+            window.onload = function() {
+                      document.onkeydown = function(ev) {
+                        var event = ev || event
+                        if (event.keyCode == 13) {
+                          search()
+                        }
+                      }
+                    }
+            
+            function search() {
+                    
+                      key = document.getElementById("search-key").value;
+                      if (key === "") {
+                        
+                        return;
+                      }
+                      key = key.toLowerCase();
+                      document.getElementById("search-key").value = "";
+                  
+                      
+                      document.getElementById("search-tip").innerText = "搜索中，请稍后 ...";
+                      document.getElementById("search-tip").style.display = "block";
+                  
+                      
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      var childs = el.childNodes;
+                      for (var i = childs.length - 1; i >= 0; i--) {
+                        el.removeChild(childs[i]);
+                      }
+                  
+                      
+                      xmltext = new XMLHttpRequest;
+                      xmltext.open("GET", "/index.xml", false);
+                      xmltext.send();
+                      resp = xmltext.responseXML;
+                      
+                      items = resp.getElementsByTagName("item");
+                      
+                      var i = 0;
+                      haveResult = false;
+                      while (i < items.length) {
+                        txt = items[i].getElementsByTagName("title")[0].innerHTML + items[i].getElementsByTagName("description")[0].innerHTML
+                        txt = txt.toLowerCase();
+                        if (txt.indexOf(key) > -1) {
+                          haveResult = true;
+                          title = items[i].getElementsByTagName("title")[0].innerHTML;
+                          link = items[i].getElementsByTagName("link")[0].innerHTML;
+                          time = items[i].getElementsByTagName("pubDate")[0].innerHTML;
+                          mark = items[i].getElementsByTagName("description")[0].innerHTML;
+                          time = time.slice(0, -5);
+                          addItem(title, link, time, mark)
+                        }
+                        i++;
+                      }
+                      if (!haveResult) {
+                        document.getElementById("search-tip").innerText = "搜索完毕，未发现结果 ...";
+                        document.getElementById("search-tip").style.display = "block";
+                      }
+
+                      
+                      var el = document.getElementById("blog-head");
+                      el.innerHTML="Blogs"
+                    }
+                  
+                    
+                    function addItem(title, link, time, mark) {
+                      document.getElementById("search-tip").style.display = "none";
+                      tmpl = "<article class=\"post\" style=\"border-bottom: 1px solid #e6e6e6;\" >" +
+                        "<header class=\"post-header\">" +
+                        "<h1 class=\"post-title\"><a class=\"post-link\" href=\"" + link + "\" target=\"_blank\">" + title + "</a></h1>" +
+                        "<div class=\"post-meta\">" +
+                        " <span class=\"post-time\">" + time + "</span>" +
+                        "</div>" +
+                        " </header>" +
+                        "<div class=\"post-content\">" +
+                        "<div class=\"post-summary\">" + mark + "</div>" +
+                        "<div class=\"read-more\">" +
+                        "<a href=" + link + " class=\"read-more-link\" target=\"_blank\">阅读更多</a>" +
+                        "</div>" +
+                        " </div>" +
+                        "</article>"
+                      div = document.createElement("div")
+                      div.innerHTML = tmpl;
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      el.appendChild(div)
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+
+        </script>
+        
+    </div>
+</div>
+
+
+
+
+
+
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">归档栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="nav nav-pills nav-stacked">
+            
+            
+            <li>
+                <a href="/categories/bosh">bosh (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloud_controller_ng">cloud_controller_ng (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloudfoundry">cloudfoundry (15)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/containerd">containerd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/docker">docker (19)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/etcd">etcd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/haproxy">haproxy (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/healthmanager">healthmanager (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/karmada">karmada (4)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubeedge">kubeedge (5)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubernetes">kubernetes (14)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/network">network (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/openyurt">openyurt (2)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/service-mesh">service-mesh (4)</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+<div class="panel sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">标签栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="tag-cloud">
+            
+            
+            <li>
+                <a href="/tags/agent"><i class="fas fa-tags"></i> agent</a>
+            </li>
+            
+            <li>
+                <a href="/tags/apiserver"><i class="fas fa-tags"></i> apiserver</a>
+            </li>
+            
+            <li>
+                <a href="/tags/books"><i class="fas fa-tags"></i> books</a>
+            </li>
+            
+            <li>
+                <a href="/tags/bosh"><i class="fas fa-tags"></i> bosh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/ccng"><i class="fas fa-tags"></i> ccng</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cf-release"><i class="fas fa-tags"></i> cf-release</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cgroups"><i class="fas fa-tags"></i> cgroups</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudfoundry"><i class="fas fa-tags"></i> cloudfoundry</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudnative"><i class="fas fa-tags"></i> cloudnative</a>
+            </li>
+            
+            <li>
+                <a href="/tags/collector"><i class="fas fa-tags"></i> collector</a>
+            </li>
+            
+            <li>
+                <a href="/tags/containerd"><i class="fas fa-tags"></i> containerd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cri"><i class="fas fa-tags"></i> cri</a>
+            </li>
+            
+            <li>
+                <a href="/tags/dea"><i class="fas fa-tags"></i> dea</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker"><i class="fas fa-tags"></i> docker</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker-network"><i class="fas fa-tags"></i> docker-network</a>
+            </li>
+            
+            <li>
+                <a href="/tags/edgecomputing"><i class="fas fa-tags"></i> edgecomputing</a>
+            </li>
+            
+            <li>
+                <a href="/tags/etcd"><i class="fas fa-tags"></i> etcd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/gorouter"><i class="fas fa-tags"></i> gorouter</a>
+            </li>
+            
+            <li>
+                <a href="/tags/haproxy"><i class="fas fa-tags"></i> haproxy</a>
+            </li>
+            
+            <li>
+                <a href="/tags/healthmanager"><i class="fas fa-tags"></i> healthmanager</a>
+            </li>
+            
+            <li>
+                <a href="/tags/istio"><i class="fas fa-tags"></i> istio</a>
+            </li>
+            
+            <li>
+                <a href="/tags/karmada"><i class="fas fa-tags"></i> karmada</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubeedge"><i class="fas fa-tags"></i> kubeedge</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubelet"><i class="fas fa-tags"></i> kubelet</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubernetes"><i class="fas fa-tags"></i> kubernetes</a>
+            </li>
+            
+            <li>
+                <a href="/tags/libcontainer"><i class="fas fa-tags"></i> libcontainer</a>
+            </li>
+            
+            <li>
+                <a href="/tags/micro-service"><i class="fas fa-tags"></i> micro-service</a>
+            </li>
+            
+            <li>
+                <a href="/tags/namespace"><i class="fas fa-tags"></i> namespace</a>
+            </li>
+            
+            <li>
+                <a href="/tags/nats"><i class="fas fa-tags"></i> nats</a>
+            </li>
+            
+            <li>
+                <a href="/tags/news"><i class="fas fa-tags"></i> news</a>
+            </li>
+            
+            <li>
+                <a href="/tags/openyurt"><i class="fas fa-tags"></i> openyurt</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pipework"><i class="fas fa-tags"></i> pipework</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pouch"><i class="fas fa-tags"></i> pouch</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runc"><i class="fas fa-tags"></i> runc</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runtime"><i class="fas fa-tags"></i> runtime</a>
+            </li>
+            
+            <li>
+                <a href="/tags/security"><i class="fas fa-tags"></i> security</a>
+            </li>
+            
+            <li>
+                <a href="/tags/serverless"><i class="fas fa-tags"></i> serverless</a>
+            </li>
+            
+            <li>
+                <a href="/tags/service-mesh"><i class="fas fa-tags"></i> service-mesh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/syslog_aggregator"><i class="fas fa-tags"></i> syslog_aggregator</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+                        
+
+                    </div>
+                    
+
+                    
+
+                </div>
+                
+
+            </div>
+            
+        </div>
+        
+
+        <footer id="footer">
+    <div class="container">
+
+        
+        <div class="col-md-4 col-sm-6">
+            <h4></h4>
+
+            <p><strong>关于我们：<strong> <p>浙大SEL实验室</p><p>地址：杭州市浙大路38号曹光彪西楼405室</p><p><strong></strong>
+            <a href="/contact" class="btn btn-small btn-template-main" >跳转到关于</a>
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+        <div class="col-md-4 col-sm-6">
+
+             
+            <h4>最新博客</h4>
+            
+
+            <div class="blog-entries">
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/27/overview.png" class="img-responsive" alt="基于KubeEdge的边缘节点分组管理设计与实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">基于KubeEdge的边缘节点分组管理设计与实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/20/karmada-scheduler.png" class="img-responsive" alt="多云环境下的资源调度：karmada scheduler的框架和实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">多云环境下的资源调度：karmada scheduler的框架和实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">
+                          
+                            <img src="/img/blogs/19/karmada-arch.jpg" class="img-responsive" alt="多云环境下的成员集群管理，看看开源项目karmada是如何做到的">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">多云环境下的成员集群管理，看看开源项目karmada是如何做到的</a></h5>
+                    </div>
+                </div>
+                
+            </div>
+
+            <hr class="hidden-md hidden-lg">
+             
+
+        </div>
+        
+
+        
+        <div class="col-md-4 col-sm-6">
+
+          <h4></h4>
+
+            <p><strong>联系我们: 
+                                    <p>团队负责人：丁轶群 yiqunding@zju.edu.cn</p>
+                                    <p>网站维护人：刘佳文 839809484@qq.com</p>                
+    </strong>
+
+            
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+    </div>
+    
+</footer>
+
+
+
+
+
+
+
+<div id="copyright">
+    <div class="container">
+        <div class="col-md-12">
+            
+            <p class="pull-left">Copyright ©️ 2020 SEL Laboratory , ZJ University all rights reserved.</p>
+            
+            <p class="pull-right">
+               <a href="https://bootstrapious.com/p/universal-business-e-commerce-template">Bootstrapious</a>.
+              
+
+               <a href="https://github.com/devcows/hugo-universal-theme">DevCows</a>.
+            </p>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+    </div>
+    
+
+    
+
+
+<script src="/js/jquery.min.js"></script>
+<script src="/js/bootstrap.min.js"></script>
+
+
+
+<script src="/js/jquery.cookie.min.js"></script>
+<script src="/js/jquery.waypoints.min.js"></script>
+<script src="/js/jquery.counterup.min.js"></script>
+<script src="/js/jquery-parallax.js"></script>
+
+
+<script src="/js/front.js"></script>
+
+
+<script src="/js/owl.carousel.min.js"></script>
+
+
+
+  </body>
+</html>

@@ -1,0 +1,1272 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="robots" content="all,follow">
+  <meta name="googlebot" content="index,follow,snippet,archive">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <title>Docker背后的内核知识——cgroups资源限制</title>
+  <meta name="author" content="孙健波" />
+  
+  
+  
+  
+  <meta name="keywords" content="Docker, cgroups">
+  
+  
+  <meta name="description" content="当我们谈论Docker时，我们常常会聊到Docker的实现方式。很多开发者都会知道，Docker的本质实际上是宿主机上的一个进程，通过namespace实现了资源隔离，通过cgroup实现了资源限制，通过UnionFS实现了Copy on Write的文件操作。但是当我们再深入一步的提出，namespace和cgroup实现细节时，知道的人可能就所剩无几了。本文在docker基础研究工作中着重对内核的cgroup技术做了细致的分析和梳理，希望能对读者深入理解Docker有所帮助。">
+
+  <meta name="generator" content="Hugo 0.68.3" />
+
+  
+  <link href='//fonts.googleapis.com/css?family=Roboto:400,100,100italic,300,300italic,500,700,800' rel='stylesheet' type='text/css'>
+
+  
+  
+  
+  
+  
+
+  <link href="/css/all.css" rel="stylesheet">
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+
+  
+  <link href="/css/animate.css" rel="stylesheet">
+
+  
+  
+    <link href="/css/style.default.css" rel="stylesheet" id="theme-stylesheet">
+  
+
+  
+  <link href="/css/custom.css" rel="stylesheet">
+
+  
+  
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+        <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  
+
+  
+  <link rel="shortcut icon" href="/img/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
+
+  
+  <link href="/css/owl.carousel.css" rel="stylesheet">
+  <link href="/css/owl.theme.css" rel="stylesheet">
+
+  
+  <link rel="alternate" href="https://Congrool.github.io/index.xml" type="application/rss+xml" title="浙大SEL实验室">
+
+  
+  
+  
+  
+  
+  
+  <meta property="og:updated_time" content="2015-04-22T10:03:07Z">
+  
+    
+    
+    <meta property="article:section" content="Docker">
+    <meta property="article:tag" content="Docker">
+    <meta property="article:tag" content="cgroups">
+    
+    
+    <meta property="article:published_time" content="2015-04-22T10:03:07Z">
+    <meta property="article:modified_time" content="2015-04-22T10:03:07Z">
+  
+
+  
+  <meta name="twitter:card" content="summary">
+  
+  <meta name="twitter:title" content="Docker背后的内核知识——cgroups资源限制">
+  
+  <meta name="twitter:description" content="当我们谈论Docker时，我们常常会聊到Docker的实现方式。很多开发者都会知道，Docker的本质实际上是宿主机上的一个进程，通过namespace实现了资源隔离，通过cgroup实现了资源限制，通过UnionFS实现了Copy on Write的文件操作。但是当我们再深入一步的提出，namespace和cgroup实现细节时，知道的人可能就所剩无几了。本文在docker基础研究工作中着重对内 …">
+  
+  
+</head>
+
+
+  <body>
+
+    <div id="all">
+
+        <header class="navbar-affixed-top" data-spy="affix" data-offset-top="62">
+    <div class="navbar navbar-default yamm" role="navigation" id="navbar" style="background-color:white;">    
+        <div class="container">
+            <div class="navbar-header">
+                <a class="navbar-brand home" href="/">
+                    <img src="/img/sel.png" alt="Docker背后的内核知识——cgroups资源限制" class="hidden-xs hidden-sm img-responsive">
+                    
+                    <span class="sr-only">Docker背后的内核知识——cgroups资源限制 - </span>
+                </a>
+                <div class="navbar-buttons">
+                    <button type="button" class="navbar-toggle btn-template-main" data-toggle="collapse" data-target="#navigation">
+                      <span class="sr-only"></span>
+                        <i class="fas fa-align-justify"></i>
+                    </button>
+                </div>
+            </div>
+            
+
+            <div class="navbar-collapse collapse" id="navigation">
+                <ul class="nav navbar-nav navbar-right">
+                  
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/">主页</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/blog/">博客</a>
+                    
+                  </li>
+
+                  <li class="dropdown">
+                    
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">社区 <span class="caret"></span></a>
+                  <ul class="dropdown-menu">
+                    
+                      <li><a href="https://www.servicemesher.com/">ServiceMesh社区</a></li>
+                    
+                      <li><a href="">kubeedge社区</a></li>
+
+                      <li><a href="http://www.icsoft.zju.edu.cn/index.php">浙江大学智能计算与软件中心</a></li>
+                    
+                  </ul>
+
+                  <li class="dropdown">
+                    
+                    <a href="/archives/">归档</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/contact/">关于</a>
+                    
+                  </li>
+                  
+                </li>
+
+                
+                
+
+                
+                </ul>
+            </div>
+            
+
+            <div class="collapse clearfix" id="search">    
+                <form class="navbar-form" role="search">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search">
+                        <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main"><i class="fas fa-search"></i></button>
+                </span>
+                    </div>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+
+    
+</header>
+
+
+
+
+        <div id="heading-breadcrumbs">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h1>Docker背后的内核知识——cgroups资源限制</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+        <div id="content">
+            <div class="container">
+
+                <div class="row">
+
+                    
+
+                    <div class="col-md-9" id="blog-post">
+
+                        
+                          <p class="text-muted text-uppercase mb-small text-right">
+                             <a href="#">孙健波</a>
+                             | 
+                            2015-04-22
+                          </p>
+                        
+
+                        <div id="post-content">
+                          <h2 id="摘要">摘要</h2>
+
+<p>当我们谈论Docker时，我们常常会聊到Docker的实现方式。很多开发者都会知道，Docker的本质实际上是宿主机上的一个进程，通过namespace实现了资源隔离，通过cgroup实现了资源限制，通过UnionFS实现了Copy on Write的文件操作。但是当我们再深入一步的提出，namespace和cgroup实现细节时，知道的人可能就所剩无几了。本文在docker基础研究工作中着重对内核的cgroup技术做了细致的分析和梳理，希望能对读者深入理解Docker有所帮助。</p>
+
+<h2 id="正文">正文</h2>
+
+<p>上一篇中，我们了解了Docker背后使用的资源隔离技术namespace，通过系统调用构建一个相对隔离的shell环境，也可以称之为一个简单的“容器”。本文我们则要开始讲解另一个强大的内核工具——cgroups。他不仅可以限制被namespace隔离起来的资源，还可以为资源设置权重、计算使用量、操控进程启停等等。在介绍完基本概念后，我们将详细讲解Docker中使用到的cgroups内容。希望通过本文，让读者对Docker有更深入的了解。</p>
+
+<h3 id="1-cgroups是什么">1. cgroups是什么</h3>
+
+<p>cgroups（Control Groups）最初叫Process Container，由Google工程师（Paul Menage和Rohit Seth）于2006年提出，后来因为Container有多重含义容易引起误解，就在2007年更名为Control Groups，并被整合进Linux内核。顾名思义就是把进程放到一个组里面统一加以控制。官方的定义如下{![引自：<a href="https://www.kernel.org/doc/Documentation/cgroups/cgroups.txt]}。">https://www.kernel.org/doc/Documentation/cgroups/cgroups.txt]}。</a></p>
+
+<blockquote>
+<p>cgroups是Linux内核提供的一种机制，这种机制可以根据特定的行为，把一系列系统任务及其子任务整合（或分隔）到按资源划分等级的不同组内，从而为系统资源管理提供一个统一的框架。</p>
+</blockquote>
+
+<p>通俗的来说，cgroups可以限制、记录、隔离进程组所使用的物理资源（包括：CPU、memory、IO等），为容器实现虚拟化提供了基本保证，是构建Docker等一系列虚拟化管理工具的基石。 对开发者来说，cgroups有如下四个有趣的特点：</p>
+
+<p>* cgroups的API以一个伪文件系统的方式实现，即用户可以通过文件操作实现cgroups的组织管理。</p>
+
+<p>* cgroups的组织管理操作单元可以细粒度到线程级别，用户态代码也可以针对系统分配的资源创建和销毁cgroups，从而实现资源再分配和管理。</p>
+
+<p>* 所有资源管理的功能都以“subsystem（子系统）”的方式实现，接口统一。</p>
+
+<p>* 子进程创建之初与其父进程处于同一个cgroups的控制组。</p>
+
+<p>本质上来说，cgroups是内核附加在程序上的一系列钩子（hooks），通过程序运行时对资源的调度触发相应的钩子以达到资源追踪和限制的目的。</p>
+
+<h3 id="2-cgroups的作用">2. cgroups的作用</h3>
+
+<p>实现cgroups的主要目的是为不同用户层面的资源管理，提供一个统一化的接口。从单个进程的资源控制到操作系统层面的虚拟化。Cgroups提供了以下四大功能{![参照自：<a href="http://en.wikipedia.org/wiki/Cgroups]}。">http://en.wikipedia.org/wiki/Cgroups]}。</a></p>
+
+<ul>
+<li>资源限制（Resource Limitation）：cgroups可以对进程组使用的资源总额进行限制。如设定应用运行时使用内存的上限，一旦超过这个配额就发出OOM（Out of Memory）。</li>
+<li>优先级分配（Prioritization）：通过分配的CPU时间片数量及硬盘IO带宽大小，实际上就相当于控制了进程运行的优先级。</li>
+<li>资源统计（Accounting）： cgroups可以统计系统的资源使用量，如CPU使用时长、内存用量等等，这个功能非常适用于计费。</li>
+<li>进程控制（Control）：cgroups可以对进程组执行挂起、恢复等操作。</li>
+</ul>
+
+<p>过去有一段时间，内核开发者甚至把namespace也作为一个cgroups的subsystem加入进来，也就是说cgroups曾经甚至还包含了资源隔离的能力。但是资源隔离会给cgroups带来许多问题，如PID在循环出现的时候cgroup却出现了命名冲突、cgroup创建后进入新的namespace导致脱离了控制等等{![详见：<a href="https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=a77aea92010acf54ad785047234418d5d68772e2]}，所以在2011年就被移除了。">https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=a77aea92010acf54ad785047234418d5d68772e2]}，所以在2011年就被移除了。</a></p>
+
+<h3 id="3-术语表">3. 术语表</h3>
+
+<ul>
+<li><strong>task（任务）</strong>：cgroups的术语中，task就表示系统的一个进程。</li>
+<li><strong>cgroup（控制组）</strong>：cgroups 中的资源控制都以cgroup为单位实现。cgroup表示按某种资源控制标准划分而成的任务组，包含一个或多个子系统。一个任务可以加入某个cgroup，也可以从某个cgroup迁移到另外一个cgroup。</li>
+<li><strong>subsystem（子系统）</strong>：cgroups中的subsystem就是一个资源调度控制器（Resource Controller）。比如CPU子系统可以控制CPU时间分配，内存子系统可以限制cgroup内存使用量。</li>
+<li><strong>hierarchy（层级树）</strong>：hierarchy由一系列cgroup以一个树状结构排列而成，每个hierarchy通过绑定对应的subsystem进行资源调度。hierarchy中的cgroup节点可以包含零或多个子节点，子节点继承父节点的属性。整个系统可以有多个hierarchy。</li>
+</ul>
+
+<h3 id="4-组织结构与基本规则">4. 组织结构与基本规则</h3>
+
+<p>大家在namespace技术的讲解中已经了解到，传统的Unix进程管理，实际上是先启动<code>init</code>进程作为根节点，再由<code>init</code>节点创建子进程作为子节点，而每个子节点由可以创建新的子节点，如此往复，形成一个树状结构。而cgroups也是类似的树状结构，子节点都从父节点继承属性。</p>
+
+<p>它们最大的不同在于，系统中cgroup构成的hierarchy可以允许存在多个。如果进程模型是由<code>init</code>作为根节点构成的一棵树的话，那么cgroups的模型则是由多个hierarchy构成的森林。这样做的目的也很好理解，如果只有一个hierarchy，那么所有的task都要受到绑定其上的subsystem的限制，会给那些不需要这些限制的task造成麻烦。</p>
+
+<p>了解了cgroups的组织结构，我们再来了解cgroup、task、subsystem以及hierarchy四者间的相互关系及其基本规则{![参照自：<a href="https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/6/html/Resource_Management_Guide/sec-Relationships_Between_Subsystems_Hierarchies_Control_Groups_and_Tasks.html]}。">https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/6/html/Resource_Management_Guide/sec-Relationships_Between_Subsystems_Hierarchies_Control_Groups_and_Tasks.html]}。</a></p>
+
+<ul>
+<li><strong>规则1：</strong> 同一个hierarchy可以附加一个或多个subsystem。如下图1，cpu和memory的subsystem附加到了一个hierarchy。
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605930203/sel/pic1_brxgat.png" alt="" style="zoom:60%;" />
+</center></li>
+</ul>
+
+<p><strong>图1 同一个hierarchy可以附加一个或多个subsystem</strong></p>
+
+<ul>
+<li><strong>规则2：</strong> 一个subsystem可以附加到多个hierarchy，当且仅当这些hierarchy只有这唯一一个subsystem。如下图2，小圈中的数字表示subsystem附加的时间顺序，CPU subsystem附加到hierarchy A的同时不能再附加到hierarchy B，因为hierarchy B已经附加了memory subsystem。如果hierarchy B与hierarchy A状态相同，没有附加过memory subsystem，那么CPU subsystem同时附加到两个hierarchy是可以的。
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605930364/sel/pic2_braclf.png" alt="" style="zoom:40%;" />
+</center></li>
+</ul>
+
+<p><strong>图2 一个已经附加在某个hierarchy上的subsystem不能附加到其他含有别的subsystem的hierarchy上</strong></p>
+
+<ul>
+<li><strong>规则3：</strong> 系统每次新建一个hierarchy时，该系统上的所有task默认构成了这个新建的hierarchy的初始化cgroup，这个cgroup也称为root cgroup。对于你创建的每个hierarchy，task只能存在于其中一个cgroup中，即一个task不能存在于同一个hierarchy的不同cgroup中，但是一个task可以存在在不同hierarchy中的多个cgroup中。如果操作时把一个task添加到同一个hierarchy中的另一个cgroup中，则会从第一个cgroup中移除。在下图3中可以看到，<code>httpd</code>进程已经加入到hierarchy A中的<code>/cg1</code>而不能加入同一个hierarchy中的<code>/cg2</code>，但是可以加入hierarchy B中的<code>/cg3</code>。实际上不允许加入同一个hierarchy中的其他cgroup野生为了防止出现矛盾，如CPU subsystem为<code>/cg1</code>分配了30%，而为<code>/cg2</code>分配了50%，此时如果<code>httpd</code>在这两个cgroup中，就会出现矛盾。
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605930525/sel/pic3_w4ptph.png" alt="" style="zoom:40%;" />
+</center></li>
+</ul>
+
+<p><strong>图3 一个task不能属于同一个hierarchy的不同cgroup</strong></p>
+
+<ul>
+<li><strong>规则4：</strong> 进程（task）在fork自身时创建的子任务（child task）默认与原task在同一个cgroup中，但是child task允许被移动到不同的cgroup中。即fork完成后，父子进程间是完全独立的。如下图4中，小圈中的数字表示task 出现的时间顺序，当<code>httpd</code>刚fork出另一个<code>httpd</code>时，在同一个hierarchy中的同一个cgroup中。但是随后如果PID为4840的<code>httpd</code>需要移动到其他cgroup也是可以的，因为父子任务间已经独立。总结起来就是：初始化时子任务与父任务在同一个cgroup，但是这种关系随后可以改变。
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605935396/sel/pic4_dilvi2.png" alt="" style="zoom:40%;" />
+</center>
+<strong>图4 刚fork出的子进程在初始状态与其父进程处于同一个cgroup</strong>
+<br /></li>
+</ul>
+
+<h3 id="5-subsystem简介">5. subsystem简介</h3>
+
+<p>subsystem实际上就是cgroups的资源控制系统，每种subsystem独立地控制一种资源，目前Docker使用如下八种subsystem，还有一种<code>net_cls</code> subsystem在内核中已经广泛实现，但是Docker尚未使用。他们的用途分别如下。</p>
+
+<ul>
+<li><strong>blkio：</strong> 这个subsystem可以为块设备设定输入/输出限制，比如物理驱动设备（包括磁盘、固态硬盘、USB等）。</li>
+<li><strong>cpu：</strong> 这个subsystem使用调度程序控制task对CPU的使用。</li>
+<li><strong>cpuacct：</strong> 这个subsystem自动生成cgroup中task对CPU资源使用情况的报告。</li>
+<li><strong>cpuset：</strong> 这个subsystem可以为cgroup中的task分配独立的CPU（此处针对多处理器系统）和内存。</li>
+<li><strong>devices</strong> 这个subsystem可以开启或关闭cgroup中task对设备的访问。</li>
+<li><strong>freezer</strong> 这个subsystem可以挂起或恢复cgroup中的task。</li>
+<li><strong>memory</strong> 这个subsystem可以设定cgroup中task对内存使用量的限定，并且自动生成这些task对内存资源使用情况的报告。</li>
+<li><strong>perf_event</strong> 这个subsystem使用后使得cgroup中的task可以进行统一的性能测试。{![perf: Linux CPU性能探测器，详见<a href="https://perf.wiki.kernel.org/index.php/Main_Page]">https://perf.wiki.kernel.org/index.php/Main_Page]</a>}</li>
+<li>*<strong>net_cls</strong> 这个subsystem Docker没有直接使用，它通过使用等级识别符(classid)标记网络数据包，从而允许 Linux 流量控制程序（TC：Traffic Controller）识别从具体cgroup中生成的数据包。</li>
+</ul>
+
+<h3 id="6-cgroups实现方式及工作原理简介">6. cgroups实现方式及工作原理简介*</h3>
+
+<h4 id="1-cgroups实现结构讲解">（1）cgroups实现结构讲解</h4>
+
+<p>cgroups的实现本质上是给系统进程挂上钩子（hooks），当task运行的过程中涉及到某个资源时就会触发钩子上所附带的subsystem进行检测，最终根据资源类别的不同使用对应的技术进行资源限制和优先级分配。那么这些钩子又是怎样附加到进程上的呢？下面我们将对照结构体的图表一步步分析，请放心，描述代码的内容并不多。
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605933444/sel/cgroup_struct_jpv5qh.png" alt="" style="zoom:40%;" />
+</center></p>
+
+<p><strong>图5 cgroups相关结构体一览</strong></p>
+
+<p>Linux中管理task进程的数据结构为<code>task_struct</code>（包含所有进程管理的信息），其中与cgroup相关的字段主要有两个，一个是<code>css_set *cgroups</code>，表示指向<code>css_set</code>（包含进程相关的cgroups信息）的指针，一个task只对应一个<code>css_set</code>结构，但是一个<code>css_set</code>可以被多个task使用。另一个字段是<code>list_head cg_list</code>，是一个链表的头指针，这个链表包含了所有的链到同一个<code>css_set</code>的task进程（在图中使用的回环箭头，均表示可以通过该字段找到所有同类结构，获得信息）。 每个<code>css_set</code>结构中都包含了一个指向<code>cgroup_subsys_state</code>（包含进程与一个特定子系统相关的信息）的指针数组。<code>cgroup_subsys_state</code>则指向了<code>cgroup</code>结构（包含一个cgroup的所有信息），通过这种方式间接的把一个进程和cgroup联系了起来，如下图6。
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605933609/sel/cgroup_task_e3awbn.png" alt="" style="zoom:60%;" />
+</center></p>
+
+<p><strong>图6 从task结构开始找到cgroup结构</strong></p>
+
+<p>另一方面，<code>cgroup</code>结构体中有一个<code>list_head css_sets</code>字段，它是一个头指针，指向由<code>cg_cgroup_link</code>（包含cgroup与task之间多对多关系的信息，后文还会再解释）形成的链表。由此获得的每一个<code>cg_cgroup_link</code>都包含了一个指向<code>css_set *cg</code>字段，指向了每一个task的<code>css_set</code>。<code>css_set</code>结构中则包含<code>tasks</code>头指针，指向所有链到此<code>css_set</code>的task进程构成的链表。至此，我们就明白如何查看在同一个cgroup中的task有哪些了，如下图7。
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605935402/sel/cgroup_cglink_z55aqg.png" alt="" style="zoom:50%;" />
+</center></p>
+
+<p><strong>图7 cglink多对多双向查询</strong></p>
+
+<p>细心的读者可能已经发现，<code>css_set</code>中也有指向所有<code>cg_cgroup_link</code>构成链表的头指针，通过这种方式也能定位到所有的cgroup，这种方式与图1中所示的方式得到的结果是相同的。</p>
+
+<p>那么为什么要使用<code>cg_cgroup_link</code>结构体呢？因为task与cgroup之间是多对多的关系。熟悉数据库的读者很容易理解，在数据库中，如果两张表是多对多的关系，那么如果不加入第三张关系表，就必须为一个字段的不同添加许多行记录，导致大量冗余。通过从主表和副表各拿一个主键新建一张关系表，可以提高数据查询的灵活性和效率。</p>
+
+<p>而一个task可能处于不同的cgroup，只要这些cgroup在不同的hierarchy中，并且每个hierarchy挂载的子系统不同；另一方面，一个cgroup中可以有多个task，这是显而易见的，但是这些task因为可能还存在在别的cgroup中，所以它们对应的<code>css_set</code>也不尽相同，所以一个cgroup也可以对应多个·<code>css_set</code>。</p>
+
+<p>在系统运行之初，内核的主函数就会对<code>root cgroups</code>和<code>css_set</code>进行初始化，每次task进行fork/exit时，都会附加（attach）/分离（detach）对应的<code>css_set</code>。</p>
+
+<p>综上所述，添加<code>cg_cgroup_link</code>主要是出于性能方面的考虑，一是节省了<code>task_struct</code>结构体占用的内存，二是提升了进程<code>fork()/exit()</code>的速度。
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605935409/sel/cgrou_hashtable_lvtzhl.png" alt="" style="zoom:70%;" />
+</center></p>
+
+<p><strong>图8 css_set与hashtable关系</strong></p>
+
+<p>当task从一个cgroup中移动到另一个时，它会得到一个新的<code>css_set</code>指针。如果所要加入的cgroup与现有的cgroup子系统相同，那么就重复使用现有的<code>css_set</code>，否则就分配一个新<code>css_set</code>。所有的<code>css_set</code>通过一个哈希表进行存放和查询，如上图8中所示，<code>hlist_node hlist</code>就指向了<code>css_set_table</code>这个hash表。</p>
+
+<p>同时，为了让cgroups便于用户理解和使用，也为了用精简的内核代码为cgroup提供熟悉的权限和命名空间管理，内核开发者们按照Linux 虚拟文件系统转换器（VFS：Virtual Filesystem Switch）的接口实现了一套名为<code>cgroup</code>的文件系统，非常巧妙地用来表示cgroups的hierarchy概念，把各个subsystem的实现都封装到文件系统的各项操作中。有兴趣的读者可以在网上搜索并阅读<a href="http://en.wikipedia.org/wiki/Virtual_file_system">VFS</a>的相关内容，在此就不赘述了。</p>
+
+<p>定义子系统的结构体是<code>cgroup_subsys</code>，在图9中可以看到，<code>cgroup_subsys</code>中定义了一组函数的接口，让各个子系统自己去实现，类似的思想还被用在了<code>cgroup_subsys_state</code>中，<code>cgroup_subsys_state</code>并没有定义控制信息，只是定义了各个子系统都需要用到的公共信息，由各个子系统各自按需去定义自己的控制信息结构体，最终在自定义的结构体中把<code>cgroup_subsys_state</code>包含进去，然后内核通过<code>container_of</code>（这个宏可以通过一个结构体的成员找到结构体自身）等宏定义来获取对应的结构体。
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605935416/sel/cgroup_subsys_sksowc.png" alt="" style="zoom:60%;" />
+</center></p>
+
+<p><strong>图9 cgroup子系统结构体</strong></p>
+
+<h4 id="2-基于cgroups实现结构的用户层体现">（2）基于cgroups实现结构的用户层体现</h4>
+
+<p>了解了cgroups实现的代码结构以后，再来看用户层在使用cgroups时的限制，会更加清晰。</p>
+
+<p>在实际的使用过程中，你需要通过挂载（mount）<code>cgroup</code>文件系统新建一个层级结构，挂载时指定要绑定的子系统，缺省情况下默认绑定系统所有子系统。把cgroup文件系统挂载（mount）上以后，你就可以像操作文件一样对cgroups的hierarchy层级进行浏览和操作管理（包括权限管理、子文件管理等等）。除了cgroup文件系统以外，内核没有为cgroups的访问和操作添加任何系统调用。</p>
+
+<p>如果新建的层级结构要绑定的子系统与目前已经存在的层级结构完全相同，那么新的挂载会重用原来已经存在的那一套（指向相同的css_set）。否则如果要绑定的子系统已经被别的层级绑定，就会返回挂载失败的错误。如果一切顺利，挂载完成后层级就被激活并与相应子系统关联起来，可以开始使用了。</p>
+
+<p>目前无法将一个新的子系统绑定到激活的层级上，或者从一个激活的层级中解除某个子系统的绑定。</p>
+
+<p>当一个顶层的cgroup文件系统被卸载（umount）时，如果其中创建后代cgroup目录，那么就算上层的cgroup被卸载了，层级也是激活状态，其后代cgoup中的配置依旧有效。只有递归式的卸载层级中的所有cgoup，那个层级才会被真正删除。</p>
+
+<p>层级激活后，<code>/proc</code>目录下的每个task PID文件夹下都会新添加一个名为<code>cgroup</code>的文件，列出task所在的层级，对其进行控制的子系统及对应cgroup文件系统的路径。</p>
+
+<p>一个cgroup创建完成，不管绑定了何种子系统，其目录下都会生成以下几个文件，用来描述cgroup的相应信息。同样，把相应信息写入这些配置文件就可以生效，内容如下。</p>
+
+<ul>
+<li><code>tasks</code>：这个文件中罗列了所有在该cgroup中task的PID。该文件并不保证task的PID有序，把一个task的PID写到这个文件中就意味着把这个task加入这个cgroup中。</li>
+<li><code>cgroup.procs</code>：这个文件罗列所有在该cgroup中的线程组ID。该文件并不保证线程组ID有序和无重复。写一个线程组ID到这个文件就意味着把这个组中所有的线程加到这个cgroup中。</li>
+<li><code>notify_on_release</code>：填0或1，表示是否在cgroup中最后一个task退出时通知运行<code>release agent</code>，默认情况下是0，表示不运行。</li>
+<li><code>release_agent</code>：指定release agent执行脚本的文件路径（该文件在最顶层cgroup目录中存在），在这个脚本通常用于自动化<code>umount</code>无用的cgroup。</li>
+</ul>
+
+<p>除了上述几个通用的文件以外，绑定特定子系统的目录下也会有其他的文件进行子系统的参数配置。</p>
+
+<p>在创建的hierarchy中创建文件夹，就类似于fork中一个后代cgroup，后代cgroup中默认继承原有cgroup中的配置属性，但是你可以根据需求对配置参数进行调整。这样就把一个大的cgroup系统分割成一个个嵌套的、可动态变化的“软分区”。</p>
+
+<h3 id="7-cgroups的使用方法简介">7. cgroups的使用方法简介</h3>
+
+<h4 id="1-安装cgroups工具库">（1）安装cgroups工具库</h4>
+
+<p>本节主要针对Ubuntu14.04版本系统进行介绍，其他Linux发行版命令略有不同，原理是一样的。不安装cgroups工具库也可以使用cgroups，安装它只是为了更方便的在用户态对cgroups进行管理，同时也方便初学者理解和使用，本节对cgroups的操作和使用都基于这个工具库。</p>
+
+<p><code>apt-get install cgroup-bin</code></p>
+
+<p>安装的过程会自动创建<code>/cgroup</code>目录，如果没有自动创建也不用担心，使用 <code>mkdir /cgroup</code> 手动创建即可。在这个目录下你就可以挂载各类子系统。安装完成后，你就可以使用<code>lssubsys</code>（罗列所有的subsystem挂载情况）等命令。</p>
+
+<p>说明：也许你在其他文章中看到的cgroups工具库教程，会在/etc目录下生成一些初始化脚本和配置文件，默认的cgroup配置文件为<code>/etc/cgconfig.conf</code>，但是因为存在使LXC无法运行的bug，所以在新版本中把这个配置移除了，详见：<a href="https://bugs.launchpad.net/ubuntu/+source/libcgroup/+bug/1096771。">https://bugs.launchpad.net/ubuntu/+source/libcgroup/+bug/1096771。</a></p>
+
+<h4 id="2-查询cgroup及子系统挂载状态">（2）查询cgroup及子系统挂载状态</h4>
+
+<p>在挂载子系统之前，可能你要先检查下目前子系统的挂载状态，如果子系统已经挂载，根据第4节中讲的规则2，你就无法把子系统挂载到新的hierarchy，此时就需要先删除相应hierarchy或卸载对应子系统后再挂载。</p>
+
+<ul>
+<li>查看所有的cgroup：<code>lscgroup</code></li>
+<li>查看所有支持的子系统：<code>lssubsys -a</code></li>
+<li>查看所有子系统挂载的位置： <code>lssubsys –m</code></li>
+<li>查看单个子系统（如memory）挂载位置：<code>lssubsys –m memory</code></li>
+</ul>
+
+<h4 id="3-创建hierarchy层级并挂载子系统">（3）创建hierarchy层级并挂载子系统</h4>
+
+<p>在组织结构与规则一节中我们提到了hierarchy层级和subsystem子系统的关系，我们知道使用cgroup的最佳方式是：为想要管理的每个或每组资源创建单独的cgroup层级结构。而创建hierarchy并不神秘，实际上就是做一个标记，通过挂载一个tmpfs{![基于内存的临时文件系统，详见：<a href="http://en.wikipedia.org/wiki/Tmpfs]}文件系统，并给一个好的名字就可以了，系统默认挂载的cgroup就会进行如下操作。">http://en.wikipedia.org/wiki/Tmpfs]}文件系统，并给一个好的名字就可以了，系统默认挂载的cgroup就会进行如下操作。</a></p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">    mount -t tmpfs cgroups /sys/fs/cgroup</code></pre></div>
+<p>其中<code>-t</code>即指定挂载的文件系统类型，其后的<code>cgroups</code>是会出现在<code>mount</code>展示的结果中用于标识，可以选择一个有用的名字命名，最后的目录则表示文件的挂载点位置。 挂载完成<code>tmpfs</code>后就可以通过<code>mkdir</code>命令创建相应的文件夹。</p>
+
+<p><code>mkdir /sys/fs/cgroup/cg1</code></p>
+
+<p>再把子系统挂载到相应层级上，挂载子系统也使用mount命令，语法如下。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">    mount -t cgroup -o subsystems name /cgroup/name</code></pre></div>
+<p>其​​​中​​​ subsystems 是​​​使​​​用​​​<code>,</code>（逗号）​​​分​​​开​​​的​​​子​​​系​​​统​​​列​​​表，name 是​​​层​​​级​​​名​​​称​​​。具体我们以挂载cpu和memory的子系统为例，命令如下。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">    mount –t cgroup –o cpu,memory cpu_and_mem /sys/fs/cgroup/cg1</code></pre></div>
+<p>从<code>mount</code>命令开始，<code>-t</code>后面跟的是挂载的文件系统类型，即<code>cgroup</code>文件系统。<code>-o</code>后面跟要挂载的子系统种类如<code>cpu</code>、<code>memory</code>，用逗号隔开，其后的<code>cpu_and_mem</code>不被cgroup代码的解释，但会出现在/proc/mounts里，可以使用任何有用的标识字符串。最后的参数则表示挂载点的目录位置。</p>
+
+<p>说明：如果挂载时提示<code>mount: agent already mounted or /cgroup busy</code>，则表示子系统已经挂载，需要先卸载原先的挂载点，通过第二条中描述的命令可以定位挂载点。</p>
+
+<h4 id="4-卸载cgroup">（4）卸载cgroup</h4>
+
+<p>目前<code>cgroup</code>文件系统虽然支持重新挂载，但是官方不建议使用，重新挂载虽然可以改变绑定的子系统和<code>release agent</code>，但是它要求对应的hierarchy是空的并且release_agent会被传统的<code>fsnotify</code>（内核默认的文件系统通知）代替，这就导致重新挂载很难生效，未来重新挂载的功能可能会移除。你可以通过卸载，再挂载的方式处理这样的需求。</p>
+
+<p>卸载cgroup非常简单，你可以通过<code>cgdelete</code>命令，也可以通过<code>rmdir</code>，以刚挂载的cg1为例，命令如下。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">    rmdir /sys/fs/cgroup/cg1</code></pre></div>
+<p><code>rmdir</code>执行成功的必要条件是cg1下层没有创建其它cgroup，cg1中没有添加任何task，并且它也没有被别的cgroup所引用。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">    cgdelete cpu,memory:/</code></pre></div>
+<p>使用<code>cgdelete</code>命令可以递归的删除cgroup及其命令下的后代cgroup，并且如果cgroup中有task，那么task会自动移到上一层没有被删除的cgroup中，如果所有的cgroup都被删除了，那task就不被cgroups控制。但是一旦再次创建一个新的cgroup，所有进程都会被放进新的cgroup中。</p>
+
+<h4 id="5-设置cgroups参数">（5）设置cgroups参数</h4>
+
+<p>设置cgroups参数非常简单，直接对之前创建的cgroup对应文件夹下的文件写入即可，举例如下。</p>
+
+<ul>
+<li>设置task允许使用的cpu为0和1. <code>echo 0-1 &gt; /sys/fs/cgroup/cg1/cpuset.cpus</code></li>
+</ul>
+
+<p>使用<code>cgset</code>命令也可以进行参数设置，对应上述允许使用0和1cpu的命令为： <code>cgset -r cpuset.cpus=0-1 cpu,memory:/</code></p>
+
+<h4 id="6-添加task到cgroup">（6）添加task到cgroup</h4>
+
+<ul>
+<li><p>通过文件操作进行添加 <code>echo [PID] &gt; /path/to/cgroup/tasks</code> 上述命令就是把进程ID打印到tasks中，如果tasks文件中已经有进程，需要使用<code>&quot;&gt;&gt;&quot;</code>向后添加。</p></li>
+
+<li><p>通过<code>cgclassify</code>将进程添加到cgroup <code>cgclassify -g subsystems:path_to_cgroup pidlist</code> 这个命令中，<code>subsystems</code>指的就是子系统（如果使用man命令查看，可能也会使用controllers表示）​​​，如果mount了多个，就是用<code>&quot;,&quot;</code>隔开的子系统名字作为名称，类似<code>cgset</code>命令。</p></li>
+
+<li><p>通过<code>cgexec</code>直接在cgroup中启动并执行进程 <code>cgexec -g subsystems:path_to_cgroup command arguments</code> <code>command</code>和<code>arguments</code>就表示要在cgroup中执行的命令和参数。<code>cgexec</code>常用于执行临时的任务。</p></li>
+</ul>
+
+<h4 id="7-权限管理">（7）权限管理</h4>
+
+<p>与文件的权限管理类似，通过<code>chown</code>就可以对cgroup文件系统进行权限管理。</p>
+
+<p><code>chown uid:gid /path/to/cgroup</code></p>
+
+<p><code>uid</code>和<code>gid</code>分别表示所属的用户和用户组。</p>
+
+<h3 id="8-subsystem配置参数用法">8. subsystem配置参数用法</h3>
+
+<h4 id="1-blkio-block-io资源控制">（1）blkio - BLOCK IO资源控制</h4>
+
+<ul>
+<li><p><strong>限额类</strong> 限额类是主要有两种策略，一种是基于完全公平队列调度（CFQ：Completely Fair Queuing ）的按权重分配各个cgroup所能占用总体资源的百分比，好处是当资源空闲时可以充分利用，但只能用于最底层节点cgroup的配置；另一种则是设定资源使用上限，这种限额在各个层次的cgroup都可以配置，但这种限制较为生硬，并且容器之间依然会出现资源的竞争。</p>
+
+<ul>
+<li><strong>按比例分配块设备IO资源</strong>
+<br /></li>
+</ul>
+
+<ol>
+<li><strong>blkio.weight</strong>：填写100-1000的一个整数值，作为相对权重比率，作为通用的设备分配比。</li>
+<li><strong>blkio.weight_device</strong>： 针对特定设备的权重比，写入格式为<code>device_types:node_numbers weight</code>，空格前的参数段指定设备，<code>weight</code>参数与<code>blkio.weight</code>相同并覆盖原有的通用分配比。{![查看一个设备的<code>device_types:node_numbers</code>可以使用：<code>ls -l /dev/DEV</code>，看到的用逗号分隔的两个数字就是。有的文章也称之为<code>major_number:minor_number</code>。]}
+<br /></li>
+</ol>
+
+<ul>
+<li><strong>控制IO读写速度上限</strong>
+
+<ol>
+<li><strong>blkio.throttle.read_bps_device</strong>：按每秒读取块设备的数据量设定上限，格式<code>device_types:node_numbers bytes_per_second</code>。</li>
+<li><strong>blkio.throttle.write_bps_device</strong>：按每秒写入块设备的数据量设定上限，格式<code>device_types:node_numbers bytes_per_second</code>。</li>
+<li><strong>blkio.throttle.read_iops_device</strong>：按每秒读操作次数设定上限，格式<code>device_types:node_numbers operations_per_second</code>。</li>
+<li><strong>blkio.throttle.write_iops_device</strong>：按每秒写操作次数设定上限，格式<code>device_types:node_numbers operations_per_second</code></li>
+</ol></li>
+<li><strong>针对特定操作(read, write, sync, 或async)设定读写速度上限</strong>
+
+<ol>
+<li><strong>blkio.throttle.io_serviced</strong>：针对特定操作按每秒操作次数设定上限，格式<code>device_types:node_numbers operation operations_per_second</code></li>
+<li><strong>blkio.throttle.io_service_bytes</strong>：针对特定操作按每秒数据量设定上限，格式<code>device_types:node_numbers operation bytes_per_second</code></li>
+</ol></li>
+</ul></li>
+
+<li><p><strong>统计与监控</strong> 以下内容都是只读的状态报告，通过这些统计项更好地统计、监控进程的 io 情况。</p>
+
+<ol>
+<li><strong>blkio.reset_stats</strong>：重置统计信息，写入一个int值即可。</li>
+<li><strong>blkio.time</strong>：统计cgroup对设备的访问时间，按格式<code>device_types:node_numbers milliseconds</code>读取信息即可，以下类似。</li>
+<li><strong>blkio.io_serviced</strong>：统计cgroup对特定设备的IO操作（包括read、write、sync及async）次数，格式<code>device_types:node_numbers operation number</code></li>
+<li><strong>blkio.sectors</strong>：统计cgroup对设备扇区访问次数，格式 <code>device_types:node_numbers sector_count</code></li>
+<li><strong>blkio.io_service_bytes</strong>：统计cgroup对特定设备IO操作（包括read、write、sync及async）的数据量，格式<code>device_types:node_numbers operation bytes</code></li>
+<li><strong>blkio.io_queued</strong>：统计cgroup的队列中对IO操作（包括read、write、sync及async）的请求次数，格式<code>number operation</code></li>
+<li><strong>blkio.io_service_time</strong>：统计cgroup对特定设备的IO操作（包括read、write、sync及async）时间(单位为ns)，格式<code>device_types:node_numbers operation time</code></li>
+<li><strong>blkio.io_merged</strong>：统计cgroup 将 BIOS 请求合并到IO操作（包括read、write、sync及async）请求的次数，格式<code>number operation</code></li>
+<li><strong>blkio.io_wait_time</strong>：统计cgroup在各设​​​备​​​中各类型​​​IO操作（包括read、write、sync及async）在队列中的等待时间​(单位ns)，格式<code>device_types:node_numbers operation time</code></li>
+<li><strong>blkio.*_recursive</strong>：各类型的统计都有一个递归版本，Docker中使用的都是这个版本。获取的数据与非递归版本是一样的，但是包括cgroup所有层级的监控数据。</li>
+</ol></li>
+</ul>
+
+<h4 id="2-cpu-cpu资源控制">（2） cpu - CPU资源控制</h4>
+
+<p>CPU资源的控制也有两种策略，一种是完全公平调度 （CFS：Completely Fair Scheduler）策略，提供了限额和按比例分配两种方式进行资源控制；另一种是实时调度（Real-Time Scheduler）策略，针对实时进程按周期分配固定的运行时间。配置时间都以微秒（µs）为单位，文件名中用<code>us</code>表示。</p>
+
+<ul>
+<li><p><strong>CFS调度策略下的配置</strong></p>
+
+<ul>
+<li>设定CPU使用周期使用时间上限
+<br /></li>
+</ul>
+
+<ol>
+<li><strong>cpu.cfs_period_us</strong>：设定周期时间，必须与<code>cfs_quota_us</code>配合使用。</li>
+<li><strong>cpu.cfs_quota_us</strong> ：设定周期内最多可使用的时间。这里的配置指task对单个cpu的使用上限，若<code>cfs_quota_us</code>是<code>cfs_period_us</code>的两倍，就表示在两个核上完全使用。数值范围为1000 - 1000,000（微秒）。</li>
+<li><strong>cpu.stat</strong>：统计信息，包含<code>nr_periods</code>（表示经历了几个<code>cfs_period_us</code>周期）、<code>nr_throttled</code>（表示task被限制的次数）及<code>throttled_time</code>（表示task被限制的总时长）。
+<br /></li>
+</ol>
+
+<ul>
+<li><strong>按权重比例设定CPU的分配</strong>
+<br /></li>
+</ul>
+
+<p><strong>cpu.shares</strong>：设定一个整数（必须大于等于2）表示相对权重，最后除以权重总和算出相对比例，按比例分配CPU时间。（如cgroup A设置100，cgroup B设置300，那么cgroup A中的task运行25%的CPU时间。对于一个4核CPU的系统来说，cgroup A 中的task可以100%占有某一个CPU，这个比例是相对整体的一个值。）</p></li>
+
+<li><p><strong>RT调度策略下的配置</strong> 实时调度策略与公平调度策略中的按周期分配时间的方法类似，也是在周期内分配一个固定的运行时间。</p>
+
+<ol>
+<li><strong>cpu.rt_period_us</strong> ：设定周期时间。</li>
+<li><strong>cpu.rt_runtime_us</strong>：设定周期中的运行时间。</li>
+</ol></li>
+</ul>
+
+<h4 id="3-cpuacct-cpu资源报告">（3） cpuacct - CPU资源报告</h4>
+
+<p>这个子系统的配置是<code>cpu</code>子系统的补充，提供CPU资源用量的统计，时间单位都是纳秒。
+1. <strong>cpuacct.usage</strong>：统计cgroup中所有task的cpu使用时长
+2. <strong>cpuacct.stat</strong>：统计cgroup中所有task的用户态和内核态分别使用cpu的时长
+3. <strong>cpuacct.usage_percpu</strong>：统计cgroup中所有task使用每个cpu的时长</p>
+
+<h4 id="4-cpuset-cpu绑定">（4）cpuset - CPU绑定</h4>
+
+<p>为task分配独立CPU资源的子系统，参数较多，这里只选讲两个必须配置的参数，同时Docker中目前也只用到这两个。
+1. <strong>cpuset.cpus</strong>：在这个文件中填写cgroup可使用的CPU编号，如<code>0-2,16</code>代表 0、1、2和16这4个CPU。
+2. <strong>cpuset.mems</strong>：与CPU类似，表示cgroup可使用的<code>memory node</code>，格式同上</p>
+
+<h4 id="5-device-限制task对device的使用">（5） device - 限制task对device的使用</h4>
+
+<ul>
+<li><strong>设备黑/白名单过滤</strong>
+
+<ol>
+<li><strong>devices.allow</strong>：允许名单，语法<code>type device_types:node_numbers access type</code> ；<code>type</code>有三种类型：b（块设备）、c（字符设备）、a（全部设备）；<code>access</code>也有三种方式：r（读）、w（写）、m（创建）。</li>
+<li><strong>devices.deny</strong>：禁止名单，语法格式同上。</li>
+</ol></li>
+
+<li><p><strong>统计报告</strong></p>
+
+<p><strong>devices.list</strong>：报​​​告​​​为​​​这​​​个​​​ cgroup 中​​​的​task设​​​定​​​访​​​问​​​控​​​制​​​的​​​设​​​备</p></li>
+</ul>
+
+<h4 id="6-freezer-暂停-恢复cgroup中的task">（6） freezer - 暂停/恢复cgroup中的task</h4>
+
+<p>只有一个属性，表示进程的状态，把task放到freezer所在的cgroup，再把state改为FROZEN，就可以暂停进程。不允许在cgroup处于FROZEN状态时加入进程。  <strong>freezer.state</strong>，包括如下三种状态：</p>
+
+<ul>
+<li>FROZEN 停止</li>
+<li>FREEZING 正在停止，这个是只读状态，不能写入这个值。</li>
+<li>THAWED 恢复</li>
+</ul>
+
+<h4 id="7-memory-内存资源管理">（7） memory - 内存资源管理</h4>
+
+<ul>
+<li><strong>限额类</strong>
+
+<ol>
+<li><strong>memory.limit_in_bytes</strong>：强制限制最大内存使用量，单位有<code>k</code>、<code>m</code>、<code>g</code>三种，填<code>-1</code>则代表无限制。</li>
+<li><strong>memory.soft_limit_in_bytes</strong>：软限制，只有比强制限制设置的值小时才有意义。填写格式同上。当整体内存紧张的情况下，task获取的内存就被限制在软限制额度之内，以保证不会有太多进程因内存挨饿。可以看到，加入了内存的资源限制并不代表没有资源竞争。</li>
+<li><strong>memory.memsw.limit_in_bytes</strong>：设定最大内存与swap区内存之和的用量限制。填写格式同上。</li>
+</ol></li>
+
+<li><p><strong>报警与自动控制</strong></p>
+
+<ol>
+<li><strong>memory.oom_control</strong>：改参数填0或1， <code>0</code>表示开启，当cgroup中的进程使用资源超过界限时立即杀死进程，<code>1</code>表示不启用。默认情况下，包含memory子系统的cgroup都启用。当<code>oom_control</code>不启用时，实际使用内存超过界限时进程会被暂停直到有空闲的内存资源。</li>
+</ol></li>
+
+<li><p><strong>统计与监控类</strong></p>
+
+<ol>
+<li><strong>memory.usage_in_bytes</strong>：报​​​告​​​该​​​ cgroup中​​​进​​​程​​​使​​​用​​​的​​​当​​​前​​​总​​​内​​​存​​​用​​​量（以字节为单位）</li>
+<li><strong>memory.max_usage_in_bytes</strong>：报​​​告​​​该​​​ cgroup 中​​​进​​​程​​​使​​​用​​​的​​​最​​​大​​​内​​​存​​​用​​​量</li>
+<li><strong>memory.failcnt</strong>：报​​​告​​​内​​​存​​​达​​​到​​​在​​<code>​ memory.limit_in_bytes</code>设​​​定​​​的​​​限​​​制​​​值​​​的​​​次​​​数​​​</li>
+<li><strong>memory.stat</strong>：包含大量的内存统计数据。
+<br /></li>
+</ol>
+
+<ul>
+<li>cache：页​​​缓​​​存​​​，包​​​括​​​ tmpfs（shmem），单位为字节。</li>
+<li>rss：匿​​​名​​​和​​​ swap 缓​​​存​​​，不​​​包​​​括​​​ tmpfs（shmem），单位为字节。</li>
+<li>mapped_file：memory-mapped 映​​​射​​​的​​​文​​​件​​​大​​​小​​​，包​​​括​​​ tmpfs（shmem），单​​​位​​​为​​​字​​​节​​​</li>
+<li>pgpgin：存​​​入​​​内​​​存​​​中​​​的​​​页​​​数​​​</li>
+<li>pgpgout：从​​​内​​​存​​​中​​​读​​​出​​​的​​​页​​​数</li>
+<li>swap：swap 用​​​量​​​，单​​​位​​​为​​​字​​​节​​​</li>
+<li>active_anon：在​​​活​​​跃​​​的​​​最​​​近​​​最​​​少​​​使​​​用​​​（least-recently-used，LRU）列​​​表​​​中​​​的​​​匿​​​名​​​和​​​ swap 缓​​​存​​​，包​​​括​​​ tmpfs（shmem），单​​​位​​​为​​​字​​​节​​​</li>
+<li>inactive_anon：不​​​活​​​跃​​​的​​​ LRU 列​​​表​​​中​​​的​​​匿​​​名​​​和​​​ swap 缓​​​存​​​，包​​​括​​​ tmpfs（shmem），单​​​位​​​为​​​字​​​节</li>
+<li>active_file：活​​​跃​​​ LRU 列​​​表​​​中​​​的​​​ file-backed 内​​​存​​​，以​​​字​​​节​​​为​​​单​​​位</li>
+<li>inactive_file：不​​​活​​​跃​​​ LRU 列​​​表​​​中​​​的​​​ file-backed 内​​​存​​​，以​​​字​​​节​​​为​​​单​​​位</li>
+<li>unevictable：无​​​法​​​再​​​生​​​的​​​内​​​存​​​，以​​​字​​​节​​​为​​​单​​​位​​​</li>
+<li>hierarchical_memory_limit：包​​​含​​​ memory cgroup 的​​​层​​​级​​​的​​​内​​​存​​​限​​​制​​​，单​​​位​​​为​​​字​​​节​​​</li>
+<li>hierarchical_memsw_limit：包​​​含​​​ memory cgroup 的​​​层​​​级​​​的​​​内​​​存​​​加​​​ swap 限​​​制​​​，单​​​位​​​为​​​字​​​节​​​</li>
+</ul></li>
+</ul>
+
+<h3 id="8-总结">8. 总结</h3>
+
+<p>本文由浅入深的讲解了cgroups的方方面面，从cgroups是什么，到cgroups该怎么用，最后对大量的cgroup子系统配置参数进行了梳理。可以看到，内核对cgroups的支持已经较为完善，但是依旧有许多工作需要完善。如网络方面目前是通过TC（Traffic Controller）来控制，未来需要统一整合；资源限制并没有解决资源竞争，在各自限制之内的进程依旧存在资源竞争，优先级调度方面依旧有很大的改进空间。希望通过本文帮助大家了解cgroups，让更多人参与到社区的贡献中。</p>
+
+<h3 id="参考资料">参考资料</h3>
+
+<p><a href="https://sysadmincasts.com/episodes/14-introduction-to-linux-control-groups-cgroups">https://sysadmincasts.com/episodes/14-introduction-to-linux-control-groups-cgroups</a> <a href="https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/6/html/Resource_Management_Guide/index.html">https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/6/html/Resource_Management_Guide/index.html</a> <a href="http://www.cnblogs.com/lisperl/archive/2013/01/14/2860353.html">http://www.cnblogs.com/lisperl/archive/2013/01/14/2860353.html</a> <a href="https://www.kernel.org/doc/Documentation/cgroups">https://www.kernel.org/doc/Documentation/cgroups</a> [simple-author-box]</p>
+                        </div>
+                        
+                        
+                        
+                        
+                        
+                        
+
+                        
+                        <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+                        <script src="https://unpkg.com/gitalk@latest/dist/gitalk.min.js"></script> 
+                        <script type="text/javascript" src="/assets/js/md5.min.js"></script>
+                        <div id="gitalk-container"></div>     
+                        <script type="text/javascript">
+                            var gitalk = new Gitalk({
+                              clientID: '835183d2dcbd1167ac28', 
+                            
+                              clientSecret: 'd873919fac3cc76921ee0800172c2279bc612f8d', 
+                            
+                              repo: 'Sel-Website-talk',
+                              owner: 'Peeknut',
+                              admin: ['Peeknut','Rachel-Shao'],
+                              id: location.href.split("/").pop().substring(0, 49),      
+                              distractionFreeMode: false  
+                            })
+                            gitalk.render('gitalk-container')
+                        </script> 
+                        
+
+                    </div>
+                    
+
+                    
+
+                    
+
+                    <div class="col-md-3">
+
+                        
+
+                        
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+      <h3 class="panel-title">搜索栏</h3>
+      
+    </div>
+
+    <div class="panel-body">
+        
+        <div class="search" id="search">
+            <div class="input-group">
+                <input type="text" name="q" class="form-control" placeholder="请输入文章标题或摘要..." id="search-key">
+                <input type="hidden" name="sitesearch" value="https://Congrool.github.io/">
+                <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main" onclick="search()"><i class="fas fa-search"></i></button>
+                </span>
+            </div>
+            <h1 id="search-tip" style="color: red;text-align: center;display: none;font-size: medium;">搜索中，请稍后 ...</h1>
+        </div>
+        <script type="text/javascript">
+            
+            window.onload = function() {
+                      document.onkeydown = function(ev) {
+                        var event = ev || event
+                        if (event.keyCode == 13) {
+                          search()
+                        }
+                      }
+                    }
+            
+            function search() {
+                    
+                      key = document.getElementById("search-key").value;
+                      if (key === "") {
+                        
+                        return;
+                      }
+                      key = key.toLowerCase();
+                      document.getElementById("search-key").value = "";
+                  
+                      
+                      document.getElementById("search-tip").innerText = "搜索中，请稍后 ...";
+                      document.getElementById("search-tip").style.display = "block";
+                  
+                      
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      var childs = el.childNodes;
+                      for (var i = childs.length - 1; i >= 0; i--) {
+                        el.removeChild(childs[i]);
+                      }
+                  
+                      
+                      xmltext = new XMLHttpRequest;
+                      xmltext.open("GET", "/index.xml", false);
+                      xmltext.send();
+                      resp = xmltext.responseXML;
+                      
+                      items = resp.getElementsByTagName("item");
+                      
+                      var i = 0;
+                      haveResult = false;
+                      while (i < items.length) {
+                        txt = items[i].getElementsByTagName("title")[0].innerHTML + items[i].getElementsByTagName("description")[0].innerHTML
+                        txt = txt.toLowerCase();
+                        if (txt.indexOf(key) > -1) {
+                          haveResult = true;
+                          title = items[i].getElementsByTagName("title")[0].innerHTML;
+                          link = items[i].getElementsByTagName("link")[0].innerHTML;
+                          time = items[i].getElementsByTagName("pubDate")[0].innerHTML;
+                          mark = items[i].getElementsByTagName("description")[0].innerHTML;
+                          time = time.slice(0, -5);
+                          addItem(title, link, time, mark)
+                        }
+                        i++;
+                      }
+                      if (!haveResult) {
+                        document.getElementById("search-tip").innerText = "搜索完毕，未发现结果 ...";
+                        document.getElementById("search-tip").style.display = "block";
+                      }
+
+                      
+                      var el = document.getElementById("blog-head");
+                      el.innerHTML="Blogs"
+                    }
+                  
+                    
+                    function addItem(title, link, time, mark) {
+                      document.getElementById("search-tip").style.display = "none";
+                      tmpl = "<article class=\"post\" style=\"border-bottom: 1px solid #e6e6e6;\" >" +
+                        "<header class=\"post-header\">" +
+                        "<h1 class=\"post-title\"><a class=\"post-link\" href=\"" + link + "\" target=\"_blank\">" + title + "</a></h1>" +
+                        "<div class=\"post-meta\">" +
+                        " <span class=\"post-time\">" + time + "</span>" +
+                        "</div>" +
+                        " </header>" +
+                        "<div class=\"post-content\">" +
+                        "<div class=\"post-summary\">" + mark + "</div>" +
+                        "<div class=\"read-more\">" +
+                        "<a href=" + link + " class=\"read-more-link\" target=\"_blank\">阅读更多</a>" +
+                        "</div>" +
+                        " </div>" +
+                        "</article>"
+                      div = document.createElement("div")
+                      div.innerHTML = tmpl;
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      el.appendChild(div)
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+
+        </script>
+        
+    </div>
+</div>
+
+
+
+
+
+
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">归档栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="nav nav-pills nav-stacked">
+            
+            
+            <li>
+                <a href="/categories/bosh">bosh (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloud_controller_ng">cloud_controller_ng (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloudfoundry">cloudfoundry (15)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/containerd">containerd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/docker">docker (19)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/etcd">etcd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/haproxy">haproxy (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/healthmanager">healthmanager (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/karmada">karmada (4)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubeedge">kubeedge (5)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubernetes">kubernetes (14)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/network">network (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/openyurt">openyurt (2)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/service-mesh">service-mesh (4)</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+<div class="panel sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">标签栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="tag-cloud">
+            
+            
+            <li>
+                <a href="/tags/agent"><i class="fas fa-tags"></i> agent</a>
+            </li>
+            
+            <li>
+                <a href="/tags/apiserver"><i class="fas fa-tags"></i> apiserver</a>
+            </li>
+            
+            <li>
+                <a href="/tags/books"><i class="fas fa-tags"></i> books</a>
+            </li>
+            
+            <li>
+                <a href="/tags/bosh"><i class="fas fa-tags"></i> bosh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/ccng"><i class="fas fa-tags"></i> ccng</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cf-release"><i class="fas fa-tags"></i> cf-release</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cgroups"><i class="fas fa-tags"></i> cgroups</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudfoundry"><i class="fas fa-tags"></i> cloudfoundry</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudnative"><i class="fas fa-tags"></i> cloudnative</a>
+            </li>
+            
+            <li>
+                <a href="/tags/collector"><i class="fas fa-tags"></i> collector</a>
+            </li>
+            
+            <li>
+                <a href="/tags/containerd"><i class="fas fa-tags"></i> containerd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cri"><i class="fas fa-tags"></i> cri</a>
+            </li>
+            
+            <li>
+                <a href="/tags/dea"><i class="fas fa-tags"></i> dea</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker"><i class="fas fa-tags"></i> docker</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker-network"><i class="fas fa-tags"></i> docker-network</a>
+            </li>
+            
+            <li>
+                <a href="/tags/edgecomputing"><i class="fas fa-tags"></i> edgecomputing</a>
+            </li>
+            
+            <li>
+                <a href="/tags/etcd"><i class="fas fa-tags"></i> etcd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/gorouter"><i class="fas fa-tags"></i> gorouter</a>
+            </li>
+            
+            <li>
+                <a href="/tags/haproxy"><i class="fas fa-tags"></i> haproxy</a>
+            </li>
+            
+            <li>
+                <a href="/tags/healthmanager"><i class="fas fa-tags"></i> healthmanager</a>
+            </li>
+            
+            <li>
+                <a href="/tags/istio"><i class="fas fa-tags"></i> istio</a>
+            </li>
+            
+            <li>
+                <a href="/tags/karmada"><i class="fas fa-tags"></i> karmada</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubeedge"><i class="fas fa-tags"></i> kubeedge</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubelet"><i class="fas fa-tags"></i> kubelet</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubernetes"><i class="fas fa-tags"></i> kubernetes</a>
+            </li>
+            
+            <li>
+                <a href="/tags/libcontainer"><i class="fas fa-tags"></i> libcontainer</a>
+            </li>
+            
+            <li>
+                <a href="/tags/micro-service"><i class="fas fa-tags"></i> micro-service</a>
+            </li>
+            
+            <li>
+                <a href="/tags/namespace"><i class="fas fa-tags"></i> namespace</a>
+            </li>
+            
+            <li>
+                <a href="/tags/nats"><i class="fas fa-tags"></i> nats</a>
+            </li>
+            
+            <li>
+                <a href="/tags/news"><i class="fas fa-tags"></i> news</a>
+            </li>
+            
+            <li>
+                <a href="/tags/openyurt"><i class="fas fa-tags"></i> openyurt</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pipework"><i class="fas fa-tags"></i> pipework</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pouch"><i class="fas fa-tags"></i> pouch</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runc"><i class="fas fa-tags"></i> runc</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runtime"><i class="fas fa-tags"></i> runtime</a>
+            </li>
+            
+            <li>
+                <a href="/tags/security"><i class="fas fa-tags"></i> security</a>
+            </li>
+            
+            <li>
+                <a href="/tags/serverless"><i class="fas fa-tags"></i> serverless</a>
+            </li>
+            
+            <li>
+                <a href="/tags/service-mesh"><i class="fas fa-tags"></i> service-mesh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/syslog_aggregator"><i class="fas fa-tags"></i> syslog_aggregator</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+                        
+
+                    </div>
+                    
+
+                    
+
+                </div>
+                
+
+            </div>
+            
+        </div>
+        
+
+        <footer id="footer">
+    <div class="container">
+
+        
+        <div class="col-md-4 col-sm-6">
+            <h4></h4>
+
+            <p><strong>关于我们：<strong> <p>浙大SEL实验室</p><p>地址：杭州市浙大路38号曹光彪西楼405室</p><p><strong></strong>
+            <a href="/contact" class="btn btn-small btn-template-main" >跳转到关于</a>
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+        <div class="col-md-4 col-sm-6">
+
+             
+            <h4>最新博客</h4>
+            
+
+            <div class="blog-entries">
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/27/overview.png" class="img-responsive" alt="基于KubeEdge的边缘节点分组管理设计与实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">基于KubeEdge的边缘节点分组管理设计与实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/20/karmada-scheduler.png" class="img-responsive" alt="多云环境下的资源调度：karmada scheduler的框架和实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">多云环境下的资源调度：karmada scheduler的框架和实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">
+                          
+                            <img src="/img/blogs/19/karmada-arch.jpg" class="img-responsive" alt="多云环境下的成员集群管理，看看开源项目karmada是如何做到的">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">多云环境下的成员集群管理，看看开源项目karmada是如何做到的</a></h5>
+                    </div>
+                </div>
+                
+            </div>
+
+            <hr class="hidden-md hidden-lg">
+             
+
+        </div>
+        
+
+        
+        <div class="col-md-4 col-sm-6">
+
+          <h4></h4>
+
+            <p><strong>联系我们: 
+                                    <p>团队负责人：丁轶群 yiqunding@zju.edu.cn</p>
+                                    <p>网站维护人：刘佳文 839809484@qq.com</p>                
+    </strong>
+
+            
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+    </div>
+    
+</footer>
+
+
+
+
+
+
+
+<div id="copyright">
+    <div class="container">
+        <div class="col-md-12">
+            
+            <p class="pull-left">Copyright ©️ 2020 SEL Laboratory , ZJ University all rights reserved.</p>
+            
+            <p class="pull-right">
+               <a href="https://bootstrapious.com/p/universal-business-e-commerce-template">Bootstrapious</a>.
+              
+
+               <a href="https://github.com/devcows/hugo-universal-theme">DevCows</a>.
+            </p>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+    </div>
+    
+
+    
+
+
+<script src="/js/jquery.min.js"></script>
+<script src="/js/bootstrap.min.js"></script>
+
+
+
+<script src="/js/jquery.cookie.min.js"></script>
+<script src="/js/jquery.waypoints.min.js"></script>
+<script src="/js/jquery.counterup.min.js"></script>
+<script src="/js/jquery-parallax.js"></script>
+
+
+<script src="/js/front.js"></script>
+
+
+<script src="/js/owl.carousel.min.js"></script>
+
+
+
+  </body>
+</html>

@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="robots" content="all,follow">
+  <meta name="googlebot" content="index,follow,snippet,archive">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <title>Cloud Foundry中gorouter对StickySession的支持</title>
+  <meta name="author" content="孙宏亮" />
+  
+  
+  
+  
+  <meta name="keywords" content="gorouter, cloudfoundry">
+  
+  
+  <meta name="description" content="Cloud Foundry作为业界出众的PaaS平台，在应用的可扩展性方面做得非常优秀。具体来讲，在一个应用需要横向伸展的时候，Cloud Foundry可以轻松地帮助用户做好伸展工作，也就是创建出一个应用的多个实例，多个实例地位相等，多个实例共同为用户服务，多个实例共同分担访问压力。大致来说，可以认为是共同分担访问压力，但是也不是针对所有该应用的访问，都进行均衡，分发到不同的应用实例处。譬如：当Cloud Foundry的访问用户访问应用时，第一次的访问，gorouter会将请求分发到应用的某个实例处，但是如果该用户之后的访问都是有状态的，不希望之后的访问会被分发到该应用的其他实例处。针对以上这种情况，Cloud Foundry提供了自己的解决方案，使用StickySession的方式，保证请求依旧分发给指定的应用实例。">
+
+  <meta name="generator" content="Hugo 0.68.3" />
+
+  
+  <link href='//fonts.googleapis.com/css?family=Roboto:400,100,100italic,300,300italic,500,700,800' rel='stylesheet' type='text/css'>
+
+  
+  
+  
+  
+  
+
+  <link href="/css/all.css" rel="stylesheet">
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+
+  
+  <link href="/css/animate.css" rel="stylesheet">
+
+  
+  
+    <link href="/css/style.default.css" rel="stylesheet" id="theme-stylesheet">
+  
+
+  
+  <link href="/css/custom.css" rel="stylesheet">
+
+  
+  
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+        <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  
+
+  
+  <link rel="shortcut icon" href="/img/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
+
+  
+  <link href="/css/owl.carousel.css" rel="stylesheet">
+  <link href="/css/owl.theme.css" rel="stylesheet">
+
+  
+  <link rel="alternate" href="https://Congrool.github.io/index.xml" type="application/rss+xml" title="浙大SEL实验室">
+
+  
+  
+  
+  
+  
+  
+  <meta property="og:updated_time" content="2014-11-21T13:04:13Z">
+  
+    
+    
+    <meta property="article:section" content="cloudfoundry">
+    <meta property="article:tag" content="gorouter">
+    <meta property="article:tag" content="cloudfoundry">
+    
+    
+    <meta property="article:published_time" content="2014-11-21T13:04:13Z">
+    <meta property="article:modified_time" content="2014-11-21T13:04:13Z">
+  
+
+  
+  <meta name="twitter:card" content="summary">
+  
+  <meta name="twitter:title" content="Cloud Foundry中gorouter对StickySession的支持">
+  
+  <meta name="twitter:description" content="Cloud Foundry作为业界出众的PaaS平台，在应用的可扩展性方面做得非常优秀。具体来讲，在一个应用需要横向伸展的时候，Cloud Foundry可以轻松地帮助用户做好伸展工作，也就是创建出一个应用的多个实例，多个实例地位相等，多个实例共同为用户服务，多个实例共同分担访问压力。大致来说，可以认为是共同分担访问压力，但是也不是针对所有该应用的访问，都进行均衡，分发到不同的应用实例处。譬如： …">
+  
+  
+</head>
+
+
+  <body>
+
+    <div id="all">
+
+        <header class="navbar-affixed-top" data-spy="affix" data-offset-top="62">
+    <div class="navbar navbar-default yamm" role="navigation" id="navbar" style="background-color:white;">    
+        <div class="container">
+            <div class="navbar-header">
+                <a class="navbar-brand home" href="/">
+                    <img src="/img/sel.png" alt="Cloud Foundry中gorouter对StickySession的支持" class="hidden-xs hidden-sm img-responsive">
+                    
+                    <span class="sr-only">Cloud Foundry中gorouter对StickySession的支持 - </span>
+                </a>
+                <div class="navbar-buttons">
+                    <button type="button" class="navbar-toggle btn-template-main" data-toggle="collapse" data-target="#navigation">
+                      <span class="sr-only"></span>
+                        <i class="fas fa-align-justify"></i>
+                    </button>
+                </div>
+            </div>
+            
+
+            <div class="navbar-collapse collapse" id="navigation">
+                <ul class="nav navbar-nav navbar-right">
+                  
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/">主页</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/blog/">博客</a>
+                    
+                  </li>
+
+                  <li class="dropdown">
+                    
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">社区 <span class="caret"></span></a>
+                  <ul class="dropdown-menu">
+                    
+                      <li><a href="https://www.servicemesher.com/">ServiceMesh社区</a></li>
+                    
+                      <li><a href="">kubeedge社区</a></li>
+
+                      <li><a href="http://www.icsoft.zju.edu.cn/index.php">浙江大学智能计算与软件中心</a></li>
+                    
+                  </ul>
+
+                  <li class="dropdown">
+                    
+                    <a href="/archives/">归档</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/contact/">关于</a>
+                    
+                  </li>
+                  
+                </li>
+
+                
+                
+
+                
+                </ul>
+            </div>
+            
+
+            <div class="collapse clearfix" id="search">    
+                <form class="navbar-form" role="search">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search">
+                        <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main"><i class="fas fa-search"></i></button>
+                </span>
+                    </div>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+
+    
+</header>
+
+
+
+
+        <div id="heading-breadcrumbs">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h1>Cloud Foundry中gorouter对StickySession的支持</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+        <div id="content">
+            <div class="container">
+
+                <div class="row">
+
+                    
+
+                    <div class="col-md-9" id="blog-post">
+
+                        
+                          <p class="text-muted text-uppercase mb-small text-right">
+                             <a href="#">孙宏亮</a>
+                             | 
+                            2014-11-21
+                          </p>
+                        
+
+                        <div id="post-content">
+                          <h1 id="前言">前言</h1>
+
+<p>Cloud Foundry作为业界出众的PaaS平台，在应用的可扩展性方面做得非常优秀。</p>
+
+<p>具体来讲，在一个应用需要横向伸展的时候，Cloud Foundry可以轻松地帮助用户做好伸展工作，也就是创建出一个应用的多个实例，多个实例地位相等，多个实例共同为用户服务，多个实例共同分担访问压力。</p>
+
+<p>大致来说，可以认为是共同分担访问压力，但是也不是针对所有该应用的访问，都进行均衡，分发到不同的应用实例处。譬如：当Cloud Foundry的访问用户访问应用时，第一次的访问，gorouter会将请求分发到应用的某个实例处，但是如果该用户之后的访问都是有状态的，不希望之后的访问会被分发到该应用的其他实例处。针对以上这种情况，Cloud Foundry提供了自己的解决方案，使用StickySession的方式，保证请求依旧分发给指定的应用实例。</p>
+
+<p>本文即分析Cloud Foundry中gorouter关于StickySession的实现方式。</p>
+
+<p>该部分内容需要对gorouter有一定的了解，可以参见笔者之前的博文：Cloud Foundry中gorouter源码分析</p>
+
+<p>关于StickySession的信息，gorouter所做的工作，主要分为两个部分：如何给HTTP请求添加StickySession、如何通过StickySession辨别应用的具体实例。</p>
+
+<h2 id="如何给http请求添加stickysession"><strong>如何给HTTP请求添加StickySession</strong></h2>
+
+<p>在分析这个问题的时候，首先我们需要提出另一个问题：什么情况下需要给HTTP请求添加StickySession？ 首先，来看这样的一个方法setupStickySession的go语言实现：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">    func (h <span style="color:#555">*</span><span style="color:#360">RequestHandler</span>) setupStickySession(endpointResponse <span style="color:#555">*</span>http<span style="color:#555">.</span>Response, endpoint <span style="color:#555">*</span>route<span style="color:#555">.</span>Endpoint) {  
+        needSticky :<span style="color:#555">=</span> <span style="color:#069">false</span>  
+        <span style="color:#069;font-weight:bold">for</span> _, v :<span style="color:#555">=</span> range endpointResponse<span style="color:#555">.</span>Cookies() {  
+             <span style="color:#069;font-weight:bold">if</span> v<span style="color:#555">.</span>Name <span style="color:#555">==</span> <span style="color:#360">StickyCookieKey</span> {  
+                needSticky <span style="color:#555">=</span> <span style="color:#069">true</span>  
+                <span style="color:#069;font-weight:bold">break</span>  
+            }  
+        }  
+    
+        <span style="color:#069;font-weight:bold">if</span> needSticky <span style="color:#555">&amp;&amp;</span> endpoint<span style="color:#555">.</span>PrivateInstanceId <span style="color:#555">!=</span> <span style="color:#c30">&#34;&#34;</span> {  
+            cookie :<span style="color:#555">=</span> <span style="color:#555">&amp;</span>http<span style="color:#555">.</span>Cookie{  
+                <span style="color:#fc3">Name</span>:  <span style="color:#360">VcapCookieId</span>,  
+                <span style="color:#fc3">Value</span>: endpoint<span style="color:#555">.</span>PrivateInstanceId,  
+                <span style="color:#fc3">Path</span>:  <span style="color:#c30">&#34;/&#34;</span>,  
+            }  
+    
+            http<span style="color:#555">.</span>SetCookie(h<span style="color:#555">.</span>response, cookie)  
+        }  
+    }  </code></pre></div>
+<p>紧接着，查看setupStickySession方法何时被调用的代码：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">    func (h <span style="color:#555">*</span><span style="color:#360">RequestHandler</span>) <span style="color:#360">HandleHttpRequest</span>(transport <span style="color:#555">*</span>http<span style="color:#555">.</span>Transport, endpoint <span style="color:#555">*</span>route<span style="color:#555">.</span>Endpoint) (<span style="color:#555">*</span>http<span style="color:#555">.</span>Response, error) {  
+        h<span style="color:#555">.</span>transport <span style="color:#555">=</span> transport  
+    
+        h<span style="color:#555">.</span>setupRequest(endpoint)  
+        h<span style="color:#555">.</span>setupConnection()  
+    
+        endpointResponse, err :<span style="color:#555">=</span> transport<span style="color:#555">.</span>RoundTrip(h<span style="color:#555">.</span>request)  
+        <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069">nil</span> {  
+            <span style="color:#069;font-weight:bold">return</span> endpointResponse, err  
+        }  
+    
+        h<span style="color:#555">.</span>forwardResponseHeaders(endpointResponse)  
+    
+        h<span style="color:#555">.</span>setupStickySession(endpointResponse, endpoint)  
+    
+        <span style="color:#069;font-weight:bold">return</span> endpointResponse, err  
+    }  </code></pre></div>
+<p>在setupStickySession方法中，可以看到：首先进入一个循环语句块中，当endpointResponse中的cookies中有名为StickyCookieKey的话，将needSticky字段置为true，跳出循环。这里也就回答了什么时候需要给HTTP请求添加StickySession的问题。关于StickyCookieKey的值，可以先看一下gorouter的设置：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">    const (  
+        <span style="color:#360">VcapCookieId</span>    <span style="color:#555">=</span> <span style="color:#c30">&#34;__VCAP_ID__&#34;</span>  
+        <span style="color:#360">StickyCookieKey</span> <span style="color:#555">=</span> <span style="color:#c30">&#34;JSESSIONID&#34;</span>  
+    )  </code></pre></div>
+<p>可以看到StickyCookieKey的值为JSESSIONID，而JSESSIONID是Tomcat对session id的称呼，在其他容器中就不一定叫JSESSIONID了。因此，如果平台运维者自定义了一种容器的buildpack，而这个容器中对于session id的称呼不为JSESSIONID的话，那么Sticky Session在gorouter中将不能被实现，除非将这部分内容自行进行改写，或者修改该容器对session id的称呼。</p>
+
+<p>紧接着在setupStickySession中，通过一个判断，来给response创建一个cookie，创建的cookie有Name字段，Value字段以及Path字段。最后通过http.SetCookie(h.response, cookie)来实现对response的设置添加cookie。 读完setupStickySession方法的实现，现在进入调用该方法的HandleHttpRequest方法，该方法的主要工作是：将haproxy代理来的请求，转发给具体相应的DEA上的应用实例，最后构建该请求的response信息，并返回该响应信息。在返回response响应信息的之前，gorouter为该response信息设置了StickySession。 以上便是如何给HTTP请求添加StickySession，以下分析如何通过StickySession辨别应用的具体实例。</p>
+
+<h2 id="如何通过stickysession辨别应用的具体实例"><strong>如何通过StickySession辨别应用的具体实例</strong></h2>
+
+<p>当一个请求到达gorouter的时候，gorouter需要首先辨别该请求中是否带有StickySession的信息，如果有的话，，gorouter分析该请求中的相应信息，最终得到指定应用实例的信息，并将请求转发到该指定应用实例。具体实现代码如下： [plain] view plaincopy</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">    func (<span style="color:#366">p</span> <span style="color:#555">*</span>proxy) lookup(request <span style="color:#555">*</span>http<span style="color:#555">.</span>Request) (<span style="color:#555">*</span>route<span style="color:#555">.</span>Endpoint, bool) {  
+        uri :<span style="color:#555">=</span> route<span style="color:#555">.</span>Uri(hostWithoutPort(request))  
+    
+        <span style="color:#3aa">//</span> <span style="color:#360">Try</span> choosing a backend using sticky session  
+        <span style="color:#069;font-weight:bold">if</span> _, err :<span style="color:#555">=</span> request<span style="color:#555">.</span>Cookie(<span style="color:#360">StickyCookieKey</span>); err <span style="color:#555">==</span> <span style="color:#069">nil</span> {  
+            <span style="color:#069;font-weight:bold">if</span> sticky, err :<span style="color:#555">=</span> request<span style="color:#555">.</span>Cookie(<span style="color:#360">VcapCookieId</span>); err <span style="color:#555">==</span> <span style="color:#069">nil</span> {  
+                routeEndpoint, ok :<span style="color:#555">=</span> <span style="color:#366">p</span><span style="color:#555">.</span>registry<span style="color:#555">.</span>LookupByPrivateInstanceId(uri, sticky<span style="color:#555">.</span>Value)  
+                <span style="color:#069;font-weight:bold">if</span> ok {  
+                    <span style="color:#069;font-weight:bold">return</span> routeEndpoint, ok  
+                }  
+            }  
+        }  
+    
+        <span style="color:#3aa">//</span> <span style="color:#360">Choose</span> backend using host alone  
+       <span style="color:#069;font-weight:bold">return</span> <span style="color:#366">p</span><span style="color:#555">.</span>registry<span style="color:#555">.</span>Lookup(uri)  
+    }  </code></pre></div>
+<p>从源码中可以看到，首先从请求中提取出uri，随后分析请求中是否带有StickyCookieKey，也就是JSESSIONID，若有的话，继续分析是否带有VcapCookieID，也就是<strong>VCAP_ID</strong>，若有的话，那说明是gorouter支持的StickySession，从sticky中找出value属性对应的值，也就是应用PrivateInstanceID，通过该ID寻找出具体对应的是应用的哪个实例，最后返回该应用实例的具体信息，当然包括最终该实例的IP：PORT。如果以上这些StickyCookieKey或者VcapCookieID不存在的话，也就是说该请求不支持StickySession，那么将直接通过uri，寻找某一个应用实例来为该请求服务。 以上便是Cloud Foundry中gorouter对StickySession的支持与实现。</p>
+
+<h2 id="转载请注明出处"><strong>转载请注明出处。</strong></h2>
+
+<p>这篇文档更多出于我本人的理解，肯定在一些地方存在不足和错误。希望本文能够对接触Cloud Foundry v2中gorouter实现StickySession的人有些帮助，如果你对这方面感兴趣，并有更好的想法和建议，也请联系我。</p>
+                        </div>
+                        
+                        
+                        
+                        
+                        
+                        
+
+                        
+                        <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+                        <script src="https://unpkg.com/gitalk@latest/dist/gitalk.min.js"></script> 
+                        <script type="text/javascript" src="/assets/js/md5.min.js"></script>
+                        <div id="gitalk-container"></div>     
+                        <script type="text/javascript">
+                            var gitalk = new Gitalk({
+                              clientID: '835183d2dcbd1167ac28', 
+                            
+                              clientSecret: 'd873919fac3cc76921ee0800172c2279bc612f8d', 
+                            
+                              repo: 'Sel-Website-talk',
+                              owner: 'Peeknut',
+                              admin: ['Peeknut','Rachel-Shao'],
+                              id: location.href.split("/").pop().substring(0, 49),      
+                              distractionFreeMode: false  
+                            })
+                            gitalk.render('gitalk-container')
+                        </script> 
+                        
+
+                    </div>
+                    
+
+                    
+
+                    
+
+                    <div class="col-md-3">
+
+                        
+
+                        
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+      <h3 class="panel-title">搜索栏</h3>
+      
+    </div>
+
+    <div class="panel-body">
+        
+        <div class="search" id="search">
+            <div class="input-group">
+                <input type="text" name="q" class="form-control" placeholder="请输入文章标题或摘要..." id="search-key">
+                <input type="hidden" name="sitesearch" value="https://Congrool.github.io/">
+                <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main" onclick="search()"><i class="fas fa-search"></i></button>
+                </span>
+            </div>
+            <h1 id="search-tip" style="color: red;text-align: center;display: none;font-size: medium;">搜索中，请稍后 ...</h1>
+        </div>
+        <script type="text/javascript">
+            
+            window.onload = function() {
+                      document.onkeydown = function(ev) {
+                        var event = ev || event
+                        if (event.keyCode == 13) {
+                          search()
+                        }
+                      }
+                    }
+            
+            function search() {
+                    
+                      key = document.getElementById("search-key").value;
+                      if (key === "") {
+                        
+                        return;
+                      }
+                      key = key.toLowerCase();
+                      document.getElementById("search-key").value = "";
+                  
+                      
+                      document.getElementById("search-tip").innerText = "搜索中，请稍后 ...";
+                      document.getElementById("search-tip").style.display = "block";
+                  
+                      
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      var childs = el.childNodes;
+                      for (var i = childs.length - 1; i >= 0; i--) {
+                        el.removeChild(childs[i]);
+                      }
+                  
+                      
+                      xmltext = new XMLHttpRequest;
+                      xmltext.open("GET", "/index.xml", false);
+                      xmltext.send();
+                      resp = xmltext.responseXML;
+                      
+                      items = resp.getElementsByTagName("item");
+                      
+                      var i = 0;
+                      haveResult = false;
+                      while (i < items.length) {
+                        txt = items[i].getElementsByTagName("title")[0].innerHTML + items[i].getElementsByTagName("description")[0].innerHTML
+                        txt = txt.toLowerCase();
+                        if (txt.indexOf(key) > -1) {
+                          haveResult = true;
+                          title = items[i].getElementsByTagName("title")[0].innerHTML;
+                          link = items[i].getElementsByTagName("link")[0].innerHTML;
+                          time = items[i].getElementsByTagName("pubDate")[0].innerHTML;
+                          mark = items[i].getElementsByTagName("description")[0].innerHTML;
+                          time = time.slice(0, -5);
+                          addItem(title, link, time, mark)
+                        }
+                        i++;
+                      }
+                      if (!haveResult) {
+                        document.getElementById("search-tip").innerText = "搜索完毕，未发现结果 ...";
+                        document.getElementById("search-tip").style.display = "block";
+                      }
+
+                      
+                      var el = document.getElementById("blog-head");
+                      el.innerHTML="Blogs"
+                    }
+                  
+                    
+                    function addItem(title, link, time, mark) {
+                      document.getElementById("search-tip").style.display = "none";
+                      tmpl = "<article class=\"post\" style=\"border-bottom: 1px solid #e6e6e6;\" >" +
+                        "<header class=\"post-header\">" +
+                        "<h1 class=\"post-title\"><a class=\"post-link\" href=\"" + link + "\" target=\"_blank\">" + title + "</a></h1>" +
+                        "<div class=\"post-meta\">" +
+                        " <span class=\"post-time\">" + time + "</span>" +
+                        "</div>" +
+                        " </header>" +
+                        "<div class=\"post-content\">" +
+                        "<div class=\"post-summary\">" + mark + "</div>" +
+                        "<div class=\"read-more\">" +
+                        "<a href=" + link + " class=\"read-more-link\" target=\"_blank\">阅读更多</a>" +
+                        "</div>" +
+                        " </div>" +
+                        "</article>"
+                      div = document.createElement("div")
+                      div.innerHTML = tmpl;
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      el.appendChild(div)
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+
+        </script>
+        
+    </div>
+</div>
+
+
+
+
+
+
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">归档栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="nav nav-pills nav-stacked">
+            
+            
+            <li>
+                <a href="/categories/bosh">bosh (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloud_controller_ng">cloud_controller_ng (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloudfoundry">cloudfoundry (15)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/containerd">containerd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/docker">docker (19)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/etcd">etcd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/haproxy">haproxy (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/healthmanager">healthmanager (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/karmada">karmada (4)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubeedge">kubeedge (5)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubernetes">kubernetes (14)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/network">network (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/openyurt">openyurt (2)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/service-mesh">service-mesh (4)</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+<div class="panel sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">标签栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="tag-cloud">
+            
+            
+            <li>
+                <a href="/tags/agent"><i class="fas fa-tags"></i> agent</a>
+            </li>
+            
+            <li>
+                <a href="/tags/apiserver"><i class="fas fa-tags"></i> apiserver</a>
+            </li>
+            
+            <li>
+                <a href="/tags/books"><i class="fas fa-tags"></i> books</a>
+            </li>
+            
+            <li>
+                <a href="/tags/bosh"><i class="fas fa-tags"></i> bosh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/ccng"><i class="fas fa-tags"></i> ccng</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cf-release"><i class="fas fa-tags"></i> cf-release</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cgroups"><i class="fas fa-tags"></i> cgroups</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudfoundry"><i class="fas fa-tags"></i> cloudfoundry</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudnative"><i class="fas fa-tags"></i> cloudnative</a>
+            </li>
+            
+            <li>
+                <a href="/tags/collector"><i class="fas fa-tags"></i> collector</a>
+            </li>
+            
+            <li>
+                <a href="/tags/containerd"><i class="fas fa-tags"></i> containerd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cri"><i class="fas fa-tags"></i> cri</a>
+            </li>
+            
+            <li>
+                <a href="/tags/dea"><i class="fas fa-tags"></i> dea</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker"><i class="fas fa-tags"></i> docker</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker-network"><i class="fas fa-tags"></i> docker-network</a>
+            </li>
+            
+            <li>
+                <a href="/tags/edgecomputing"><i class="fas fa-tags"></i> edgecomputing</a>
+            </li>
+            
+            <li>
+                <a href="/tags/etcd"><i class="fas fa-tags"></i> etcd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/gorouter"><i class="fas fa-tags"></i> gorouter</a>
+            </li>
+            
+            <li>
+                <a href="/tags/haproxy"><i class="fas fa-tags"></i> haproxy</a>
+            </li>
+            
+            <li>
+                <a href="/tags/healthmanager"><i class="fas fa-tags"></i> healthmanager</a>
+            </li>
+            
+            <li>
+                <a href="/tags/istio"><i class="fas fa-tags"></i> istio</a>
+            </li>
+            
+            <li>
+                <a href="/tags/karmada"><i class="fas fa-tags"></i> karmada</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubeedge"><i class="fas fa-tags"></i> kubeedge</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubelet"><i class="fas fa-tags"></i> kubelet</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubernetes"><i class="fas fa-tags"></i> kubernetes</a>
+            </li>
+            
+            <li>
+                <a href="/tags/libcontainer"><i class="fas fa-tags"></i> libcontainer</a>
+            </li>
+            
+            <li>
+                <a href="/tags/micro-service"><i class="fas fa-tags"></i> micro-service</a>
+            </li>
+            
+            <li>
+                <a href="/tags/namespace"><i class="fas fa-tags"></i> namespace</a>
+            </li>
+            
+            <li>
+                <a href="/tags/nats"><i class="fas fa-tags"></i> nats</a>
+            </li>
+            
+            <li>
+                <a href="/tags/news"><i class="fas fa-tags"></i> news</a>
+            </li>
+            
+            <li>
+                <a href="/tags/openyurt"><i class="fas fa-tags"></i> openyurt</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pipework"><i class="fas fa-tags"></i> pipework</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pouch"><i class="fas fa-tags"></i> pouch</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runc"><i class="fas fa-tags"></i> runc</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runtime"><i class="fas fa-tags"></i> runtime</a>
+            </li>
+            
+            <li>
+                <a href="/tags/security"><i class="fas fa-tags"></i> security</a>
+            </li>
+            
+            <li>
+                <a href="/tags/serverless"><i class="fas fa-tags"></i> serverless</a>
+            </li>
+            
+            <li>
+                <a href="/tags/service-mesh"><i class="fas fa-tags"></i> service-mesh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/syslog_aggregator"><i class="fas fa-tags"></i> syslog_aggregator</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+                        
+
+                    </div>
+                    
+
+                    
+
+                </div>
+                
+
+            </div>
+            
+        </div>
+        
+
+        <footer id="footer">
+    <div class="container">
+
+        
+        <div class="col-md-4 col-sm-6">
+            <h4></h4>
+
+            <p><strong>关于我们：<strong> <p>浙大SEL实验室</p><p>地址：杭州市浙大路38号曹光彪西楼405室</p><p><strong></strong>
+            <a href="/contact" class="btn btn-small btn-template-main" >跳转到关于</a>
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+        <div class="col-md-4 col-sm-6">
+
+             
+            <h4>最新博客</h4>
+            
+
+            <div class="blog-entries">
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/27/overview.png" class="img-responsive" alt="基于KubeEdge的边缘节点分组管理设计与实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">基于KubeEdge的边缘节点分组管理设计与实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/20/karmada-scheduler.png" class="img-responsive" alt="多云环境下的资源调度：karmada scheduler的框架和实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">多云环境下的资源调度：karmada scheduler的框架和实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">
+                          
+                            <img src="/img/blogs/19/karmada-arch.jpg" class="img-responsive" alt="多云环境下的成员集群管理，看看开源项目karmada是如何做到的">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">多云环境下的成员集群管理，看看开源项目karmada是如何做到的</a></h5>
+                    </div>
+                </div>
+                
+            </div>
+
+            <hr class="hidden-md hidden-lg">
+             
+
+        </div>
+        
+
+        
+        <div class="col-md-4 col-sm-6">
+
+          <h4></h4>
+
+            <p><strong>联系我们: 
+                                    <p>团队负责人：丁轶群 yiqunding@zju.edu.cn</p>
+                                    <p>网站维护人：刘佳文 839809484@qq.com</p>                
+    </strong>
+
+            
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+    </div>
+    
+</footer>
+
+
+
+
+
+
+
+<div id="copyright">
+    <div class="container">
+        <div class="col-md-12">
+            
+            <p class="pull-left">Copyright ©️ 2020 SEL Laboratory , ZJ University all rights reserved.</p>
+            
+            <p class="pull-right">
+               <a href="https://bootstrapious.com/p/universal-business-e-commerce-template">Bootstrapious</a>.
+              
+
+               <a href="https://github.com/devcows/hugo-universal-theme">DevCows</a>.
+            </p>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+    </div>
+    
+
+    
+
+
+<script src="/js/jquery.min.js"></script>
+<script src="/js/bootstrap.min.js"></script>
+
+
+
+<script src="/js/jquery.cookie.min.js"></script>
+<script src="/js/jquery.waypoints.min.js"></script>
+<script src="/js/jquery.counterup.min.js"></script>
+<script src="/js/jquery-parallax.js"></script>
+
+
+<script src="/js/front.js"></script>
+
+
+<script src="/js/owl.carousel.min.js"></script>
+
+
+
+  </body>
+</html>

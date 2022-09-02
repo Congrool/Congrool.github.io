@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="robots" content="all,follow">
+  <meta name="googlebot" content="index,follow,snippet,archive">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <title>从karmada API角度分析多云环境下的应用资源编排：设计与实现</title>
+  <meta name="author" content="丁轶群" />
+  
+  
+  
+  
+  <meta name="keywords" content="karmada">
+  
+  
+  <meta name="description" content="karmada吸取了CNCF社区的Federation v1和v2（也称为kubefed）项目经验与教训，在保持原有k8s API不变的情况下，通过添加与多云应用资源编排相关的一套新的API和控制面组件，方便用户将应用部署到多云环境中，实现扩容、高可用等目标。">
+
+  <meta name="generator" content="Hugo 0.68.3" />
+
+  
+  <link href='//fonts.googleapis.com/css?family=Roboto:400,100,100italic,300,300italic,500,700,800' rel='stylesheet' type='text/css'>
+
+  
+  
+  
+  
+  
+
+  <link href="/css/all.css" rel="stylesheet">
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+
+  
+  <link href="/css/animate.css" rel="stylesheet">
+
+  
+  
+    <link href="/css/style.default.css" rel="stylesheet" id="theme-stylesheet">
+  
+
+  
+  <link href="/css/custom.css" rel="stylesheet">
+
+  
+  
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+        <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  
+
+  
+  <link rel="shortcut icon" href="/img/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
+
+  
+  <link href="/css/owl.carousel.css" rel="stylesheet">
+  <link href="/css/owl.theme.css" rel="stylesheet">
+
+  
+  <link rel="alternate" href="https://Congrool.github.io/index.xml" type="application/rss+xml" title="浙大SEL实验室">
+
+  
+  
+  
+  
+  
+  
+  <meta property="og:updated_time" content="2021-09-13T10:00:11Z">
+  
+    
+    
+    <meta property="article:section" content="karmada">
+    <meta property="article:tag" content="karmada">
+    
+    
+    <meta property="article:published_time" content="2021-09-13T10:00:11Z">
+    <meta property="article:modified_time" content="2021-09-13T10:00:11Z">
+  
+
+  
+  <meta name="twitter:card" content="summary">
+  
+  <meta name="twitter:title" content="从karmada API角度分析多云环境下的应用资源编排：设计与实现">
+  
+  <meta name="twitter:description" content="karmada吸取了CNCF社区的Federation v1和v2（也称为kubefed）项目经验与教训，在保持原有k8s API不变的情况下，通过添加与多云应用资源编排相关的一套新的API和控制面组件，方便用户将应用部署到多云环境中，实现扩容、高可用等目标。">
+  
+  
+</head>
+
+
+  <body>
+
+    <div id="all">
+
+        <header class="navbar-affixed-top" data-spy="affix" data-offset-top="62">
+    <div class="navbar navbar-default yamm" role="navigation" id="navbar" style="background-color:white;">    
+        <div class="container">
+            <div class="navbar-header">
+                <a class="navbar-brand home" href="/">
+                    <img src="/img/sel.png" alt="从karmada API角度分析多云环境下的应用资源编排：设计与实现" class="hidden-xs hidden-sm img-responsive">
+                    
+                    <span class="sr-only">从karmada API角度分析多云环境下的应用资源编排：设计与实现 - </span>
+                </a>
+                <div class="navbar-buttons">
+                    <button type="button" class="navbar-toggle btn-template-main" data-toggle="collapse" data-target="#navigation">
+                      <span class="sr-only"></span>
+                        <i class="fas fa-align-justify"></i>
+                    </button>
+                </div>
+            </div>
+            
+
+            <div class="navbar-collapse collapse" id="navigation">
+                <ul class="nav navbar-nav navbar-right">
+                  
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/">主页</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/blog/">博客</a>
+                    
+                  </li>
+
+                  <li class="dropdown">
+                    
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">社区 <span class="caret"></span></a>
+                  <ul class="dropdown-menu">
+                    
+                      <li><a href="https://www.servicemesher.com/">ServiceMesh社区</a></li>
+                    
+                      <li><a href="">kubeedge社区</a></li>
+
+                      <li><a href="http://www.icsoft.zju.edu.cn/index.php">浙江大学智能计算与软件中心</a></li>
+                    
+                  </ul>
+
+                  <li class="dropdown">
+                    
+                    <a href="/archives/">归档</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/contact/">关于</a>
+                    
+                  </li>
+                  
+                </li>
+
+                
+                
+
+                
+                </ul>
+            </div>
+            
+
+            <div class="collapse clearfix" id="search">    
+                <form class="navbar-form" role="search">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search">
+                        <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main"><i class="fas fa-search"></i></button>
+                </span>
+                    </div>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+
+    
+</header>
+
+
+
+
+        <div id="heading-breadcrumbs">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h1>从karmada API角度分析多云环境下的应用资源编排：设计与实现</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+        <div id="content">
+            <div class="container">
+
+                <div class="row">
+
+                    
+
+                    <div class="col-md-9" id="blog-post">
+
+                        
+                          <p class="text-muted text-uppercase mb-small text-right">
+                             <a href="#">丁轶群</a>
+                             | 
+                            2021-09-13
+                          </p>
+                        
+
+                        <div id="post-content">
+                          <p>karmada是华为开源的云原生多云容器编排平台，目标是让开发者像使用单个k8s集群一样使用多k8s集群。它的第一个release（v0.1.0）出现在2020年12月，而正式发布则是在2021年4月25日，在深圳召开的华为开发者大会（<a href="http://hdc.cloud/">HDC.Cloud</a>）2021上。</p>
+
+<p>karmada吸取了CNCF社区的Federation v1和v2（也称为kubefed）项目经验与教训，在保持原有k8s API不变的情况下，通过添加与多云应用资源编排相关的一套新的API和控制面组件，方便用户将应用部署到多云环境中，实现扩容、高可用等目标。</p>
+
+<blockquote>
+<p>karmada的readme里说this project is developed in continuation of Kubernetes Federation v1 and v2，或许可以把karmada理解为Federation v3</p>
+</blockquote>
+
+<p>官方网站：<a href="https://karmada.io/">https://karmada.io/</a></p>
+
+<p>代码地址：<a href="https://github.com/karmada-io/karmada">https://github.com/karmada-io/karmada</a></p>
+
+<p>使用karmada管理的多云环境包含两类集群：</p>
+
+<ol>
+<li>host集群：即由karmada控制面构成的集群，接受用户提交的应用部署需求，将之同步到member集群，并从member集群同步应用后续的运行状况。</li>
+<li>member集群：由一个或多个k8s集群构成，负责运行用户提交的应用</li>
+</ol>
+
+<p><center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1631599228/sel/v2-eb11ab9741f78f8b8d619571766f021c_1440w_njfuct.jpg" alt="karmada架构" style="zoom:80%;" />
+</center>
+<center>karmada架构</center>
+从下面的karmada功能架构图中我们可以看到，karmada的作用包括多云调度、多云自动伸缩、全域流量调度、多云运维、监控、日志等功能。</p>
+
+<p>本文从karmada API设计和实现角度分析如何在多云环境下实现应用资源的编排，主要关注应用从karmada控制面下发到联邦中的member集群的流程。关于karmada的其他功能会放在后续的文章中。</p>
+
+<p><center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1631599189/sel/v2-5c56c9f664fb74d984332297ab3665e4_1440w_k02ip9.jpg" alt="karmada架构" style="zoom:60%;" />
+</center>
+<center>karmada功能架构</center>
+本文使用的karmada版本为v0.8.0后的commit：18e2649a。</p>
+
+<h2 id="1-多云环境下的应用资源编排api设计">1. 多云环境下的应用资源编排API设计</h2>
+
+<p>原生k8s API，如<code>Deployment</code>并非为多云环境设计，因此缺乏多云环境下应用编排所需要的语义表达能力。诸如应用部署的目的地集群以及在各目的地集群上应用差异化配置等需求都无法在k8s原生API上表达出来。</p>
+
+<p>因此我们需要定义一组新的API，以增强k8s原生API在多云环境下的应用编排语义表达能力。</p>
+
+<h3 id="1-1-历史的回顾-kubefed中的多云应用编排api设计">1.1. 历史的回顾：kubefed中的多云应用编排API设计</h3>
+
+<p>由于karamda借鉴了kubefed的设计思想，我们先回顾kubefed的多云应用编排API设计。</p>
+
+<p>为了部署一个多云环境下的应用，kubefed可以为<code>Deployment</code>等k8s原生API自动生成“多云增强版API”（用CRD定义），比如，用户可以创建下面的例子中的类型为<code>FederatedDeployment</code>的custom resource（CR）对象，将nginx运行在两个集群<code>member1</code>和<code>member2</code>上（这两个集群是kubefed管理下的集群联邦成员，由kubefed的集群配置管理，我们可以暂时不管它们具体定义方法）。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml"><span style="color:#069;font-weight:bold">apiVersion</span>:<span style="color:#bbb"> </span>types.kubefed.io/v1beta1<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">kind</span>:<span style="color:#bbb"> </span>FederatedDeployment<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">metadata</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>test-deployment<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">namespace</span>:<span style="color:#bbb"> </span>test-namespace<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">spec</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">template</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">metadata</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">labels</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">        </span><span style="color:#069;font-weight:bold">app</span>:<span style="color:#bbb"> </span>nginx<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">spec</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">replicas</span>:<span style="color:#bbb"> </span><span style="color:#f60">1</span><span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">selector</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">        </span><span style="color:#069;font-weight:bold">matchLabels</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">          </span><span style="color:#069;font-weight:bold">app</span>:<span style="color:#bbb"> </span>nginx<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">template</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">        </span><span style="color:#069;font-weight:bold">metadata</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">          </span><span style="color:#069;font-weight:bold">labels</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">            </span><span style="color:#069;font-weight:bold">app</span>:<span style="color:#bbb"> </span>nginx<span style="color:#bbb">
+</span><span style="color:#bbb">        </span><span style="color:#069;font-weight:bold">spec</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">          </span><span style="color:#069;font-weight:bold">containers</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">          </span>- <span style="color:#069;font-weight:bold">image</span>:<span style="color:#bbb"> </span>nginx<span style="color:#bbb">
+</span><span style="color:#bbb">            </span><span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>nginx<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">placement</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">clusters</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">    </span>- <span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>member1<span style="color:#bbb">
+</span><span style="color:#bbb">    </span>- <span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>member2<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">overrides</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span>- <span style="color:#069;font-weight:bold">clusterName</span>:<span style="color:#bbb"> </span>member2<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">clusterOverrides</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">    </span>- <span style="color:#069;font-weight:bold">path</span>:<span style="color:#bbb"> </span><span style="color:#c30">&#34;/spec/replicas&#34;</span><span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">value</span>:<span style="color:#bbb"> </span><span style="color:#f60">2</span></code></pre></div>
+<p>在这个对象中我们应当注意三个方面：</p>
+
+<ol>
+<li>资源模板：上面yaml中<code>.spec.template</code>部分。这里嵌入了一个标准的k8s原生<code>Deployment</code>对象。</li>
+<li>placement：上面yaml中<code>.spec.placement</code>部分，用以说明被嵌入的<code>Deployment</code>对象需要被部署到集群<code>member1</code>和<code>member2</code>中</li>
+<li>overrides：上面yaml中<code>.spec.overrides</code>部分，用以说明被嵌入的<code>Deployment</code>对象在部署到<code>member2</code>集群上时，应当把<code>Deployment</code>的<code>replicas</code>从1改为2。</li>
+</ol>
+
+<p>上述<code>FederatedDeployment</code>的CRD不需要用户自己编写，用户仅需要使用kubefed的cli工具kubefedctl去&rdquo;enable&rdquo; <code>Deployment</code>这个k8s原生API资源即可，也就是执行<code>kubefedctl enable deployment</code>，kubefedctl就会自动生成CRD并提交apiserver。</p>
+
+<p>似乎kubefed用起来很简单（相对于Federation v1的确简单了不少），然而这里的问题是非k8s原生API。也就是用户被迫改变原有习惯，用一套全新的API（<code>FederatedDeployment</code>）来替换k8s原生API（<code>Deployment</code>）。因此为了使用kubefed，用户势必需要修改已有的k8s前端管理系统。</p>
+
+<h3 id="1-2-历史的继承-karmada中多云应用编排api的设计">1.2. 历史的继承：karmada中多云应用编排API的设计</h3>
+
+<p>作为后来者的karmada吸取了kubefed“非原生API”方面的教训，将kubefed中定义在同一个API资源对象中的“资源模板”、“placement”、“overrides”拆开成3个如下的单独对象。在karmada中，用户需要分别创建资源模板（resource template）、多云调度策略（propagation policy）和多云差异化配置策略（override policy）3个对象：</p>
+
+<p>首先我们需要定义资源模板对象。为什么称为模板？是因为在每个集群中实际部署的<code>Deployment</code>对象都以它为模板创建，但又允许各不相同，详见后续对override policy的描述。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml"><span style="color:#069;font-weight:bold">apiVersion</span>:<span style="color:#bbb"> </span>apps/v1<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">kind</span>:<span style="color:#bbb"> </span>Deployment<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">metadata</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>nginx<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">namespace</span>:<span style="color:#bbb"> </span>default<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">labels</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">app</span>:<span style="color:#bbb"> </span>nginx<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">spec</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">replicas</span>:<span style="color:#bbb"> </span><span style="color:#f60">1</span><span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">selector</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">matchLabels</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">app</span>:<span style="color:#bbb"> </span>nginx<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">template</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">metadata</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">labels</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">        </span><span style="color:#069;font-weight:bold">app</span>:<span style="color:#bbb"> </span>nginx<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">spec</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">containers</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">      </span>- <span style="color:#069;font-weight:bold">image</span>:<span style="color:#bbb"> </span>nginx<span style="color:#bbb">
+</span><span style="color:#bbb">        </span><span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>nginx</code></pre></div>
+<p>我们可以看到，在karmada中用户可以直接使用k8s原生API资源。</p>
+
+<p>其次我们需要定义多云调度策略对象（propagation policy），指定将上述nginx deployment部署到<code>member1</code>和<code>member2</code>两个由karmada管理的member集群中。在这个propagation policy对象中我们应注意以下几点：</p>
+
+<ol>
+<li><code>.spec.resourceSelectors</code>指定了需要部署到member集群中的资源：名叫nginx的deployment</li>
+<li><code>.spec.placement</code>指定了nginx需要部署到<code>member1</code>和<code>member2</code>两个member集群中</li>
+
+<li><p><code>.spec.dependentOverrides</code>，表示要karmada控制面等下面的差异化配置（override policy）创建之后再将应用部署到<code>member1</code>和<code>member2</code>集群。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml"><span style="color:#069;font-weight:bold">apiVersion</span>:<span style="color:#bbb"> </span>policy.karmada.io/v1alpha1<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">kind</span>:<span style="color:#bbb"> </span>PropagationPolicy<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">metadata</span>:<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>nginx-propagation<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">namespace</span>:<span style="color:#bbb"> </span>default<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">spec</span>:<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">resourceSelectors</span>:<span style="color:#bbb">
+</span><span style="color:#bbb"></span>- <span style="color:#069;font-weight:bold">apiVersion</span>:<span style="color:#bbb"> </span>apps/v1<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">kind</span>:<span style="color:#bbb"> </span>Deployment<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>nginx<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">placement</span>:<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">clusterAffinity</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">clusterNames</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">    </span>- member1<span style="color:#bbb">
+</span><span style="color:#bbb">    </span>- member2<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">dependentOverrides</span>:<span style="color:#bbb">
+</span><span style="color:#bbb"></span>- nginx-override</code></pre></div></li>
+</ol>
+
+<p>最后我们需要定义多云差异化配置对象（override policy），指定将部署在<code>member2</code>集群中的nginx deployment的replica数量改为2，即需要在<code>member2</code>集群中运行2个nginx实例。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml"><span style="color:#069;font-weight:bold">apiVersion</span>:<span style="color:#bbb"> </span>policy.karmada.io/v1alpha1<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">kind</span>:<span style="color:#bbb"> </span>OverridePolicy<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">metadata</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>nginx-override<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">namespace</span>:<span style="color:#bbb"> </span>default<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">spec</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">resourceSelectors</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">    </span>- <span style="color:#069;font-weight:bold">apiVersion</span>:<span style="color:#bbb"> </span>apps/v1<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">kind</span>:<span style="color:#bbb"> </span>Deployment<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>nginx<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">targetCluster</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">clusterNames</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">      </span>- member2<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">overriders</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">plaintext</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">    </span>- <span style="color:#069;font-weight:bold">path</span>:<span style="color:#bbb"> </span><span style="color:#c30">&#34;/spec/replicas&#34;</span><span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">operator</span>:<span style="color:#bbb"> </span>replace<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">value</span>:<span style="color:#bbb"> </span><span style="color:#f60">2</span></code></pre></div>
+<p>将上述三个yaml用<code>kubectl apply</code>提交给karmada控制面后，在使用<code>karmada-apiserver</code> context时执行<code>kubectl get deploy</code>可以得到如下的输出。虽然READY状态<code>3/1</code>的确有些不直观，但这表示利用karmada实现的多云应用下发已经成功，且karmada控制面已经从<code>member1</code>和<code>member2</code>两个member集群收到pod运行状态：<code>member1</code>集群1个pod ready, <code>member2</code>集群2个pod ready。作为验证可以分别切换到两个member集群的context，查看pod运行情况。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">$ kubectl get deploy
+NAME    READY   UP-TO-DATE   AVAILABLE   AGE
+nginx   3/1     <span style="color:#f60">3</span>            <span style="color:#f60">3</span>           5m8s</code></pre></div>
+<h2 id="2-多云环境下的应用资源编排api实现">2. 多云环境下的应用资源编排API实现</h2>
+
+<p>与k8s中的<code>kube-controller-manager</code>类似，karmada中的<code>karmada-controller-manager</code>组件基于<code>sigs.k8s.io/controller-runtime</code>实现，在单独的goroutine中运行了一系列controller。这些controller配合karmada-scheduler，处理由用户提交的k8s原生API资源（比如前面例子中的<code>Deployment</code>）或CRD资源、以及propagation policy、override policy等karmada自定义API资源对象，实现多云环境下的应用资源编排。其中与应用下发相关的controller及它们在应用下发过程中发挥的作用如下：</p>
+
+<ol>
+<li>resource detector：监听propagation policy和k8s原生API资源对象（包括CRD资源）的变化，实现两者的绑定。绑定的结果是产生<code>ResourceBinding</code></li>
+</ol>
+
+<blockquote>
+<p>注1：resource detector没有实现<code>Reconciler</code>接口，不算<code>sigs.k8s.io/controller-runtime</code>框架下的“正规”controller，但却又实现了<code>Runnable</code>接口，通过<code>Add</code>方法接受controller manager的管理，由controller manager调用它的<code>Start</code>方法。另外resource detector代码位于pkg/util包下，并不放在pkg/controllers下，算是个代码异类
+注2：所谓<code>sigs.k8s.io/controller-runtime</code>框架下的“正规”controller，需要实现<code>Controller</code>接口，它又包含了<code>Reconciler</code>接口</p>
+</blockquote>
+
+<ol>
+<li><p>propagation policy controller：仅有少量检测逻辑：检测propagation policy依赖的override policy是否已经创建，见前面nginx例子中的propagation policy对象的<code>dependentOverrides</code>属性。但无论依赖的override policy是否已经创建，propagation policy controller都不会有后续的绑定propagation policy和k8s原生API资源对象（包括CRD资源）的动作。因此可以说propagation policy controller无实际作用。真正的绑定逻辑存在resource detector的<code>Reconcile</code>方法中。因此我们后续不再讨论propagation policy controller。</p></li>
+
+<li><p>resource binding controller：把resource binding转换为work</p></li>
+
+<li><p>execution controller：把work中包含的k8s原生API资源（或CRD资源）同步到push模式的member集群中（pull模式的member集群会用agent拉取work到本地）</p></li>
+</ol>
+
+<p>下图描述了karmada中API资源的转化处理流程，以及上述controller在其中扮演的角色。下面按照karmada各组件在该流程中发挥作用的顺序依次描述其流程逻辑。</p>
+
+<p><center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1631599261/sel/v2-988978aa42806420e34cb6ce151fb297_1440w_lpopub.jpg" alt="karmada架构" style="zoom:55%;" />
+</center>
+<center>karmada中API资源的转化处理流程</center></p>
+
+<h3 id="2-1-resouce-detector的处理流程">2.1 resouce detector的处理流程</h3>
+
+<p>resource detector由karmada controller manager负责启动（调用其<code>Start</code>方法）。resource detector负责绑定用户创建的k8s原生API资源对象（包括CRD资源）和propagation policy。该模块的输入是使用list/watch机制监控到的这两类资源的变更事件，而输出是绑定完成的resource binding对象。</p>
+
+<p>resource detector在单独的goroutine中运行一个名为“resource detector”的<code>AsyncWorker</code>（定义在<code>karmada/pkg/util</code>包下），让它负责处理用户创建的k8s原生API资源对象（包括CRD资源）的增删改事件。当用户创建了一个deployment对象，resource detector会在list/watch的本地缓存中查找是否有匹配的propagation policy（由propagation policy的<code>resourceSelectors</code>决定是否匹配），如果能够找到，则表示绑定成功，后续开始生成resource binding对象的流程。如果无法找到，则暂时将该对象放入resource detector的<code>waitingObjects</code> map成员中。</p>
+
+<p>resource detector在另外一个单独的goroutine中运行一个名为“policy reconciler”的<code>AsyncWorker</code>，让它负责处理用户提交的propagation policy。每当用户创建了新的propagation policy，policy reconciler就会去<code>waitingObjects</code>中查找之前没能与propagation policy匹配上的k8s原生API资源对象（包括CRD资源）。一旦发现处于等待状态的之前某个k8s原生API资源对象（包括CRD资源）能够与新创建的propagation policy匹配上，就将它加入resource detector这个<code>AsyncWorker</code>的队列中，由resource detector完成后续生成resource binding对象的流程。</p>
+
+<p>当用户创建了多个propagation policy和cluster propagation policy时，resource detector的绑定流程遵循以下优先级：</p>
+
+<ol>
+<li>优先匹配propagation policy，如果无法匹配，再尝试匹配cluster propagation policy</li>
+<li>匹配propagation policy时，只选择与当前k8s原生API资源对象（包括CRD资源）同一个namespace下的propagation policy</li>
+<li>如果同时存在多个propagation policy或cluster propagation policy与k8s原生API资源对象（包括CRD资源）匹配，则根据propagation policy或cluster propagation policy的name排序，选择排序后第一位的propagation policy或cluster propagation policy</li>
+</ol>
+
+<p>根据绑定的是propagation policy还是cluster propagation policy，resource detector分别调用<code>ApplyPolicy</code>或<code>ApplyClusterPolicy</code>方法生成对应的resource binding或cluster resource binding对象。这里以<code>ApplyPolicy</code>为例分析生成resource binding对象的流程：</p>
+
+<p>将绑定成功的propagation policy和k8s原生API资源对象（包括CRD资源）转化为resource binding对象的流程在resource detector的<code>ApplyPolicy</code>方法中。该方法流程如下：</p>
+
+<p>首先为k8s原生API资源对象（包括CRD资源）添加两个label（<code>ClaimPolicyForObject</code>方法负责添加）</p>
+
+<p>以前面的nginx deployment为例，执行<code>kubectl get deploy nginx -o yaml</code>可以看到两个新加的label：<code>propagationpolicy.karmada.io/name</code>和<code>propagationpolicy.karmada.io/namespace</code>，分别表示与该deployment绑定成功的propagation policy的name和namespace。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml"><span style="color:#069;font-weight:bold">apiVersion</span>:<span style="color:#bbb"> </span>apps/v1<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">kind</span>:<span style="color:#bbb"> </span>Deployment<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">metadata</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">labels</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">app</span>:<span style="color:#bbb"> </span>nginx<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">propagationpolicy.karmada.io/name</span>:<span style="color:#bbb"> </span>nginx-propagation<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">propagationpolicy.karmada.io/namespace</span>:<span style="color:#bbb"> </span>default<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>nginx<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">namespace</span>:<span style="color:#bbb"> </span>default<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">spec</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">selector</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">matchLabels</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">app</span>:<span style="color:#bbb"> </span>nginx<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">template</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">metadata</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">labels</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">        </span><span style="color:#069;font-weight:bold">app</span>:<span style="color:#bbb"> </span>nginx<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">spec</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">containers</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">      </span>- <span style="color:#069;font-weight:bold">image</span>:<span style="color:#bbb"> </span>nginx<span style="color:#bbb">
+</span><span style="color:#bbb">        </span><span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>nginx</code></pre></div>
+<p>其次创建resource binding对象。以前面的nginx deployment为例，我们执行<code>kubectl get rb nginx-deployment</code>，可以看到resource detector创建的resource binding的yaml，对该yaml说明如下：</p>
+
+<ol>
+<li>resource binding对象中同样也添加了绑定成功的propagation policy的name和namespace作为label</li>
+<li>resource binding的name为绑定成功的k8s原生API资源对象（包括CRD资源）的name加上kind，中间用<code>-</code>相连，在这个例子中是<code>nginx-deployment</code></li>
+<li><code>.spec.resource</code>指定了有需要同步到member集群的资源：也就是名叫nginx的deployment</li>
+<li><code>.metadata.ownerReferences</code>是用户创建的nginx deployment</li>
+
+<li><p>需要注意的是当前的resource binding对象的yaml中<code>.spec.clusters</code>字段还是空的，也就是还没有明确具体需要调度到哪些member集群中。这个信息需要等下一步的karmada scheduler组件在调度完成之后填充</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml"><span style="color:#069;font-weight:bold">apiVersion</span>:<span style="color:#bbb"> </span>work.karmada.io/v1alpha1<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">kind</span>:<span style="color:#bbb"> </span>ResourceBinding<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">metadata</span>:<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">labels</span>:<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">propagationpolicy.karmada.io/name</span>:<span style="color:#bbb"> </span>nginx-propagation<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">propagationpolicy.karmada.io/namespace</span>:<span style="color:#bbb"> </span>default<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>nginx-deployment<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">namespace</span>:<span style="color:#bbb"> </span>default<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">ownerReferences</span>:<span style="color:#bbb">
+</span><span style="color:#bbb"></span>- <span style="color:#069;font-weight:bold">apiVersion</span>:<span style="color:#bbb"> </span>apps/v1<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">blockOwnerDeletion</span>:<span style="color:#bbb"> </span><span style="color:#069;font-weight:bold">true</span><span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">controller</span>:<span style="color:#bbb"> </span><span style="color:#069;font-weight:bold">true</span><span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">kind</span>:<span style="color:#bbb"> </span>Deployment<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>nginx<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">uid</span>:<span style="color:#bbb"> </span><span style="color:#f60">80672628</span>-e8c9-462b-933b-037b51d79e59<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">spec</span>:<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">resource</span>:<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">apiVersion</span>:<span style="color:#bbb"> </span>apps/v1<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">kind</span>:<span style="color:#bbb"> </span>Deployment<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>nginx<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">namespace</span>:<span style="color:#bbb"> </span>default<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">replicas</span>:<span style="color:#bbb"> </span><span style="color:#f60">1</span><span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">resourcePerReplicas</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">cpu</span>:<span style="color:#bbb"> </span><span style="color:#c30">&#34;0&#34;</span><span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">memory</span>:<span style="color:#bbb"> </span><span style="color:#c30">&#34;0&#34;</span></code></pre></div></li>
+</ol>
+
+<h3 id="2-2-karmada-scheduler-后面简称scheduler-的处理流程">2.2. karmada scheduler（后面简称scheduler）的处理流程</h3>
+
+<p>scheduler根据上一步resource detector的输出结果resource binding，通过调度算法决定k8s原生API资源对象（包括CRD资源）的调度结果，即应该调度到哪些member集群中。</p>
+
+<p>scheduler的输入是使用list/watch机制监控的resource binding、propagation policy的变更事件，而输出是为resource binding加上调度结果<code>.spec.clusters</code>。</p>
+
+<p>当scheduler的<code>worker</code>方法逐一处理内部队列中的resouce binding的更新事件时（这些事件由scheduler定义的不同list/watch handler加入内部队列中），这些resource binding对象可能处于以下几种状态，这些不同的状态决定了scheduler下一步处理流程：</p>
+
+<ol>
+<li>首次调度（<code>FirstSchedule</code>）：这个阶段的resource binding刚由resource detector的绑定工作创建出来。从未经过karmada scheduler的调度处理。这类resource binding对象的特征是<code>.spec.clusters</code>为空</li>
+<li>调和调度（<code>ReconcileSchedule</code>）：当用户更新了propagation policy的placement，为了使得系统的实际运行状态与用户的期望一致，karmada scheduler不得不将之前已经调度过的k8s原生API资源对象（包括CRD资源）重新调度到新的成员集群中（从这个角度讲，下面的扩缩容调度也是一种调和调度，调和是在k8s中普遍使用的概念，因此“调和调度”这个名字范围太广，含义不明确）。这类resource binding对象的特征是之前已经通过karmada scheduler的调度，即<code>.spec.clusters</code>不为空，且上一次调度中绑定的propagation policy的placement当前发生了变化。</li>
+<li>扩缩容调度（<code>ScaleSchedule</code>）：当propagation policy包含的replica scheduling strategy与集群联邦中实际运行的replica数量不一致时，需要重新调度之前已经完成调度的k8s原生API资源对象（包括CRD资源）</li>
+<li>故障恢复调度（<code>FailoverSchedule</code>）：当上次调度结果中的成员集群发生故障，也就是resource binding的<code>.spec.clusters</code>包含的成员集群状态不全都是就绪（ready），karmada scheduler需要重新调度应用，以恢复集群故障带来的应用故障</li>
+<li>无需调度（<code>AvoidSchedule</code>）：当上次调度结果中的成员集群状态均为就绪（ready），也就是resource binding的<code>.spec.clusters</code>包含的成员集群状态全都是就绪（ready），则无需做任何调度工作，只是在日志中记录告警信息：Don&rsquo;t need to schedule binding。</li>
+</ol>
+
+<p>这里重点分析首次调度的处理流程，该流程由scheduler的<code>scheduleOne</code>方法定义：</p>
+
+<ol>
+<li>获取resource bindings涉及的propagation policy的placement。由于上一步骤中resource detector为resource binding加上了绑定成功的propagation policy的name和namespace，在这里我们可以找到对应的propagation policy，并获取其placement属性，如前面nginx例子中的placement指定将nginx调度到<code>member1</code>和<code>member2</code>集群中</li>
+<li>根据placement和调度算法完成调度</li>
+<li>将调度结果（<code>SuggestedClusters</code>）写到resource binding的<code>.spec.cluster</code>中</li>
+<li>将序列化后的placement写到resource binding的annotation中，annotation的key为<code>policy.karmada.io/applied-placement</code></li>
+</ol>
+
+<p>以前面的nginx deployment为例，执行<code>kubectl get rb nginx-deployment</code>，可以看到完成上述调度流程的resource binding对象如下，注意其中由当前步骤中scheduler添加的<code>.metadata.annotations</code>和<code>.spec.clusters</code>：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml"><span style="color:#069;font-weight:bold">apiVersion</span>:<span style="color:#bbb"> </span>work.karmada.io/v1alpha1<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">kind</span>:<span style="color:#bbb"> </span>ResourceBinding<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">metadata</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">annotations</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">policy.karmada.io/applied-placement</span>:<span style="color:#bbb"> </span><span style="color:#c30">&#39;{&#34;clusterAffinity&#34;:{&#34;clusterNames&#34;:[&#34;member1&#34;,&#34;member2&#34;]}}&#39;</span><span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">labels</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">propagationpolicy.karmada.io/name</span>:<span style="color:#bbb"> </span>nginx-propagation<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">propagationpolicy.karmada.io/namespace</span>:<span style="color:#bbb"> </span>default<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>nginx-deployment<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">namespace</span>:<span style="color:#bbb"> </span>default<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">ownerReferences</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span>- <span style="color:#069;font-weight:bold">apiVersion</span>:<span style="color:#bbb"> </span>apps/v1<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">blockOwnerDeletion</span>:<span style="color:#bbb"> </span><span style="color:#069;font-weight:bold">true</span><span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">controller</span>:<span style="color:#bbb"> </span><span style="color:#069;font-weight:bold">true</span><span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">kind</span>:<span style="color:#bbb"> </span>Deployment<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>nginx<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">uid</span>:<span style="color:#bbb"> </span><span style="color:#f60">80672628</span>-e8c9-462b-933b-037b51d79e59<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">spec</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">clusters</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span>- <span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>member2<span style="color:#bbb">
+</span><span style="color:#bbb">  </span>- <span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>member1<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">resource</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">apiVersion</span>:<span style="color:#bbb"> </span>apps/v1<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">kind</span>:<span style="color:#bbb"> </span>Deployment<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>nginx<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">namespace</span>:<span style="color:#bbb"> </span>default<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">replicas</span>:<span style="color:#bbb"> </span><span style="color:#f60">1</span><span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">resourcePerReplicas</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">cpu</span>:<span style="color:#bbb"> </span><span style="color:#c30">&#34;0&#34;</span><span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">memory</span>:<span style="color:#bbb"> </span><span style="color:#c30">&#34;0&#34;</span></code></pre></div>
+<p>上面的resource binding对象还需要转变为<code>member1</code>和<code>member2</code>两个member集群中具体的deployment对象，并且如果用户定义了多云差异化配置对象（override policy），我们还需要应用这些override policy。这是一个一对多的转换，该转换工作由resource binding controller配合override manager完成。</p>
+
+<h3 id="2-3-resource-binding-controller的处理流程">2.3. resource binding controller的处理流程</h3>
+
+<p>在上面的例子中，经过scheduler调度的resource binding包含了需要下发到member集群的deployment对象以及下发的目标集群<code>member1</code>和<code>member2</code>。resource binding controller还需将这个resource binding转化为两个work（karmada定义的CRD），分别对应<code>member1</code>和<code>member2</code>。</p>
+
+<p>执行<code>kubectl get work -A</code>，可以得到resource binding controller生成的work对象：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-text" data-lang="text">NAMESPACE            NAME               AGE
+karmada-es-member1   nginx-687f7fb96f   19m
+karmada-es-member2   nginx-687f7fb96f   19m</code></pre></div>
+<p>可以看到一个resource binding对象转化成了两个work对象，且两个work对象同名（<code>nginx-687f7fb96f</code>）。每个work对象创建在单独的namespace中（<code>karmada-es-member1</code>和<code>karmada-es-member2</code>），两个namespace分别对应目的地集群<code>member1</code>和<code>member2</code>。</p>
+
+<p>执行<code>kubectl get works nginx-687f7fb96f -n karmada-es-member2 -o yaml</code>,可以看到由resource binding controller的<code>ensureWork</code>方法创建的work对象的更多信息：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml"><span style="color:#069;font-weight:bold">apiVersion</span>:<span style="color:#bbb"> </span>work.karmada.io/v1alpha1<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">kind</span>:<span style="color:#bbb"> </span>Work<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">metadata</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">annotations</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">policy.karmada.io/applied-overrides</span>:<span style="color:#bbb"> </span><span style="color:#c30">&#39;[{&#34;policyName&#34;:&#34;nginx-override&#34;,&#34;overriders&#34;:{&#34;plaintext&#34;:[{&#34;path&#34;:&#34;/spec/replicas&#34;,&#34;operator&#34;:&#34;replace&#34;,&#34;value&#34;:2}]}}]&#39;</span><span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">creationTimestamp</span>:<span style="color:#bbb"> </span><span style="color:#c30">&#34;2021-09-07T08:17:33Z&#34;</span><span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">finalizers</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span>- karmada.io/execution-controller<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">generation</span>:<span style="color:#bbb"> </span><span style="color:#f60">1</span><span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">labels</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">resourcebinding.karmada.io/name</span>:<span style="color:#bbb"> </span>nginx-deployment<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">resourcebinding.karmada.io/namespace</span>:<span style="color:#bbb"> </span>default<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>nginx-687f7fb96f<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">namespace</span>:<span style="color:#bbb"> </span>karmada-es-member2<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">spec</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">workload</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">manifests</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">    </span>- <span style="color:#069;font-weight:bold">apiVersion</span>:<span style="color:#bbb"> </span>apps/v1<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">kind</span>:<span style="color:#bbb"> </span>Deployment<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">metadata</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">        </span><span style="color:#069;font-weight:bold">annotations</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">          </span><span style="color:#069;font-weight:bold">kubectl.kubernetes.io/last-applied-configuration</span>:<span style="color:#bbb"> </span><span style="color:#c30;font-style:italic">|
+</span><span style="color:#c30;font-style:italic">            {&#34;apiVersion&#34;:&#34;apps/v1&#34;,&#34;kind&#34;:&#34;Deployment&#34;,&#34;metadata&#34;:{&#34;annotations&#34;:{},&#34;labels&#34;:{&#34;app&#34;:&#34;nginx&#34;},&#34;name&#34;:&#34;nginx&#34;,&#34;namespace&#34;:&#34;default&#34;},&#34;spec&#34;:{&#34;replicas&#34;:1,&#34;selector&#34;:{&#34;matchLabels&#34;:{&#34;app&#34;:&#34;nginx&#34;}},&#34;template&#34;:{&#34;metadata&#34;:{&#34;labels&#34;:{&#34;app&#34;:&#34;nginx&#34;}},&#34;spec&#34;:{&#34;containers&#34;:[{&#34;image&#34;:&#34;nginx&#34;,&#34;name&#34;:&#34;nginx&#34;}]}}}}</span><span style="color:#bbb">
+</span><span style="color:#bbb">        </span><span style="color:#069;font-weight:bold">labels</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">          </span><span style="color:#069;font-weight:bold">app</span>:<span style="color:#bbb"> </span>nginx<span style="color:#bbb">
+</span><span style="color:#bbb">          </span><span style="color:#069;font-weight:bold">propagationpolicy.karmada.io/name</span>:<span style="color:#bbb"> </span>nginx-propagation<span style="color:#bbb">
+</span><span style="color:#bbb">          </span><span style="color:#069;font-weight:bold">propagationpolicy.karmada.io/namespace</span>:<span style="color:#bbb"> </span>default<span style="color:#bbb">
+</span><span style="color:#bbb">          </span><span style="color:#069;font-weight:bold">resourcebinding.karmada.io/name</span>:<span style="color:#bbb"> </span>nginx-deployment<span style="color:#bbb">
+</span><span style="color:#bbb">          </span><span style="color:#069;font-weight:bold">resourcebinding.karmada.io/namespace</span>:<span style="color:#bbb"> </span>default<span style="color:#bbb">
+</span><span style="color:#bbb">          </span><span style="color:#069;font-weight:bold">work.karmada.io/name</span>:<span style="color:#bbb"> </span>nginx-687f7fb96f<span style="color:#bbb">
+</span><span style="color:#bbb">          </span><span style="color:#069;font-weight:bold">work.karmada.io/namespace</span>:<span style="color:#bbb"> </span>karmada-es-member2<span style="color:#bbb">
+</span><span style="color:#bbb">        </span><span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>nginx<span style="color:#bbb">
+</span><span style="color:#bbb">        </span><span style="color:#069;font-weight:bold">namespace</span>:<span style="color:#bbb"> </span>default<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">spec</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">        </span><span style="color:#069;font-weight:bold">replicas</span>:<span style="color:#bbb"> </span><span style="color:#f60">2</span><span style="color:#bbb">
+</span><span style="color:#bbb">        </span><span style="color:#069;font-weight:bold">selector</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">          </span><span style="color:#069;font-weight:bold">matchLabels</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">            </span><span style="color:#069;font-weight:bold">app</span>:<span style="color:#bbb"> </span>nginx<span style="color:#bbb">
+</span><span style="color:#bbb">        </span><span style="color:#069;font-weight:bold">template</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">          </span><span style="color:#069;font-weight:bold">metadata</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">            </span><span style="color:#069;font-weight:bold">labels</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">              </span><span style="color:#069;font-weight:bold">app</span>:<span style="color:#bbb"> </span>nginx<span style="color:#bbb">
+</span><span style="color:#bbb">          </span><span style="color:#069;font-weight:bold">spec</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">            </span><span style="color:#069;font-weight:bold">containers</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">            </span>- <span style="color:#069;font-weight:bold">image</span>:<span style="color:#bbb"> </span>nginx<span style="color:#bbb">
+</span><span style="color:#bbb">              </span><span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>nginx</code></pre></div>
+<p>对于该work对象说明如下：</p>
+
+<ol>
+<li><code>.metadata.annotations</code>说明部署到<code>member2</code>集群中的deployment应用了<code>nginx-override</code>这个override policy，把replica数量改为2</li>
+<li>work加上了两个label，表示work由哪个resource binding转化而来</li>
+<li><code>.spec.workload.manifests</code>中嵌入了需要下发到member2集群中的deployment</li>
+<li>嵌入的deployment的label记录了karmada的整个处理流程，包括绑定了哪个propagation policy对象，生成了哪个resource binding对象，最终转化为哪个work对象</li>
+</ol>
+
+<p>至此karmada控制面关于应用下发的逻辑已经完成。后续对push和pull模式的member集群，分别由运行在karmada控制面中的execution controller和运行在member集群中的agent实现work到k8s原生API资源对象（包括CRD资源）的转换，并在member集群中运行起来。</p>
+                        </div>
+                        
+                        
+                        
+                        
+                        
+                        
+
+                        
+                        <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+                        <script src="https://unpkg.com/gitalk@latest/dist/gitalk.min.js"></script> 
+                        <script type="text/javascript" src="/assets/js/md5.min.js"></script>
+                        <div id="gitalk-container"></div>     
+                        <script type="text/javascript">
+                            var gitalk = new Gitalk({
+                              clientID: '835183d2dcbd1167ac28', 
+                            
+                              clientSecret: 'd873919fac3cc76921ee0800172c2279bc612f8d', 
+                            
+                              repo: 'Sel-Website-talk',
+                              owner: 'Peeknut',
+                              admin: ['Peeknut','Rachel-Shao'],
+                              id: location.href.split("/").pop().substring(0, 49),      
+                              distractionFreeMode: false  
+                            })
+                            gitalk.render('gitalk-container')
+                        </script> 
+                        
+
+                    </div>
+                    
+
+                    
+
+                    
+
+                    <div class="col-md-3">
+
+                        
+
+                        
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+      <h3 class="panel-title">搜索栏</h3>
+      
+    </div>
+
+    <div class="panel-body">
+        
+        <div class="search" id="search">
+            <div class="input-group">
+                <input type="text" name="q" class="form-control" placeholder="请输入文章标题或摘要..." id="search-key">
+                <input type="hidden" name="sitesearch" value="https://Congrool.github.io/">
+                <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main" onclick="search()"><i class="fas fa-search"></i></button>
+                </span>
+            </div>
+            <h1 id="search-tip" style="color: red;text-align: center;display: none;font-size: medium;">搜索中，请稍后 ...</h1>
+        </div>
+        <script type="text/javascript">
+            
+            window.onload = function() {
+                      document.onkeydown = function(ev) {
+                        var event = ev || event
+                        if (event.keyCode == 13) {
+                          search()
+                        }
+                      }
+                    }
+            
+            function search() {
+                    
+                      key = document.getElementById("search-key").value;
+                      if (key === "") {
+                        
+                        return;
+                      }
+                      key = key.toLowerCase();
+                      document.getElementById("search-key").value = "";
+                  
+                      
+                      document.getElementById("search-tip").innerText = "搜索中，请稍后 ...";
+                      document.getElementById("search-tip").style.display = "block";
+                  
+                      
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      var childs = el.childNodes;
+                      for (var i = childs.length - 1; i >= 0; i--) {
+                        el.removeChild(childs[i]);
+                      }
+                  
+                      
+                      xmltext = new XMLHttpRequest;
+                      xmltext.open("GET", "/index.xml", false);
+                      xmltext.send();
+                      resp = xmltext.responseXML;
+                      
+                      items = resp.getElementsByTagName("item");
+                      
+                      var i = 0;
+                      haveResult = false;
+                      while (i < items.length) {
+                        txt = items[i].getElementsByTagName("title")[0].innerHTML + items[i].getElementsByTagName("description")[0].innerHTML
+                        txt = txt.toLowerCase();
+                        if (txt.indexOf(key) > -1) {
+                          haveResult = true;
+                          title = items[i].getElementsByTagName("title")[0].innerHTML;
+                          link = items[i].getElementsByTagName("link")[0].innerHTML;
+                          time = items[i].getElementsByTagName("pubDate")[0].innerHTML;
+                          mark = items[i].getElementsByTagName("description")[0].innerHTML;
+                          time = time.slice(0, -5);
+                          addItem(title, link, time, mark)
+                        }
+                        i++;
+                      }
+                      if (!haveResult) {
+                        document.getElementById("search-tip").innerText = "搜索完毕，未发现结果 ...";
+                        document.getElementById("search-tip").style.display = "block";
+                      }
+
+                      
+                      var el = document.getElementById("blog-head");
+                      el.innerHTML="Blogs"
+                    }
+                  
+                    
+                    function addItem(title, link, time, mark) {
+                      document.getElementById("search-tip").style.display = "none";
+                      tmpl = "<article class=\"post\" style=\"border-bottom: 1px solid #e6e6e6;\" >" +
+                        "<header class=\"post-header\">" +
+                        "<h1 class=\"post-title\"><a class=\"post-link\" href=\"" + link + "\" target=\"_blank\">" + title + "</a></h1>" +
+                        "<div class=\"post-meta\">" +
+                        " <span class=\"post-time\">" + time + "</span>" +
+                        "</div>" +
+                        " </header>" +
+                        "<div class=\"post-content\">" +
+                        "<div class=\"post-summary\">" + mark + "</div>" +
+                        "<div class=\"read-more\">" +
+                        "<a href=" + link + " class=\"read-more-link\" target=\"_blank\">阅读更多</a>" +
+                        "</div>" +
+                        " </div>" +
+                        "</article>"
+                      div = document.createElement("div")
+                      div.innerHTML = tmpl;
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      el.appendChild(div)
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+
+        </script>
+        
+    </div>
+</div>
+
+
+
+
+
+
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">归档栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="nav nav-pills nav-stacked">
+            
+            
+            <li>
+                <a href="/categories/bosh">bosh (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloud_controller_ng">cloud_controller_ng (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloudfoundry">cloudfoundry (15)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/containerd">containerd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/docker">docker (19)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/etcd">etcd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/haproxy">haproxy (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/healthmanager">healthmanager (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/karmada">karmada (4)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubeedge">kubeedge (5)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubernetes">kubernetes (14)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/network">network (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/openyurt">openyurt (2)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/service-mesh">service-mesh (4)</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+<div class="panel sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">标签栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="tag-cloud">
+            
+            
+            <li>
+                <a href="/tags/agent"><i class="fas fa-tags"></i> agent</a>
+            </li>
+            
+            <li>
+                <a href="/tags/apiserver"><i class="fas fa-tags"></i> apiserver</a>
+            </li>
+            
+            <li>
+                <a href="/tags/books"><i class="fas fa-tags"></i> books</a>
+            </li>
+            
+            <li>
+                <a href="/tags/bosh"><i class="fas fa-tags"></i> bosh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/ccng"><i class="fas fa-tags"></i> ccng</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cf-release"><i class="fas fa-tags"></i> cf-release</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cgroups"><i class="fas fa-tags"></i> cgroups</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudfoundry"><i class="fas fa-tags"></i> cloudfoundry</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudnative"><i class="fas fa-tags"></i> cloudnative</a>
+            </li>
+            
+            <li>
+                <a href="/tags/collector"><i class="fas fa-tags"></i> collector</a>
+            </li>
+            
+            <li>
+                <a href="/tags/containerd"><i class="fas fa-tags"></i> containerd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cri"><i class="fas fa-tags"></i> cri</a>
+            </li>
+            
+            <li>
+                <a href="/tags/dea"><i class="fas fa-tags"></i> dea</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker"><i class="fas fa-tags"></i> docker</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker-network"><i class="fas fa-tags"></i> docker-network</a>
+            </li>
+            
+            <li>
+                <a href="/tags/edgecomputing"><i class="fas fa-tags"></i> edgecomputing</a>
+            </li>
+            
+            <li>
+                <a href="/tags/etcd"><i class="fas fa-tags"></i> etcd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/gorouter"><i class="fas fa-tags"></i> gorouter</a>
+            </li>
+            
+            <li>
+                <a href="/tags/haproxy"><i class="fas fa-tags"></i> haproxy</a>
+            </li>
+            
+            <li>
+                <a href="/tags/healthmanager"><i class="fas fa-tags"></i> healthmanager</a>
+            </li>
+            
+            <li>
+                <a href="/tags/istio"><i class="fas fa-tags"></i> istio</a>
+            </li>
+            
+            <li>
+                <a href="/tags/karmada"><i class="fas fa-tags"></i> karmada</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubeedge"><i class="fas fa-tags"></i> kubeedge</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubelet"><i class="fas fa-tags"></i> kubelet</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubernetes"><i class="fas fa-tags"></i> kubernetes</a>
+            </li>
+            
+            <li>
+                <a href="/tags/libcontainer"><i class="fas fa-tags"></i> libcontainer</a>
+            </li>
+            
+            <li>
+                <a href="/tags/micro-service"><i class="fas fa-tags"></i> micro-service</a>
+            </li>
+            
+            <li>
+                <a href="/tags/namespace"><i class="fas fa-tags"></i> namespace</a>
+            </li>
+            
+            <li>
+                <a href="/tags/nats"><i class="fas fa-tags"></i> nats</a>
+            </li>
+            
+            <li>
+                <a href="/tags/news"><i class="fas fa-tags"></i> news</a>
+            </li>
+            
+            <li>
+                <a href="/tags/openyurt"><i class="fas fa-tags"></i> openyurt</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pipework"><i class="fas fa-tags"></i> pipework</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pouch"><i class="fas fa-tags"></i> pouch</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runc"><i class="fas fa-tags"></i> runc</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runtime"><i class="fas fa-tags"></i> runtime</a>
+            </li>
+            
+            <li>
+                <a href="/tags/security"><i class="fas fa-tags"></i> security</a>
+            </li>
+            
+            <li>
+                <a href="/tags/serverless"><i class="fas fa-tags"></i> serverless</a>
+            </li>
+            
+            <li>
+                <a href="/tags/service-mesh"><i class="fas fa-tags"></i> service-mesh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/syslog_aggregator"><i class="fas fa-tags"></i> syslog_aggregator</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+                        
+
+                    </div>
+                    
+
+                    
+
+                </div>
+                
+
+            </div>
+            
+        </div>
+        
+
+        <footer id="footer">
+    <div class="container">
+
+        
+        <div class="col-md-4 col-sm-6">
+            <h4></h4>
+
+            <p><strong>关于我们：<strong> <p>浙大SEL实验室</p><p>地址：杭州市浙大路38号曹光彪西楼405室</p><p><strong></strong>
+            <a href="/contact" class="btn btn-small btn-template-main" >跳转到关于</a>
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+        <div class="col-md-4 col-sm-6">
+
+             
+            <h4>最新博客</h4>
+            
+
+            <div class="blog-entries">
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/27/overview.png" class="img-responsive" alt="基于KubeEdge的边缘节点分组管理设计与实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">基于KubeEdge的边缘节点分组管理设计与实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/20/karmada-scheduler.png" class="img-responsive" alt="多云环境下的资源调度：karmada scheduler的框架和实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">多云环境下的资源调度：karmada scheduler的框架和实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">
+                          
+                            <img src="/img/blogs/19/karmada-arch.jpg" class="img-responsive" alt="多云环境下的成员集群管理，看看开源项目karmada是如何做到的">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">多云环境下的成员集群管理，看看开源项目karmada是如何做到的</a></h5>
+                    </div>
+                </div>
+                
+            </div>
+
+            <hr class="hidden-md hidden-lg">
+             
+
+        </div>
+        
+
+        
+        <div class="col-md-4 col-sm-6">
+
+          <h4></h4>
+
+            <p><strong>联系我们: 
+                                    <p>团队负责人：丁轶群 yiqunding@zju.edu.cn</p>
+                                    <p>网站维护人：刘佳文 839809484@qq.com</p>                
+    </strong>
+
+            
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+    </div>
+    
+</footer>
+
+
+
+
+
+
+
+<div id="copyright">
+    <div class="container">
+        <div class="col-md-12">
+            
+            <p class="pull-left">Copyright ©️ 2020 SEL Laboratory , ZJ University all rights reserved.</p>
+            
+            <p class="pull-right">
+               <a href="https://bootstrapious.com/p/universal-business-e-commerce-template">Bootstrapious</a>.
+              
+
+               <a href="https://github.com/devcows/hugo-universal-theme">DevCows</a>.
+            </p>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+    </div>
+    
+
+    
+
+
+<script src="/js/jquery.min.js"></script>
+<script src="/js/bootstrap.min.js"></script>
+
+
+
+<script src="/js/jquery.cookie.min.js"></script>
+<script src="/js/jquery.waypoints.min.js"></script>
+<script src="/js/jquery.counterup.min.js"></script>
+<script src="/js/jquery-parallax.js"></script>
+
+
+<script src="/js/front.js"></script>
+
+
+<script src="/js/owl.carousel.min.js"></script>
+
+
+
+  </body>
+</html>

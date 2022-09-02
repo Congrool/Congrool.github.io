@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>dea on 浙大SEL实验室</title>
+    <link>https://Congrool.github.io/tags/dea/</link>
+    <description>Recent content in dea on 浙大SEL实验室</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Tue, 02 Dec 2014 17:19:09 +0000</lastBuildDate>
+    
+	<atom:link href="https://Congrool.github.io/tags/dea/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>Cloud Foundry中warden的架构与实现</title>
+      <link>https://Congrool.github.io/blog/2014/12/02/cloud-foundry%E4%B8%ADwarden%E7%9A%84%E6%9E%B6%E6%9E%84%E4%B8%8E%E5%AE%9E%E7%8E%B0/</link>
+      <pubDate>Tue, 02 Dec 2014 17:19:09 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2014/12/02/cloud-foundry%E4%B8%ADwarden%E7%9A%84%E6%9E%B6%E6%9E%84%E4%B8%8E%E5%AE%9E%E7%8E%B0/</guid>
+      <description>&lt;p&gt;在Cloud Foundry中，当应用开发者的应用由Cloud Foundry的组件DEA来运行时，应用的资源隔离与控制显得尤为重要，而warden的存在很好得解决了这个问题。&lt;/p&gt;
+
+&lt;p&gt;Cloud Foundry中warden项目的首要目的是提供一套简易的接口来管理隔离的环境，这些隔离的环境可以被称为“容器”，他们可以在CPU使用，内存使用，磁盘使用以及设备访问权限方面做相应的限制。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>Cloud Foundry中DEA与warden通信完成应用端口监听</title>
+      <link>https://Congrool.github.io/blog/2014/12/02/cloud-foundry%E4%B8%ADdea%E4%B8%8Ewarden%E9%80%9A%E4%BF%A1%E5%AE%8C%E6%88%90%E5%BA%94%E7%94%A8%E7%AB%AF%E5%8F%A3%E7%9B%91%E5%90%AC/</link>
+      <pubDate>Tue, 02 Dec 2014 16:55:44 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2014/12/02/cloud-foundry%E4%B8%ADdea%E4%B8%8Ewarden%E9%80%9A%E4%BF%A1%E5%AE%8C%E6%88%90%E5%BA%94%E7%94%A8%E7%AB%AF%E5%8F%A3%E7%9B%91%E5%90%AC/</guid>
+      <description>&lt;p&gt;在Cloud Foundry v2版本中，DEA为一个用户应用运行的控制模块，而应用的真正运行都是依附于warden。更具体的来说，是DEA接收到Cloud Controller的请求；DEA发送请求给warden server；warden server创建warden container并将用户应用droplet等环境配置好；DEA发送应用启动请求至warden serve；最后warden container执行启动脚本启动应用。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>Cloud Foundry中DEA启动应用实例时环境变量的使用</title>
+      <link>https://Congrool.github.io/blog/2014/11/20/cloud-foundry%E4%B8%ADdea%E5%90%AF%E5%8A%A8%E5%BA%94%E7%94%A8%E5%AE%9E%E4%BE%8B%E6%97%B6%E7%8E%AF%E5%A2%83%E5%8F%98%E9%87%8F%E7%9A%84%E4%BD%BF%E7%94%A8/</link>
+      <pubDate>Thu, 20 Nov 2014 13:03:30 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2014/11/20/cloud-foundry%E4%B8%ADdea%E5%90%AF%E5%8A%A8%E5%BA%94%E7%94%A8%E5%AE%9E%E4%BE%8B%E6%97%B6%E7%8E%AF%E5%A2%83%E5%8F%98%E9%87%8F%E7%9A%84%E4%BD%BF%E7%94%A8/</guid>
+      <description>&lt;h2 id=&#34;前言&#34;&gt;前言&lt;/h2&gt;
+
+&lt;p&gt;在Cloud Foundry v2中，当应用用户需要启动应用的实例时，用户通过cf CLI向cloud controller发送请求，而cloud controller通过NATS向DEA转发启动请求。真正执行启动事宜的是DEA，DEA主要做的工作为启动一个warden container, 并将droplet等内容拷贝进入container内部，最后配置完指定的环境变量，在这些环境变量下启动应用的启动脚本。&lt;/p&gt;
+
+&lt;p&gt;本文将从阐述Cloud Foundry中DEA如何为应用实例的启动配置环境变量。&lt;/p&gt;</description>
+    </item>
+    
+  </channel>
+</rss>

@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="robots" content="all,follow">
+  <meta name="googlebot" content="index,follow,snippet,archive">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <title>多云环境下的成员集群管理，看看开源项目karmada是如何做到的</title>
+  <meta name="author" content="丁轶群" />
+  
+  
+  
+  
+  <meta name="keywords" content="karmada">
+  
+  
+  <meta name="description" content="karmada是华为开源的云原生多云容器编排平台，目标是让开发者像使用单个k8s集群一样使用多k8s云。本文描述在多云环境下karmada如何管理成员集群，包括：成员集群的注册、注销，以及成员集群的状态跟踪两个方面。使用的karmada版本为v0.8.0后的commit：0cdba3efa。">
+
+  <meta name="generator" content="Hugo 0.68.3" />
+
+  
+  <link href='//fonts.googleapis.com/css?family=Roboto:400,100,100italic,300,300italic,500,700,800' rel='stylesheet' type='text/css'>
+
+  
+  
+  
+  
+  
+
+  <link href="/css/all.css" rel="stylesheet">
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+
+  
+  <link href="/css/animate.css" rel="stylesheet">
+
+  
+  
+    <link href="/css/style.default.css" rel="stylesheet" id="theme-stylesheet">
+  
+
+  
+  <link href="/css/custom.css" rel="stylesheet">
+
+  
+  
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+        <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  
+
+  
+  <link rel="shortcut icon" href="/img/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
+
+  
+  <link href="/css/owl.carousel.css" rel="stylesheet">
+  <link href="/css/owl.theme.css" rel="stylesheet">
+
+  
+  <link rel="alternate" href="https://Congrool.github.io/index.xml" type="application/rss+xml" title="浙大SEL实验室">
+
+  
+  
+  
+  
+  
+  
+  <meta property="og:updated_time" content="2021-09-16T10:00:11Z">
+  
+    
+    
+    <meta property="article:section" content="karmada">
+    <meta property="article:tag" content="karmada">
+    
+    
+    <meta property="article:published_time" content="2021-09-16T10:00:11Z">
+    <meta property="article:modified_time" content="2021-09-16T10:00:11Z">
+  
+
+  
+  <meta name="twitter:card" content="summary">
+  
+  <meta name="twitter:title" content="多云环境下的成员集群管理，看看开源项目karmada是如何做到的">
+  
+  <meta name="twitter:description" content="karmada是华为开源的云原生多云容器编排平台，目标是让开发者像使用单个k8s集群一样使用多k8s云。本文描述在多云环境下karmada如何管理成员集群，包括：成员集群的注册、注销，以及成员集群的状态跟踪两个方面。使用的karmada版本为v0.8.0后的commit：0cdba3efa。">
+  
+  
+</head>
+
+
+  <body>
+
+    <div id="all">
+
+        <header class="navbar-affixed-top" data-spy="affix" data-offset-top="62">
+    <div class="navbar navbar-default yamm" role="navigation" id="navbar" style="background-color:white;">    
+        <div class="container">
+            <div class="navbar-header">
+                <a class="navbar-brand home" href="/">
+                    <img src="/img/sel.png" alt="多云环境下的成员集群管理，看看开源项目karmada是如何做到的" class="hidden-xs hidden-sm img-responsive">
+                    
+                    <span class="sr-only">多云环境下的成员集群管理，看看开源项目karmada是如何做到的 - </span>
+                </a>
+                <div class="navbar-buttons">
+                    <button type="button" class="navbar-toggle btn-template-main" data-toggle="collapse" data-target="#navigation">
+                      <span class="sr-only"></span>
+                        <i class="fas fa-align-justify"></i>
+                    </button>
+                </div>
+            </div>
+            
+
+            <div class="navbar-collapse collapse" id="navigation">
+                <ul class="nav navbar-nav navbar-right">
+                  
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/">主页</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/blog/">博客</a>
+                    
+                  </li>
+
+                  <li class="dropdown">
+                    
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">社区 <span class="caret"></span></a>
+                  <ul class="dropdown-menu">
+                    
+                      <li><a href="https://www.servicemesher.com/">ServiceMesh社区</a></li>
+                    
+                      <li><a href="">kubeedge社区</a></li>
+
+                      <li><a href="http://www.icsoft.zju.edu.cn/index.php">浙江大学智能计算与软件中心</a></li>
+                    
+                  </ul>
+
+                  <li class="dropdown">
+                    
+                    <a href="/archives/">归档</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/contact/">关于</a>
+                    
+                  </li>
+                  
+                </li>
+
+                
+                
+
+                
+                </ul>
+            </div>
+            
+
+            <div class="collapse clearfix" id="search">    
+                <form class="navbar-form" role="search">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search">
+                        <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main"><i class="fas fa-search"></i></button>
+                </span>
+                    </div>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+
+    
+</header>
+
+
+
+
+        <div id="heading-breadcrumbs">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h1>多云环境下的成员集群管理，看看开源项目karmada是如何做到的</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+        <div id="content">
+            <div class="container">
+
+                <div class="row">
+
+                    
+
+                    <div class="col-md-9" id="blog-post">
+
+                        
+                          <p class="text-muted text-uppercase mb-small text-right">
+                             <a href="#">丁轶群</a>
+                             | 
+                            2021-09-16
+                          </p>
+                        
+
+                        <div id="post-content">
+                          <p>在<a href="https://www.gartner.com/smarterwithgartner/why-organizations-choose-a-multicloud-strategy/">Gartner的一份研究报告中</a>，公有云用户有81%都采用了多云架构。karmada是华为开源的云原生多云容器编排平台，目标是让开发者像使用单个k8s集群一样使用多k8s集群。它的第一个release（v0.1.0）出现在2020年12月，而正式发布则是2021年4月25日在深圳召开的华为开发者大会（HDC.Cloud）2021上。</p>
+
+<p>karmada吸取了CNCF社区的Federation v1和v2（也称为kubefed）项目经验与教训，在保持原有k8s资源定义API不变的情况下，通过添加与多云应用资源编排相关的一套新的API和控制面组件，方便用户将应用部署到多云环境中，实现扩容、高可用等目标。</p>
+
+<p>官方网站：<a href="https://karmada.io/">https://karmada.io/</a></p>
+
+<p>代码地址：<a href="https://github.com/karmada-io/karmada">https://github.com/karmada-io/karmada</a></p>
+
+<p>使用karmada管理的多云环境包含两类集群：</p>
+
+<ol>
+<li>host集群：即由karmada控制面构成的集群，接受用户提交的应用部署需求，将之同步到成员集群，并从成员集群同步应用后续的运行状况。</li>
+<li>成员集群：由一个或多个k8s集群构成，负责运行用户提交的应用</li>
+</ol>
+
+<p>本文描述在多云环境下karmada如何管理成员集群，包括：成员集群的注册、注销，以及成员集群的状态跟踪两个方面。</p>
+
+<p>使用的karmada版本为v0.8.0后的commit：0cdba3efa。</p>
+
+<h2 id="1-成员集群的注册和注销">1. 成员集群的注册和注销</h2>
+
+<p>karmada的成员集群支持push和pull两种模式：push模式下由karmada控制面的execution controller将应用推送到成员集群，而pull模式下由运行在成员集群侧的karmada agent将应用下拉到本地。这两种模式下的集群注册和注销流程略有差别，本文1.1-1.4小节将分别说明。</p>
+
+<h3 id="1-1-push模式成员集群的注册流程-join">1.1. push模式成员集群的注册流程（join）</h3>
+
+<p>karmadactl的join命令将k8s集群以push模式注册到karmada集群联邦中。如下面的例子将一个k8s集群注册到karmada联邦，其中<code>member1</code>是<code>$HOME/.kube/karmada.config</code>中该集群的context名称，也是该集群成功加入联邦后在karmada控制面中的名称。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">karmadactl join member1 --cluster-kubeconfig<span style="color:#555">=</span><span style="color:#033">$HOME</span>/.kube/karmada.config</code></pre></div>
+<p>karmadactl的<code>JoinCluster</code>方法实现了join命令，流程如下：</p>
+
+<p>首先，karmadactl确保<code>karmada-cluster</code> namespace在karmada控制面上已经创建。该namespace用来保存lease对象，lease对象被用来辅助集群状态的跟踪，在后续2.1-2.2小节中描述。</p>
+
+<p>然后，karmadactl在<code>member1</code>集群中创建service account，并为该service account配置cluster role和cluster role binding。这个service account令karmada控制面有权将应用资源对象下发到成员集群，并有权访问成员集群apiserver的<code>/readyz</code>或<code>/healthz</code> URL，从而判断成员集群的健康状态。在<code>member1</code>集群中执行<code>kubectl get sa karmada-member1 -n=karmada-cluster -o yaml --context=member1</code>可以查看karmadactl在成员集群<code>member1</code>中创建的service account内容：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml"><span style="color:#069;font-weight:bold">apiVersion</span>:<span style="color:#bbb"> </span>v1<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">kind</span>:<span style="color:#bbb"> </span>ServiceAccount<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">metadata</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>karmada-member1<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">namespace</span>:<span style="color:#bbb"> </span>karmada-cluster<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">secrets</span>:<span style="color:#bbb">
+</span><span style="color:#bbb"></span>- <span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>karmada-member1-token-bddfd</code></pre></div>
+<p>对该service account对象说明如下：</p>
+
+<ol>
+<li>servie account的名称为<code>karmada-</code>加上成员集群的名称，在这里是<code>karmada-member1</code></li>
+<li>service account默认保存在<code>karmada-cluster</code> namespace中。</li>
+<li>service account中的secret <code>karmada-member1-token-bddfd</code>由成员集群自动创建</li>
+</ol>
+
+<p>执行<code>kubectl get clusterrole karmada-controller-manager:karmada-member1 -o yaml --context=member1</code>可以查看karmadactl在<code>member1</code>集群上创建的cluster role。可以看到该cluster role允许绑定的service account执行对所有类型资源的所有操作，同时授权访问<code>/readyz</code>和<code>/healthz</code>等所有非resource类型URL的get操作。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml"><span style="color:#069;font-weight:bold">apiVersion</span>:<span style="color:#bbb"> </span>rbac.authorization.k8s.io/v1<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">kind</span>:<span style="color:#bbb"> </span>ClusterRole<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">metadata</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>karmada-controller-manager:karmada-member1<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">rules</span>:<span style="color:#bbb">
+</span><span style="color:#bbb"></span>- <span style="color:#069;font-weight:bold">apiGroups</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span>- <span style="color:#c30">&#39;*&#39;</span><span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">resources</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span>- <span style="color:#c30">&#39;*&#39;</span><span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">verbs</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span>- <span style="color:#c30">&#39;*&#39;</span><span style="color:#bbb">
+</span><span style="color:#bbb"></span>- <span style="color:#069;font-weight:bold">nonResourceURLs</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span>- <span style="color:#c30">&#39;*&#39;</span><span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">verbs</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span>- get</code></pre></div>
+<p>接着，karmadactl在karmada控制面中创建cluster对象，cluster对象是<code>member1</code>在karmada集群联邦中代表，执行<code>kubectl get cluster member1 -o yaml --context=karmada-apiserver</code>可以得如下yaml：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml"><span style="color:#069;font-weight:bold">kind</span>:<span style="color:#bbb"> </span>Cluster<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">metadata</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">finalizers</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span>- karmada.io/cluster-controller<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>member1<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">spec</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">apiEndpoint</span>:<span style="color:#bbb"> </span>https://<span style="color:#f60">172.18.0.4</span>:<span style="color:#f60">6443</span><span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">secretRef</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>member1<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">namespace</span>:<span style="color:#bbb"> </span>karmada-cluster<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">syncMode</span>:<span style="color:#bbb"> </span>Push</code></pre></div>
+<p>cluster对象的几个重要的属性说明如下:</p>
+
+<ol>
+<li><code>.metadata.name</code>为用户在karmadactl join命令中指定的成员集群名称，在这个例子中是<code>member1</code></li>
+<li><code>.spec.syncMode</code>为push，说明这是一个push模式的成员集群</li>
+<li><code>.spec.apiendpoint</code>为成员集群的apiserver地址，在这里是用kind创建的k8s集群的apiserver的地址</li>
+<li><code>.sepc.secretRef</code>为上一步中成员集群为service account自动创建的secrets</li>
+</ol>
+
+<p>结合cluster对象spec中的<code>apiendpoint</code>和<code>secretRef</code>，karmada控制面就可以在<code>member1</code>中创建各种资源对象，并访问<code>/readyz</code>、<code>/healthz</code>等URL。</p>
+
+<h3 id="1-2-pull模式成员集群的注册流程">1.2. pull模式成员集群的注册流程</h3>
+
+<p>pull模式的成员集群注册目前还在使用<code>hack/deploy-karmada-agent.sh</code>脚本，并没有集成到karmadactl中。</p>
+
+<p>用户可以执行如下命令将集群<code>member2</code>集群注册到karmada集群联邦中：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">hack/deploy-karmada-agent.sh ~/.kube/karmada.config karmada-apiserver ~/.kube/karmada.config member2</code></pre></div>
+<p>上述命令完成后，执行<code>kubectl get cluster --context=karmada-apiserver</code>可以看到<code>member2</code>集群已经成功注册，且运行在pull模式：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">NAME      VERSION   MODE   READY   AGE
+member2   v1.19.1   Pull   True    32s</code></pre></div>
+<p><code>deploy-karmada-agent.sh</code>脚本注册成员集群的流程与karmadactl注册（join）命令的类似，流程如下：</p>
+
+<ol>
+<li>在成员集群中创建<code>karmada-system</code> namespace</li>
+<li>在成员集群的<code>karmada-system</code> namespace中创建<code>karmada-agent-sa</code> service account</li>
+<li>在成员集群中创建cluster role，允许对成员集群所有资源的get、watch、list、create、update和delete操作，以及对<code>/readyz</code>、<code>/healthz</code>等URL的get操作</li>
+<li>在成员集群中创建cluster role binding，绑定上述service account和cluster role</li>
+<li>在成员集群的<code>karmada-sytem</code> namespace中创建名为<code>karmada-kubeconfig</code>的secret，这个secret会被mount在下一步启动的karmada agent中，用来访问karmada控制面apiserver</li>
+
+<li><p>最后，在成员集群的<code>karmada-system</code> namespace中运行karmada agent，执行<code>kubectl get deploy karmada-agent -n=karmada-system --context=member2</code>可以查看karmada agent对应的deployment。在下面的yaml中我们可以看到karmada agent用来访问karmada apiserver的secret <code>karmada-kubeconfig</code>，以及用来访问成员集群的service account <code>karmada-agent-sa</code></p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml"><span style="color:#069;font-weight:bold">kind</span>:<span style="color:#bbb"> </span>Deployment<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">metadata</span>:<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">labels</span>:<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">app</span>:<span style="color:#bbb"> </span>karmada-agent<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>karmada-agent<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">namespace</span>:<span style="color:#bbb"> </span>karmada-system<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">spec</span>:<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">replicas</span>:<span style="color:#bbb"> </span><span style="color:#f60">1</span><span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">selector</span>:<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">matchLabels</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">app</span>:<span style="color:#bbb"> </span>karmada-agent<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">template</span>:<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">metadata</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">creationTimestamp</span>:<span style="color:#bbb"> </span><span style="color:#069;font-weight:bold">null</span><span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">labels</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">app</span>:<span style="color:#bbb"> </span>karmada-agent<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">spec</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">containers</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span>- <span style="color:#069;font-weight:bold">command</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">    </span>- /bin/karmada-agent<span style="color:#bbb">
+</span><span style="color:#bbb">    </span>- --karmada-kubeconfig=/etc/kubeconfig/karmada-kubeconfig<span style="color:#bbb">
+</span><span style="color:#bbb">    </span>- --karmada-context=karmada-apiserver<span style="color:#bbb">
+</span><span style="color:#bbb">    </span>- --cluster-name=member2<span style="color:#bbb">
+</span><span style="color:#bbb">    </span>- --cluster-status-update-frequency=10s<span style="color:#bbb">
+</span><span style="color:#bbb">    </span>- --v=<span style="color:#f60">4</span><span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">image</span>:<span style="color:#bbb"> </span>swr.ap-southeast<span style="color:#f60">-1.</span>myhuaweicloud.com/karmada/karmada-agent:latest<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">imagePullPolicy</span>:<span style="color:#bbb"> </span>IfNotPresent<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>karmada-agent<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">volumeMounts</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">    </span>- <span style="color:#069;font-weight:bold">mountPath</span>:<span style="color:#bbb"> </span>/etc/kubeconfig<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>kubeconfig<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">serviceAccountName</span>:<span style="color:#bbb"> </span>karmada-agent-sa<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">tolerations</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span>- <span style="color:#069;font-weight:bold">key</span>:<span style="color:#bbb"> </span>node-role.kubernetes.io/master<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">operator</span>:<span style="color:#bbb"> </span>Exists<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">volumes</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span>- <span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>kubeconfig<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">secret</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">secretName</span>:<span style="color:#bbb"> </span>karmada-kubeconfig</code></pre></div></li>
+</ol>
+
+<p><code>deploy-karmada-agent.sh</code>注册成员集群的流程和karmadactl join命令的流程区别在于：</p>
+
+<ol>
+<li><code>deploy-karmada-agent.sh</code>脚本不负责创建cluster对象，cluster对象的创建在karmada agent的启动过程中完成（agent的<code>run</code>函数），而且创建的cluster对象是pull模式。</li>
+<li><code>deploy-karmada-agent.sh</code>脚本在成员集群中创建的service account以及karmada-agent运行在名为<code>karmada-system</code>的namespace中，而karmadactl的join命令在成员集群中创建的service account在名为<code>karmada-cluster</code>的namespace中</li>
+</ol>
+
+<h3 id="1-3-push模式成员集群的注销流程-unjoin">1.3. push模式成员集群的注销流程（unjoin）</h3>
+
+<p>karmadactl的unjoin命令将push模式的成员集群从karmada集群联邦中注销。如下面的例子注销了<code>member1</code>成员集群。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">./karmadactl unjoin member1 --cluster-kubeconfig<span style="color:#555">=</span><span style="color:#033">$HOME</span>/.kube/karmada.config</code></pre></div>
+<p>karamdactl的unjoin命令处理流程定义在<code>UnJoinCluster</code>函数中，流程如下：</p>
+
+<ol>
+<li>在karmada控制面中删除成员集群对应的cluster对象</li>
+<li>在成员集群中删除karmadactl的join命令创建的rbac资源，包括cluster role、cluster role binding等</li>
+<li>在成员集群中删除karmadactl的join命令创建的service account</li>
+<li>在成员集群中删除<code>karmada-cluster</code> namespace</li>
+</ol>
+
+<p>karmada使用<a href="https://kubernetes.io/docs/concepts/overview/working-with-objects/finalizers/">finalizer</a>机制确保在karmada控制面中删除cluster对象时，先删除execution space等与之相关的其他资源。</p>
+
+<p>finalizer在karmada中的基本工作原理是：</p>
+
+<p>当我们创建一个cluster对象时，cluster controller将<code>karmada.io/cluster-controller</code>作为finalizer写入cluster对象的metadata。执行<code>kubectl get cluster member1 -o yaml --context=karmada-apiserver</code>查看karmadactl的join命令创建的cluster对象，可以看到它的metadata中指定cluster controller为自己的finalizer。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml"><span style="color:#069;font-weight:bold">kind</span>:<span style="color:#bbb"> </span>Cluster<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">metadata</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">finalizers</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span>- karmada.io/cluster-controller<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>member1<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">spec</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">syncMode</span>:<span style="color:#bbb"> </span>Push</code></pre></div>
+<p>当我们需要删除一个cluster对象时，cluster controller作为cluster对象的finalizer，会先删除成员集群对应的execution space（execution space是karmada控制面中的一个namespace，每个成员集群都有一个对应的execution space，用以保存需要下发到该成员集群的work等资源），如果execution space成功删除，则删除cluster对象metadata中的finalizer。否则在下个循环中重新尝试删除execution space。直到execution space删除成功，才会删除cluster metadata中的finalizer。</p>
+
+<p>karmada中的work等资源也带有finalizer，执行<code>kubectl get work -n=karmada-es-member1 -o yaml --context=karmada-apiserver</code>可以看到work的finalizer是execution controller，因此删除work时也会由execution controller完成对应的finalizer流程，即在删除work对象之前先删除由work转化而成的k8s原生资源对象。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml"><span style="color:#069;font-weight:bold">apiVersion</span>:<span style="color:#bbb"> </span>v1<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">items</span>:<span style="color:#bbb">
+</span><span style="color:#bbb"></span>- <span style="color:#069;font-weight:bold">apiVersion</span>:<span style="color:#bbb"> </span>work.karmada.io/v1alpha1<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">kind</span>:<span style="color:#bbb"> </span>Work<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">metadata</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">finalizers</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">    </span>- karmada.io/execution-controller<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">labels</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">resourcebinding.karmada.io/name</span>:<span style="color:#bbb"> </span>nginx-deployment<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">resourcebinding.karmada.io/namespace</span>:<span style="color:#bbb"> </span>default<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>nginx-687f7fb96f<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">namespace</span>:<span style="color:#bbb"> </span>karmada-es-member1<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">spec</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">workload</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">manifests</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">      </span>...<span style="color:#bbb"> </span>...</code></pre></div>
+<h3 id="1-4-pull模式成员集群的注销流程">1.4. pull模式成员集群的注销流程</h3>
+
+<p>karmada目前没有提供类似karmadactl unjoin的命令来注销pull模式下的成员集群。不过根据push模式下的注销流程，可以猜测如下流程应该可以工作：</p>
+
+<ol>
+<li>在karmada控制面中删除成员集群对应的cluster对象</li>
+<li>在成员集群中删除<code>deploy-karmada-agent.sh</code>脚本创建的rbac资源，包括cluster role、cluster role binding等</li>
+<li>在成员集群中删除<code>deploy-karmada-agent.sh</code>脚本创建的service account</li>
+<li>在成员集群中删除<code>karmada-system</code> namespace</li>
+</ol>
+
+<p>在这个流程中，删除cluster、work对象同样会触发上面描述的finalizer流程，这里不再复述。</p>
+
+<p>经过上述注销流程，剩下的还有karmada agent作为一个deployment运行在成员集群中，它的清理流程尚不明确。</p>
+
+<h2 id="2-成员集群的状态跟踪">2. 成员集群的状态跟踪</h2>
+
+<p>cluster status controller、lease controller和cluster controller共同完成成员集群的状态跟踪，并将状态写入cluster对象的status。在karmada集群联邦中，cluster status controller可能运行在两个地方：</p>
+
+<ol>
+<li>对于push模式的成员集群来说，在karamada控制面中的karamada controller manager会运行一个cluster status controller</li>
+<li>对于pull模式的成员集群来说，在成员集群侧运行的karmada agent会运行一个karmada controller manager，而后者会启动一个cluster status controller</li>
+</ol>
+
+<p>2.1-2.2小节分别说明这两种情况下的成员集群的状态跟踪的流程。</p>
+
+<h3 id="2-1-push模式成员集群的状态跟踪">2.1. push模式成员集群的状态跟踪</h3>
+
+<p>在karmada控制面中心运行的cluster status controller基于<code>sigs.k8s.io/controller-runtime</code>框架实现，监控karmada控制面中cluster对象的增删改事件，这些事件经过<code>clusterPredicateFunc</code>中的函数过滤，使得karmada控制面中的cluster status controller只处理push模式的cluster的增删改事件。</p>
+
+<p>cluster status controller默认以10秒钟为间隔（间隔时长可以用karmada controller manager的<code>cluster-status-update-frequency</code>修改）采集成员集群的以下信息，并写入cluster对象的status中（当cluster对象发生创建或更新事件时也会触发该流程）：</p>
+
+<ol>
+<li>集群的在线状态（online）和健康状态（healthy）<br />
+cluster status controller使用<code>buildClusterConfig</code>函数，利用成员集群的cluster对象包含的apiserver地址（<code>.spec.apiEndpoint</code>），访问成员集群使用的secret（<code>.spec.secretRef</code>）等信息构建访问成员集群的rest config和clientset。cluster status controller使用clientset访问成员集群的apiserver的<code>/readyz</code>，如果<code>/readyz</code>无法访问则使用已经被deprecate的<code>/healthz</code>。如果<code>/readyz</code>或<code>/healthz</code>能够正常访问，则表示集群在线（online状态为true），如果能够得到200的HTTP响应，则表示集群健康（healthy为true）。<br />
+根据成员集群的在线状态和健康状态，cluster status controller设置集群状态，并写入cluster对象的<code>.status.conditions</code>：
+
+<ol>
+<li>如果集群不在线，则设置集群的condition为offline</li>
+<li>如果成员在线，但<code>/readyz</code>或<code>/healthz</code>返回的不是HTTP 200，则集群状态为not ready</li>
+<li>如果集群在线，且<code>/readyz</code>或<code>/healthz</code>返回的是HTTP 200，则集群状态为ready</li>
+</ol></li>
+<li>成员集群的node状态，并写入cluster对象的<code>.status.nodeSummary</code></li>
+<li>成员集群的资源使用状态，并写入cluster对象的<code>.status.resourceSummary</code></li>
+<li>成员集群的版本，并写入cluster对象的<code>.status.kubernetesVersion</code></li>
+<li>成员集群的api支持情况，并写入cluster对象的<code>.status.apiEnablements</code></li>
+</ol>
+
+<p>执行<code>kubectl get cluster member1 -o yaml --context=karmada-apiserver</code>，可以看到一个push模式成员集群的status，由于支持的API资源（<code>apiEnablements</code>）较多，下面的yaml中只保留corev1下的部分API资源：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml"><span style="color:#069;font-weight:bold">apiVersion</span>:<span style="color:#bbb"> </span>cluster.karmada.io/v1alpha1<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">kind</span>:<span style="color:#bbb"> </span>Cluster<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">metadata</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">finalizers</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span>- karmada.io/cluster-controller<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>member1<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">spec</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">apiEndpoint</span>:<span style="color:#bbb"> </span>https://<span style="color:#f60">172.18.0.4</span>:<span style="color:#f60">6443</span><span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">secretRef</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>member1<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">namespace</span>:<span style="color:#bbb"> </span>karmada-cluster<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">syncMode</span>:<span style="color:#bbb"> </span>Push<span style="color:#bbb">
+</span><span style="color:#bbb"></span><span style="color:#069;font-weight:bold">status</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">apiEnablements</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span>- <span style="color:#069;font-weight:bold">groupVersion</span>:<span style="color:#bbb"> </span>v1<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">resources</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">    </span>- <span style="color:#069;font-weight:bold">kind</span>:<span style="color:#bbb"> </span>Endpoints<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>endpoints<span style="color:#bbb">
+</span><span style="color:#bbb">    </span>- <span style="color:#069;font-weight:bold">kind</span>:<span style="color:#bbb"> </span>Node<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>nodes<span style="color:#bbb">
+</span><span style="color:#bbb">    </span>- <span style="color:#069;font-weight:bold">kind</span>:<span style="color:#bbb"> </span>Pod<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>pods<span style="color:#bbb">
+</span><span style="color:#bbb">    </span>- <span style="color:#069;font-weight:bold">kind</span>:<span style="color:#bbb"> </span>Service<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>services<span style="color:#bbb">
+</span><span style="color:#bbb">    </span>...<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">conditions</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">  </span>- <span style="color:#069;font-weight:bold">lastTransitionTime</span>:<span style="color:#bbb"> </span><span style="color:#c30">&#34;2021-09-15T11:46:42Z&#34;</span><span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">message</span>:<span style="color:#bbb"> </span>cluster<span style="color:#bbb"> </span>is<span style="color:#bbb"> </span>reachable<span style="color:#bbb"> </span>and<span style="color:#bbb"> </span>health<span style="color:#bbb"> </span>endpoint<span style="color:#bbb"> </span>responded<span style="color:#bbb"> </span>with<span style="color:#bbb"> </span>ok<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">reason</span>:<span style="color:#bbb"> </span>ClusterReady<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">status</span>:<span style="color:#bbb"> </span><span style="color:#c30">&#34;True&#34;</span><span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">type</span>:<span style="color:#bbb"> </span>Ready<span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">kubernetesVersion</span>:<span style="color:#bbb"> </span>v1<span style="color:#f60">.19.1</span><span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">nodeSummary</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">readyNum</span>:<span style="color:#bbb"> </span><span style="color:#f60">1</span><span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">totalNum</span>:<span style="color:#bbb"> </span><span style="color:#f60">1</span><span style="color:#bbb">
+</span><span style="color:#bbb">  </span><span style="color:#069;font-weight:bold">resourceSummary</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">allocatable</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">cpu</span>:<span style="color:#bbb"> </span><span style="color:#c30">&#34;4&#34;</span><span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">ephemeral-storage</span>:<span style="color:#bbb"> </span>49805880Ki<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">hugepages-1Gi</span>:<span style="color:#bbb"> </span><span style="color:#c30">&#34;0&#34;</span><span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">hugepages-2Mi</span>:<span style="color:#bbb"> </span><span style="color:#c30">&#34;0&#34;</span><span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">memory</span>:<span style="color:#bbb"> </span>8147848Ki<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">pods</span>:<span style="color:#bbb"> </span><span style="color:#c30">&#34;110&#34;</span><span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">allocated</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">cpu</span>:<span style="color:#bbb"> </span>850m<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">memory</span>:<span style="color:#bbb"> </span>190Mi<span style="color:#bbb">
+</span><span style="color:#bbb">    </span><span style="color:#069;font-weight:bold">allocating</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">cpu</span>:<span style="color:#bbb"> </span><span style="color:#c30">&#34;0&#34;</span><span style="color:#bbb">
+</span><span style="color:#bbb">      </span><span style="color:#069;font-weight:bold">memory</span>:<span style="color:#bbb"> </span><span style="color:#c30">&#34;0&#34;</span></code></pre></div>
+<p>从上面的cluster对象的yaml中，可以看到当前集群状态是ready（<code>/readyz</code>返回HTTP 200），该状态的转变时间（transition time）为<code>2021-09-15T11:46:42Z</code>，这个时间戳要在集群状态发生变化时才会更新。</p>
+
+<p>cluster status controller还会启动一个lease controller（<code>initLeaseController</code>方法），定时renew一次lease，作用类似心跳检测。</p>
+
+<p>但是，对push模式的成员集群来说，只要cluster status controller正常运行，那么它就一直能够尝试访问成员集群apiserver的<code>/readyz</code>或<code>/healthz</code>，无论请求成功还是失败都能据此判断成员集群的状态。lease controller和cluster controller在push模式下对判断集群状态并无太大作用，它们的作用要在pull模式下才能发挥。</p>
+
+<h3 id="2-2-pull模式成员集群的状态跟踪">2.2. pull模式成员集群的状态跟踪</h3>
+
+<p>在pull模式中，cluster status controller运行在成员集群侧，由karmada agent启动，但它使用不同的<code>PredicateFunc</code>，从而仅处理本成员集群的cluster对象增删改事件。cluster status controller同样周期性采集集群状态，并写入cluster对象的status，其流程和2.1小节中描述的类似，这里不再复述。</p>
+
+<p>但pull模式下的集群状态跟踪仅依靠cluster status controller是不够的，还离不开lease controller和cluster controller的配合。</p>
+
+<p>我们假设这样的场景：如果由于网络问题，运行在成员集群侧的karmada agent长期无法向karmada控制面上报集群最新状态，karmada控制面虽然能够获取karmada agent最近一次上报的集群状态，但无法判断当前集群依然处于之前的状态，还是已经失联。</p>
+
+<p>这种情况下成员集群的状态判断就需要依赖运行在karmada agent中的lease controller和运行在karmada控制面中的cluster controller。lease controller类似一种心跳机制，它定期renew karmada控制面上的一个lease对象（存在<code>karmada-cluster</code> namespace中），一旦发生网络问题，lease controller就无法及时renew lease对象。karmada控制面中运行的cluster controller以5秒为间隔（间隔时长可以用karmada controller manager的<code>cluster-monitor-period</code> flag修改）运行<code>monitorClusterHealth</code>方法，当cluster controller发现某个集群的lease长期没有renew时，就将该集群的状态设置为未知状态（unknown）。</p>
+                        </div>
+                        
+                        
+                        
+                        
+                        
+                        
+
+                        
+                        <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+                        <script src="https://unpkg.com/gitalk@latest/dist/gitalk.min.js"></script> 
+                        <script type="text/javascript" src="/assets/js/md5.min.js"></script>
+                        <div id="gitalk-container"></div>     
+                        <script type="text/javascript">
+                            var gitalk = new Gitalk({
+                              clientID: '835183d2dcbd1167ac28', 
+                            
+                              clientSecret: 'd873919fac3cc76921ee0800172c2279bc612f8d', 
+                            
+                              repo: 'Sel-Website-talk',
+                              owner: 'Peeknut',
+                              admin: ['Peeknut','Rachel-Shao'],
+                              id: location.href.split("/").pop().substring(0, 49),      
+                              distractionFreeMode: false  
+                            })
+                            gitalk.render('gitalk-container')
+                        </script> 
+                        
+
+                    </div>
+                    
+
+                    
+
+                    
+
+                    <div class="col-md-3">
+
+                        
+
+                        
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+      <h3 class="panel-title">搜索栏</h3>
+      
+    </div>
+
+    <div class="panel-body">
+        
+        <div class="search" id="search">
+            <div class="input-group">
+                <input type="text" name="q" class="form-control" placeholder="请输入文章标题或摘要..." id="search-key">
+                <input type="hidden" name="sitesearch" value="https://Congrool.github.io/">
+                <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main" onclick="search()"><i class="fas fa-search"></i></button>
+                </span>
+            </div>
+            <h1 id="search-tip" style="color: red;text-align: center;display: none;font-size: medium;">搜索中，请稍后 ...</h1>
+        </div>
+        <script type="text/javascript">
+            
+            window.onload = function() {
+                      document.onkeydown = function(ev) {
+                        var event = ev || event
+                        if (event.keyCode == 13) {
+                          search()
+                        }
+                      }
+                    }
+            
+            function search() {
+                    
+                      key = document.getElementById("search-key").value;
+                      if (key === "") {
+                        
+                        return;
+                      }
+                      key = key.toLowerCase();
+                      document.getElementById("search-key").value = "";
+                  
+                      
+                      document.getElementById("search-tip").innerText = "搜索中，请稍后 ...";
+                      document.getElementById("search-tip").style.display = "block";
+                  
+                      
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      var childs = el.childNodes;
+                      for (var i = childs.length - 1; i >= 0; i--) {
+                        el.removeChild(childs[i]);
+                      }
+                  
+                      
+                      xmltext = new XMLHttpRequest;
+                      xmltext.open("GET", "/index.xml", false);
+                      xmltext.send();
+                      resp = xmltext.responseXML;
+                      
+                      items = resp.getElementsByTagName("item");
+                      
+                      var i = 0;
+                      haveResult = false;
+                      while (i < items.length) {
+                        txt = items[i].getElementsByTagName("title")[0].innerHTML + items[i].getElementsByTagName("description")[0].innerHTML
+                        txt = txt.toLowerCase();
+                        if (txt.indexOf(key) > -1) {
+                          haveResult = true;
+                          title = items[i].getElementsByTagName("title")[0].innerHTML;
+                          link = items[i].getElementsByTagName("link")[0].innerHTML;
+                          time = items[i].getElementsByTagName("pubDate")[0].innerHTML;
+                          mark = items[i].getElementsByTagName("description")[0].innerHTML;
+                          time = time.slice(0, -5);
+                          addItem(title, link, time, mark)
+                        }
+                        i++;
+                      }
+                      if (!haveResult) {
+                        document.getElementById("search-tip").innerText = "搜索完毕，未发现结果 ...";
+                        document.getElementById("search-tip").style.display = "block";
+                      }
+
+                      
+                      var el = document.getElementById("blog-head");
+                      el.innerHTML="Blogs"
+                    }
+                  
+                    
+                    function addItem(title, link, time, mark) {
+                      document.getElementById("search-tip").style.display = "none";
+                      tmpl = "<article class=\"post\" style=\"border-bottom: 1px solid #e6e6e6;\" >" +
+                        "<header class=\"post-header\">" +
+                        "<h1 class=\"post-title\"><a class=\"post-link\" href=\"" + link + "\" target=\"_blank\">" + title + "</a></h1>" +
+                        "<div class=\"post-meta\">" +
+                        " <span class=\"post-time\">" + time + "</span>" +
+                        "</div>" +
+                        " </header>" +
+                        "<div class=\"post-content\">" +
+                        "<div class=\"post-summary\">" + mark + "</div>" +
+                        "<div class=\"read-more\">" +
+                        "<a href=" + link + " class=\"read-more-link\" target=\"_blank\">阅读更多</a>" +
+                        "</div>" +
+                        " </div>" +
+                        "</article>"
+                      div = document.createElement("div")
+                      div.innerHTML = tmpl;
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      el.appendChild(div)
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+
+        </script>
+        
+    </div>
+</div>
+
+
+
+
+
+
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">归档栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="nav nav-pills nav-stacked">
+            
+            
+            <li>
+                <a href="/categories/bosh">bosh (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloud_controller_ng">cloud_controller_ng (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloudfoundry">cloudfoundry (15)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/containerd">containerd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/docker">docker (19)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/etcd">etcd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/haproxy">haproxy (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/healthmanager">healthmanager (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/karmada">karmada (4)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubeedge">kubeedge (5)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubernetes">kubernetes (14)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/network">network (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/openyurt">openyurt (2)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/service-mesh">service-mesh (4)</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+<div class="panel sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">标签栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="tag-cloud">
+            
+            
+            <li>
+                <a href="/tags/agent"><i class="fas fa-tags"></i> agent</a>
+            </li>
+            
+            <li>
+                <a href="/tags/apiserver"><i class="fas fa-tags"></i> apiserver</a>
+            </li>
+            
+            <li>
+                <a href="/tags/books"><i class="fas fa-tags"></i> books</a>
+            </li>
+            
+            <li>
+                <a href="/tags/bosh"><i class="fas fa-tags"></i> bosh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/ccng"><i class="fas fa-tags"></i> ccng</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cf-release"><i class="fas fa-tags"></i> cf-release</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cgroups"><i class="fas fa-tags"></i> cgroups</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudfoundry"><i class="fas fa-tags"></i> cloudfoundry</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudnative"><i class="fas fa-tags"></i> cloudnative</a>
+            </li>
+            
+            <li>
+                <a href="/tags/collector"><i class="fas fa-tags"></i> collector</a>
+            </li>
+            
+            <li>
+                <a href="/tags/containerd"><i class="fas fa-tags"></i> containerd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cri"><i class="fas fa-tags"></i> cri</a>
+            </li>
+            
+            <li>
+                <a href="/tags/dea"><i class="fas fa-tags"></i> dea</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker"><i class="fas fa-tags"></i> docker</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker-network"><i class="fas fa-tags"></i> docker-network</a>
+            </li>
+            
+            <li>
+                <a href="/tags/edgecomputing"><i class="fas fa-tags"></i> edgecomputing</a>
+            </li>
+            
+            <li>
+                <a href="/tags/etcd"><i class="fas fa-tags"></i> etcd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/gorouter"><i class="fas fa-tags"></i> gorouter</a>
+            </li>
+            
+            <li>
+                <a href="/tags/haproxy"><i class="fas fa-tags"></i> haproxy</a>
+            </li>
+            
+            <li>
+                <a href="/tags/healthmanager"><i class="fas fa-tags"></i> healthmanager</a>
+            </li>
+            
+            <li>
+                <a href="/tags/istio"><i class="fas fa-tags"></i> istio</a>
+            </li>
+            
+            <li>
+                <a href="/tags/karmada"><i class="fas fa-tags"></i> karmada</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubeedge"><i class="fas fa-tags"></i> kubeedge</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubelet"><i class="fas fa-tags"></i> kubelet</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubernetes"><i class="fas fa-tags"></i> kubernetes</a>
+            </li>
+            
+            <li>
+                <a href="/tags/libcontainer"><i class="fas fa-tags"></i> libcontainer</a>
+            </li>
+            
+            <li>
+                <a href="/tags/micro-service"><i class="fas fa-tags"></i> micro-service</a>
+            </li>
+            
+            <li>
+                <a href="/tags/namespace"><i class="fas fa-tags"></i> namespace</a>
+            </li>
+            
+            <li>
+                <a href="/tags/nats"><i class="fas fa-tags"></i> nats</a>
+            </li>
+            
+            <li>
+                <a href="/tags/news"><i class="fas fa-tags"></i> news</a>
+            </li>
+            
+            <li>
+                <a href="/tags/openyurt"><i class="fas fa-tags"></i> openyurt</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pipework"><i class="fas fa-tags"></i> pipework</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pouch"><i class="fas fa-tags"></i> pouch</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runc"><i class="fas fa-tags"></i> runc</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runtime"><i class="fas fa-tags"></i> runtime</a>
+            </li>
+            
+            <li>
+                <a href="/tags/security"><i class="fas fa-tags"></i> security</a>
+            </li>
+            
+            <li>
+                <a href="/tags/serverless"><i class="fas fa-tags"></i> serverless</a>
+            </li>
+            
+            <li>
+                <a href="/tags/service-mesh"><i class="fas fa-tags"></i> service-mesh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/syslog_aggregator"><i class="fas fa-tags"></i> syslog_aggregator</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+                        
+
+                    </div>
+                    
+
+                    
+
+                </div>
+                
+
+            </div>
+            
+        </div>
+        
+
+        <footer id="footer">
+    <div class="container">
+
+        
+        <div class="col-md-4 col-sm-6">
+            <h4></h4>
+
+            <p><strong>关于我们：<strong> <p>浙大SEL实验室</p><p>地址：杭州市浙大路38号曹光彪西楼405室</p><p><strong></strong>
+            <a href="/contact" class="btn btn-small btn-template-main" >跳转到关于</a>
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+        <div class="col-md-4 col-sm-6">
+
+             
+            <h4>最新博客</h4>
+            
+
+            <div class="blog-entries">
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/27/overview.png" class="img-responsive" alt="基于KubeEdge的边缘节点分组管理设计与实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">基于KubeEdge的边缘节点分组管理设计与实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/20/karmada-scheduler.png" class="img-responsive" alt="多云环境下的资源调度：karmada scheduler的框架和实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">多云环境下的资源调度：karmada scheduler的框架和实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">
+                          
+                            <img src="/img/blogs/19/karmada-arch.jpg" class="img-responsive" alt="多云环境下的成员集群管理，看看开源项目karmada是如何做到的">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">多云环境下的成员集群管理，看看开源项目karmada是如何做到的</a></h5>
+                    </div>
+                </div>
+                
+            </div>
+
+            <hr class="hidden-md hidden-lg">
+             
+
+        </div>
+        
+
+        
+        <div class="col-md-4 col-sm-6">
+
+          <h4></h4>
+
+            <p><strong>联系我们: 
+                                    <p>团队负责人：丁轶群 yiqunding@zju.edu.cn</p>
+                                    <p>网站维护人：刘佳文 839809484@qq.com</p>                
+    </strong>
+
+            
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+    </div>
+    
+</footer>
+
+
+
+
+
+
+
+<div id="copyright">
+    <div class="container">
+        <div class="col-md-12">
+            
+            <p class="pull-left">Copyright ©️ 2020 SEL Laboratory , ZJ University all rights reserved.</p>
+            
+            <p class="pull-right">
+               <a href="https://bootstrapious.com/p/universal-business-e-commerce-template">Bootstrapious</a>.
+              
+
+               <a href="https://github.com/devcows/hugo-universal-theme">DevCows</a>.
+            </p>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+    </div>
+    
+
+    
+
+
+<script src="/js/jquery.min.js"></script>
+<script src="/js/bootstrap.min.js"></script>
+
+
+
+<script src="/js/jquery.cookie.min.js"></script>
+<script src="/js/jquery.waypoints.min.js"></script>
+<script src="/js/jquery.counterup.min.js"></script>
+<script src="/js/jquery-parallax.js"></script>
+
+
+<script src="/js/front.js"></script>
+
+
+<script src="/js/owl.carousel.min.js"></script>
+
+
+
+  </body>
+</html>

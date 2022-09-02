@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>collector on 浙大SEL实验室</title>
+    <link>https://Congrool.github.io/tags/collector/</link>
+    <description>Recent content in collector on 浙大SEL实验室</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Wed, 07 May 2014 10:19:45 +0000</lastBuildDate>
+    
+	<atom:link href="https://Congrool.github.io/tags/collector/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>Cloud Foundry中collector组件的源码分析</title>
+      <link>https://Congrool.github.io/blog/2014/05/07/cloud-foundry%E4%B8%ADcollector%E7%BB%84%E4%BB%B6%E7%9A%84%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/</link>
+      <pubDate>Wed, 07 May 2014 10:19:45 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2014/05/07/cloud-foundry%E4%B8%ADcollector%E7%BB%84%E4%BB%B6%E7%9A%84%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/</guid>
+      <description>&lt;p&gt;在Cloud Foundry中有一个叫collector的组件，该组件的功能是通过消息总线发现在Cloud Foundry中注册过的各个组件的信息，然后通过varz和healthz接口来查询它们的信息并发送到指定的存储位置。&lt;/p&gt;
+
+&lt;p&gt;本文从collector的功能出发，主要讲述以上两个功能的源码实现。&lt;/p&gt;</description>
+    </item>
+    
+  </channel>
+</rss>

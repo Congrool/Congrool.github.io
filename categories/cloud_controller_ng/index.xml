@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>cloud_controller_ng on 浙大SEL实验室</title>
+    <link>https://Congrool.github.io/categories/cloud_controller_ng/</link>
+    <description>Recent content in cloud_controller_ng on 浙大SEL实验室</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Thu, 03 Apr 2014 14:15:12 +0000</lastBuildDate>
+    
+	<atom:link href="https://Congrool.github.io/categories/cloud_controller_ng/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>Cloud_Controller_NG源码阅读记录</title>
+      <link>https://Congrool.github.io/blog/2014/04/03/ontroller-ng%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E8%AE%B0%E5%BD%95/</link>
+      <pubDate>Thu, 03 Apr 2014 14:15:12 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2014/04/03/ontroller-ng%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E8%AE%B0%E5%BD%95/</guid>
+      <description>Cloud_Controller_NG就是cloud controller next generation的意思。即Cloud Foundry 平台用来管理控制应用和服务的组件。</description>
+    </item>
+    
+  </channel>
+</rss>

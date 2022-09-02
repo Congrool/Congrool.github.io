@@ -1,0 +1,1322 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="robots" content="all,follow">
+  <meta name="googlebot" content="index,follow,snippet,archive">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <title>kubernetes apiserver源码分析——api请求的认证过程</title>
+  <meta name="author" content="王哲" />
+  
+  
+  
+  
+  <meta name="keywords" content="Kubernetes, apiserver">
+  
+  
+  <meta name="description" content="apiserver相当于是k8集群的一个入口，不论通过kubectl还是使用remote api 直接控制，都要经过apiserver。apiserver说白了就是一个server负责监听指定的端口，之后处理不同的请求。笔者之前希望全面分析一下k8apiserver的源码，后来发现这样并不十分有效，其一没有针对性，其二由于代码本身比较复杂，涉及到的功能较多，面面俱到也不太现实。本文通过分析apiserver的源码解析apiserver启动的时候，参数应该如何设置，相关的机制又是怎样？">
+
+  <meta name="generator" content="Hugo 0.68.3" />
+
+  
+  <link href='//fonts.googleapis.com/css?family=Roboto:400,100,100italic,300,300italic,500,700,800' rel='stylesheet' type='text/css'>
+
+  
+  
+  
+  
+  
+
+  <link href="/css/all.css" rel="stylesheet">
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+
+  
+  <link href="/css/animate.css" rel="stylesheet">
+
+  
+  
+    <link href="/css/style.default.css" rel="stylesheet" id="theme-stylesheet">
+  
+
+  
+  <link href="/css/custom.css" rel="stylesheet">
+
+  
+  
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+        <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  
+
+  
+  <link rel="shortcut icon" href="/img/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
+
+  
+  <link href="/css/owl.carousel.css" rel="stylesheet">
+  <link href="/css/owl.theme.css" rel="stylesheet">
+
+  
+  <link rel="alternate" href="https://Congrool.github.io/index.xml" type="application/rss+xml" title="浙大SEL实验室">
+
+  
+  
+  
+  
+  
+  
+  <meta property="og:updated_time" content="2015-08-09T11:25:44Z">
+  
+    
+    
+    <meta property="article:section" content="Kubernetes">
+    <meta property="article:tag" content="Kubernetes">
+    <meta property="article:tag" content="apiserver">
+    
+    
+    <meta property="article:published_time" content="2015-08-09T11:25:44Z">
+    <meta property="article:modified_time" content="2015-08-09T11:25:44Z">
+  
+
+  
+  <meta name="twitter:card" content="summary">
+  
+  <meta name="twitter:title" content="kubernetes apiserver源码分析——api请求的认证过程">
+  
+  <meta name="twitter:description" content="apiserver相当于是k8集群的一个入口，不论通过kubectl还是使用remote api 直接控制，都要经过apiserver。apiserver说白了就是一个server负责监听指定的端口，之后处理不同的请求。笔者之前希望全面分析一下k8apiserver的源码，后来发现这样并不十分有效，其一没有针对性，其二由于代码本身比较复杂，涉及到的功能较多，面面俱到也不太现实。本文通过分 …">
+  
+  
+</head>
+
+
+  <body>
+
+    <div id="all">
+
+        <header class="navbar-affixed-top" data-spy="affix" data-offset-top="62">
+    <div class="navbar navbar-default yamm" role="navigation" id="navbar" style="background-color:white;">    
+        <div class="container">
+            <div class="navbar-header">
+                <a class="navbar-brand home" href="/">
+                    <img src="/img/sel.png" alt="kubernetes apiserver源码分析——api请求的认证过程" class="hidden-xs hidden-sm img-responsive">
+                    
+                    <span class="sr-only">kubernetes apiserver源码分析——api请求的认证过程 - </span>
+                </a>
+                <div class="navbar-buttons">
+                    <button type="button" class="navbar-toggle btn-template-main" data-toggle="collapse" data-target="#navigation">
+                      <span class="sr-only"></span>
+                        <i class="fas fa-align-justify"></i>
+                    </button>
+                </div>
+            </div>
+            
+
+            <div class="navbar-collapse collapse" id="navigation">
+                <ul class="nav navbar-nav navbar-right">
+                  
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/">主页</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/blog/">博客</a>
+                    
+                  </li>
+
+                  <li class="dropdown">
+                    
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">社区 <span class="caret"></span></a>
+                  <ul class="dropdown-menu">
+                    
+                      <li><a href="https://www.servicemesher.com/">ServiceMesh社区</a></li>
+                    
+                      <li><a href="">kubeedge社区</a></li>
+
+                      <li><a href="http://www.icsoft.zju.edu.cn/index.php">浙江大学智能计算与软件中心</a></li>
+                    
+                  </ul>
+
+                  <li class="dropdown">
+                    
+                    <a href="/archives/">归档</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/contact/">关于</a>
+                    
+                  </li>
+                  
+                </li>
+
+                
+                
+
+                
+                </ul>
+            </div>
+            
+
+            <div class="collapse clearfix" id="search">    
+                <form class="navbar-form" role="search">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search">
+                        <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main"><i class="fas fa-search"></i></button>
+                </span>
+                    </div>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+
+    
+</header>
+
+
+
+
+        <div id="heading-breadcrumbs">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h1>kubernetes apiserver源码分析——api请求的认证过程</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+        <div id="content">
+            <div class="container">
+
+                <div class="row">
+
+                    
+
+                    <div class="col-md-9" id="blog-post">
+
+                        
+                          <p class="text-muted text-uppercase mb-small text-right">
+                             <a href="#">王哲</a>
+                             | 
+                            2015-08-09
+                          </p>
+                        
+
+                        <div id="post-content">
+                          <h2 id="解决什么问题"><strong>解决什么问题</strong></h2>
+
+<p>笔者之前希望全面分析一下k8apiserver的源码，后来发现这样并不十分有效，其一没有针对性，其二由于代码本身比较复杂，涉及到的功能较多，面面俱到也不太现实。</p>
+
+<p>于是我们就回到最初的需求，到底需要解决什么问题，第一个问题就是，apiserver启动的时候，使用secure模式，参数应该如何设置，相关的机制又是怎样？</p>
+
+<p>这一部分的issue很多，如果不从源码来分析的话，就只能黑盒化的去尝试各种参数搭配，费时费力，也不确定是否正确，之前就是这样，这几个issue可以供参考：</p>
+
+<p><a href="https://github.com/GoogleCloudPlatform/kubernetes/issues/10159#issuecomment-113955582">https://github.com/GoogleCloudPlatform/kubernetes/issues/10159#issuecomment-113955582</a></p>
+
+<p><a href="https://github.com/GoogleCloudPlatform/kubernetes/issues/11000">https://github.com/GoogleCloudPlatform/kubernetes/issues/11000</a></p>
+
+<h2 id="apiserver启动过程的代码概览"><strong>apiserver启动过程的代码概览</strong></h2>
+
+<p>apiserver相当于是k8集群的一个入口，不论通过kubectl还是使用remote api 直接控制，都要经过apiserver。apiserver说白了就是一个server负责监听指定的端口，之后处理不同的请求，只不过加上的很多控制，k8s项目由那么多大牛构建，作为参考学习，看一下各个组件的源码，想必也是很有帮助的。</p>
+
+<p>这里分析的是k8s v1.0.0 版本的代码,commit id 为 cd821444dcf3。</p>
+
+<p>main函数的代码位于./kubernetes/cmd/kube-apiserver：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> <span style="color:#c0f">main</span>() {
+    runtime.<span style="color:#c0f">GOMAXPROCS</span>(runtime.<span style="color:#c0f">NumCPU</span>())
+    rand.<span style="color:#c0f">Seed</span>(time.<span style="color:#c0f">Now</span>().<span style="color:#c0f">UTC</span>().<span style="color:#c0f">UnixNano</span>())
+
+    s <span style="color:#555">:=</span> app.<span style="color:#c0f">NewAPIServer</span>()
+    s.<span style="color:#c0f">AddFlags</span>(pflag.CommandLine)
+
+    util.<span style="color:#c0f">InitFlags</span>()
+    util.<span style="color:#c0f">InitLogs</span>()
+    <span style="color:#069;font-weight:bold">defer</span> util.<span style="color:#c0f">FlushLogs</span>()
+
+    verflag.<span style="color:#c0f">PrintAndExitIfRequested</span>()
+
+    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> s.<span style="color:#c0f">Run</span>(pflag.CommandLine.<span style="color:#c0f">Args</span>()); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        fmt.<span style="color:#c0f">Fprintf</span>(os.Stderr, <span style="color:#c30">&#34;%v\n&#34;</span>, err)
+        os.<span style="color:#c0f">Exit</span>(<span style="color:#f60">1</span>)
+    }
+}</code></pre></div>
+<p>这一部分主要是进行一些初始化的设置，启动一个apiserver实例，再将其run起来。初始化的各种细节参数暂时不做重点分析，主要关注一下，<code>app.NewAPIServer()</code>以及<code>s.AddFlags(pflag.CommandLine)</code> 两个函数，New一个apiserver的时候会放入许多默认的初始化参数：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> <span style="color:#c0f">NewAPIServer</span>() <span style="color:#555">*</span>APIServer {
+    s <span style="color:#555">:=</span> APIServer{
+        InsecurePort:           <span style="color:#f60">8080</span>,
+        InsecureBindAddress:    util.<span style="color:#c0f">IP</span>(net.<span style="color:#c0f">ParseIP</span>(<span style="color:#c30">&#34;127.0.0.1&#34;</span>)),
+        BindAddress:            util.<span style="color:#c0f">IP</span>(net.<span style="color:#c0f">ParseIP</span>(<span style="color:#c30">&#34;0.0.0.0&#34;</span>)),
+        SecurePort:             <span style="color:#f60">6443</span>,
+        APIRate:                <span style="color:#f60">10.0</span>,
+        APIBurst:               <span style="color:#f60">200</span>,
+        APIPrefix:              <span style="color:#c30">&#34;/api&#34;</span>,
+        EventTTL:               <span style="color:#f60">1</span> <span style="color:#555">*</span> time.Hour,
+        AuthorizationMode:      <span style="color:#c30">&#34;AlwaysAllow&#34;</span>,
+        AdmissionControl:       <span style="color:#c30">&#34;AlwaysAdmit&#34;</span>,
+        EtcdPathPrefix:         master.DefaultEtcdPathPrefix,
+        EnableLogsSupport:      <span style="color:#069;font-weight:bold">true</span>,
+        MasterServiceNamespace: api.NamespaceDefault,
+        ClusterName:            <span style="color:#c30">&#34;kubernetes&#34;</span>,
+        CertDirectory:          <span style="color:#c30">&#34;/var/run/kubernetes&#34;</span>,
+
+        RuntimeConfig: <span style="color:#366">make</span>(util.ConfigurationMap),
+        KubeletConfig: client.KubeletConfig{
+            Port:        ports.KubeletPort,
+            EnableHttps: <span style="color:#069;font-weight:bold">true</span>,
+            HTTPTimeout: time.<span style="color:#c0f">Duration</span>(<span style="color:#f60">5</span>) <span style="color:#555">*</span> time.Second,
+        },
+    }
+
+    <span style="color:#069;font-weight:bold">return</span> <span style="color:#555">&amp;</span>s
+}</code></pre></div>
+<p>可以看到insecure的端口，以及一些默认的监听端口，还有默认的证书存放位置等等，都是一些比较重要的信息。</p>
+
+<p>启动时候的全部参数通过<code>s.AddFlags(pflag.CommandLine)</code>这个函数传入，里面包括了apiserver启动时候的全部参数，这个使用的是<code>&quot;github.com/spf13/pflag&quot;</code>这个库，可以具体查看每个相关参数的含义以及初始值。把这些参数的含义弄清，启动的时候把对应的合适的值填进去，作为apiserver的基本使用就基本没问题了。</p>
+
+<p>之后负责启动的操作都是在run函数中执行，前面初始化的具体细节暂不做分析，这里着重关注一下两部分，一个是master实例的生成：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">config <span style="color:#555">:=</span> <span style="color:#555">&amp;</span>master.Config{
+    EtcdHelper:             helper,
+    EventTTL:               s.EventTTL,
+    KubeletClient:          kubeletClient,
+    ServiceClusterIPRange:  <span style="color:#555">&amp;</span>n,
+    EnableCoreControllers:  <span style="color:#069;font-weight:bold">true</span>,
+    EnableLogsSupport:      s.EnableLogsSupport,
+    EnableUISupport:        <span style="color:#069;font-weight:bold">true</span>,
+    EnableSwaggerSupport:   <span style="color:#069;font-weight:bold">true</span>,
+    EnableProfiling:        s.EnableProfiling,
+    EnableIndex:            <span style="color:#069;font-weight:bold">true</span>,
+    APIPrefix:              s.APIPrefix,
+    CorsAllowedOriginList:  s.CorsAllowedOriginList,
+    ReadWritePort:          s.SecurePort,
+    PublicAddress:          net.<span style="color:#c0f">IP</span>(s.AdvertiseAddress),
+    Authenticator:          authenticator,
+    SupportsBasicAuth:      <span style="color:#366">len</span>(s.BasicAuthFile) &gt; <span style="color:#f60">0</span>,
+    Authorizer:             authorizer,
+    AdmissionControl:       admissionController,
+    EnableV1Beta3:          enableV1beta3,
+    DisableV1:              disableV1,
+    MasterServiceNamespace: s.MasterServiceNamespace,
+    ClusterName:            s.ClusterName,
+    ExternalHost:           s.ExternalHost,
+    MinRequestTimeout:      s.MinRequestTimeout,
+    SSHUser:                s.SSHUser,
+    SSHKeyfile:             s.SSHKeyfile,
+    InstallSSHKey:          installSSH,
+    ServiceNodePortRange:   s.ServiceNodePortRange,
+}
+m <span style="color:#555">:=</span> master.<span style="color:#c0f">New</span>(config)</code></pre></div>
+<p>这个是主要是生成master实例对象，各种api请求最后都是通过master对象来处理的。</p>
+
+<p>还有一个是server启动的时候：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">if</span> secureLocation <span style="color:#555">!=</span> <span style="color:#c30">&#34;&#34;</span> {
+    secureServer <span style="color:#555">:=</span> <span style="color:#555">&amp;</span>http.Server{
+        Addr:           secureLocation,
+        Handler:        apiserver.<span style="color:#c0f">MaxInFlightLimit</span>(sem, longRunningRE, apiserver.<span style="color:#c0f">RecoverPanics</span>(m.Handler)),
+        ReadTimeout:    ReadWriteTimeout,
+        WriteTimeout:   ReadWriteTimeout,
+        MaxHeaderBytes: <span style="color:#f60">1</span> <span style="color:#555">&lt;&lt;</span> <span style="color:#f60">20</span>,
+        TLSConfig: <span style="color:#555">&amp;</span>tls.Config{
+            <span style="color:#09f;font-style:italic">// Change default from SSLv3 to TLSv1.0 (because of POODLE vulnerability)
+</span><span style="color:#09f;font-style:italic"></span>            MinVersion: tls.VersionTLS10,
+        },
+    }
+
+    <span style="color:#069;font-weight:bold">if</span> <span style="color:#366">len</span>(s.ClientCAFile) &gt; <span style="color:#f60">0</span> {
+        clientCAs, err <span style="color:#555">:=</span> util.<span style="color:#c0f">CertPoolFromFile</span>(s.ClientCAFile)
+        <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+            glog.<span style="color:#c0f">Fatalf</span>(<span style="color:#c30">&#34;unable to load client CA file: %v&#34;</span>, err)
+        }
+        <span style="color:#09f;font-style:italic">// Populate PeerCertificates in requests, but don&#39;t reject connections without certificates
+</span><span style="color:#09f;font-style:italic"></span>        <span style="color:#09f;font-style:italic">// This allows certificates to be validated by authenticators, while still allowing other auth types
+</span><span style="color:#09f;font-style:italic"></span>        secureServer.TLSConfig.ClientAuth = tls.RequestClientCert
+        <span style="color:#09f;font-style:italic">// Specify allowed CAs for client certificates
+</span><span style="color:#09f;font-style:italic"></span>        secureServer.TLSConfig.ClientCAs = clientCAs
+    }
+
+    glog.<span style="color:#c0f">Infof</span>(<span style="color:#c30">&#34;Serving securely on %s&#34;</span>, secureLocation)
+    <span style="color:#069;font-weight:bold">go</span> <span style="color:#069;font-weight:bold">func</span>() {
+        <span style="color:#069;font-weight:bold">defer</span> util.<span style="color:#c0f">HandleCrash</span>()
+        <span style="color:#069;font-weight:bold">for</span> {
+            <span style="color:#069;font-weight:bold">if</span> s.TLSCertFile <span style="color:#555">==</span> <span style="color:#c30">&#34;&#34;</span> <span style="color:#555">&amp;&amp;</span> s.TLSPrivateKeyFile <span style="color:#555">==</span> <span style="color:#c30">&#34;&#34;</span> {
+                s.TLSCertFile = path.<span style="color:#c0f">Join</span>(s.CertDirectory, <span style="color:#c30">&#34;apiserver.crt&#34;</span>)
+                s.TLSPrivateKeyFile = path.<span style="color:#c0f">Join</span>(s.CertDirectory, <span style="color:#c30">&#34;apiserver.key&#34;</span>)
+                <span style="color:#09f;font-style:italic">// TODO (cjcullen): Is PublicAddress the right address to sign a cert with?
+</span><span style="color:#09f;font-style:italic"></span>                alternateIPs <span style="color:#555">:=</span> []net.IP{config.ServiceReadWriteIP}
+                alternateDNS <span style="color:#555">:=</span> []<span style="color:#078;font-weight:bold">string</span>{<span style="color:#c30">&#34;kubernetes.default.svc&#34;</span>, <span style="color:#c30">&#34;kubernetes.default&#34;</span>, <span style="color:#c30">&#34;kubernetes&#34;</span>}
+                <span style="color:#09f;font-style:italic">// It would be nice to set a fqdn subject alt name, but only the kubelets know, the apiserver is clueless
+</span><span style="color:#09f;font-style:italic"></span>                <span style="color:#09f;font-style:italic">// alternateDNS = append(alternateDNS, &#34;kubernetes.default.svc.CLUSTER.DNS.NAME&#34;)
+</span><span style="color:#09f;font-style:italic"></span>                <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> util.<span style="color:#c0f">GenerateSelfSignedCert</span>(config.PublicAddress.<span style="color:#c0f">String</span>(), s.TLSCertFile, s.TLSPrivateKeyFile, alternateIPs, alternateDNS); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+                    glog.<span style="color:#c0f">Errorf</span>(<span style="color:#c30">&#34;Unable to generate self signed cert: %v&#34;</span>, err)
+                } <span style="color:#069;font-weight:bold">else</span> {
+                    glog.<span style="color:#c0f">Infof</span>(<span style="color:#c30">&#34;Using self-signed cert (%s, %s)&#34;</span>, s.TLSCertFile, s.TLSPrivateKeyFile)
+                }
+            }
+            <span style="color:#09f;font-style:italic">// err == systemd.SdNotifyNoSocket when not running on a systemd system
+</span><span style="color:#09f;font-style:italic"></span>            <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> systemd.<span style="color:#c0f">SdNotify</span>(<span style="color:#c30">&#34;READY=1\n&#34;</span>); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> <span style="color:#555">&amp;&amp;</span> err <span style="color:#555">!=</span> systemd.SdNotifyNoSocket {
+                glog.<span style="color:#c0f">Errorf</span>(<span style="color:#c30">&#34;Unable to send systemd daemon sucessful start message: %v\n&#34;</span>, err)
+            }
+            <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> secureServer.<span style="color:#c0f">ListenAndServeTLS</span>(s.TLSCertFile, s.TLSPrivateKeyFile); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+                glog.<span style="color:#c0f">Errorf</span>(<span style="color:#c30">&#34;Unable to listen for secure (%v); will try again.&#34;</span>, err)
+            }
+            time.<span style="color:#c0f">Sleep</span>(<span style="color:#f60">15</span> <span style="color:#555">*</span> time.Second)
+        }
+    }()
+}
+http <span style="color:#555">:=</span> <span style="color:#555">&amp;</span>http.Server{
+    Addr:           insecureLocation,
+    Handler:        apiserver.<span style="color:#c0f">RecoverPanics</span>(m.InsecureHandler),
+    ReadTimeout:    ReadWriteTimeout,
+    WriteTimeout:   ReadWriteTimeout,
+    MaxHeaderBytes: <span style="color:#f60">1</span> <span style="color:#555">&lt;&lt;</span> <span style="color:#f60">20</span>,
+}
+<span style="color:#069;font-weight:bold">if</span> secureLocation <span style="color:#555">==</span> <span style="color:#c30">&#34;&#34;</span> {
+    <span style="color:#09f;font-style:italic">// err == systemd.SdNotifyNoSocket when not running on a systemd system
+</span><span style="color:#09f;font-style:italic"></span>    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> systemd.<span style="color:#c0f">SdNotify</span>(<span style="color:#c30">&#34;READY=1\n&#34;</span>); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> <span style="color:#555">&amp;&amp;</span> err <span style="color:#555">!=</span> systemd.SdNotifyNoSocket {
+     glog.<span style="color:#c0f">Errorf</span>(<span style="color:#c30">&#34;Unable to send systemd daemon sucessful start message: %v\n&#34;</span>, err)
+    }
+}
+glog.<span style="color:#c0f">Infof</span>(<span style="color:#c30">&#34;Serving insecurely on %s&#34;</span>, insecureLocation)
+glog.<span style="color:#c0f">Fatal</span>(http.<span style="color:#c0f">ListenAndServe</span>())</code></pre></div>
+<p>大致看一下这部分代码，首先是生成一个http.Server对象<code>secureServer</code>，设置好相关的启动参数，之后会新启一个goroutine，如果有ca文件，说明要使用https的方式，就把ca文件也一并加载进来，之后在新的goroutine中通过<code>secureServer.ListenAndServeTLS</code>启动secureserver，使用https的方式来监听指定的secure端口。</p>
+
+<p>之后还会生成一个<code>http.Server</code>实例 http，这个就是采用insecure的方式，最后通过<code>http.ListenAndServe()</code>来启动。</p>
+
+<p>对比两种启动方式，可以看到，它们加载的handler都来自与之前生成的master实例m，一个是<code>m.Handler</code>，另一个是<code>m.InsecureHandler</code>。采用<code>m.Handler</code>的时候会多一些额外的处理，这个暂不分析，总是这个Handler中存放的就是这个server去进行处理的各种路由和对应的实现方式。</p>
+
+<h2 id="api认证部分的实现"><strong>api认证部分的实现</strong></h2>
+
+<p>在上面提到的run函数中，可以找到认证组件的实现：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">authenticator, err <span style="color:#555">:=</span> apiserver.<span style="color:#c0f">NewAuthenticator</span>(s.BasicAuthFile, s.ClientCAFile, s.TokenAuthFile, s.ServiceAccountKeyFile, s.ServiceAccountLookup, helper)</code></pre></div>
+<p>之后在生成master实例的时候，这个认证器<code>authenticator</code>会作为Master实例的初始参数传入：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">config <span style="color:#555">:=</span> <span style="color:#555">&amp;</span>master.Config{
+<span style="color:#555">......</span>
+    Authenticator:          authenticator,
+    <span style="color:#555">......</span>
+}
+m <span style="color:#555">:=</span> master.<span style="color:#c0f">New</span>(config)</code></pre></div>
+<p>这几个参数的使用也是之前issue里提到的问题比较多的地方，下面大致了解一下生成认证器的这几个参数，具体的使用在后面再进行具体的说明。</p>
+
+<ul>
+<li><p>s.BasicAuthFile:指定basicauthfile文件所在的位置，当这个参数不为空的时候，会开启basicauth的认证方式，这是一个.csv文件，三列分别是password,username,useruid。</p></li>
+
+<li><p>s.ClientCAFile：用于给客户端签名的根证书，当这个参数不为空的时候，会启动https的认证方式，会通过这个根证书对客户端的证书进行身份认证。</p></li>
+
+<li><p>s.TokenAuthFile：用于指定token文件所在的位置，当这个参数不为空的时候，会采用token的认证方式，token文件也是csv的格式，三列分别是&rdquo;token,username,useruid&rdquo;。</p></li>
+
+<li><p>s.ServiceAccountKeyFile：当不为空的时候，采用ServiceAccount的认证方式，这个其实是一个公钥密钥。注释里说要包含：PEM-encoded x509 RSA private or public key，发送过来的信息是在客户端使用对应的私钥加密过的，服务端使用指定的公钥来解密信息。</p></li>
+
+<li><p>s.ServiceAccountLookup：这个参数值一个bool值，默认为false，如果为true的话，就会从etcd中取出对应的ServiceAccount与传过来的信息进行对比验证，反之则不会。</p></li>
+
+<li><p>helper：这是一个用于与etcd交互的客户端实例，具体生成过程这里不进行具体分析。</p></li>
+</ul>
+
+<p>下面结合认证器的具体生成过程对这些参数的使用进行具体分析，先总体看一下认证器部分的代码结构：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> <span style="color:#c0f">NewAuthenticator</span>(basicAuthFile, clientCAFile, tokenFile, serviceAccountKeyFile <span style="color:#078;font-weight:bold">string</span>, serviceAccountLookup <span style="color:#078;font-weight:bold">bool</span>, helper tools.EtcdHelper) (authenticator.Request, <span style="color:#078;font-weight:bold">error</span>) {
+    <span style="color:#069;font-weight:bold">var</span> authenticators []authenticator.Request
+
+    <span style="color:#069;font-weight:bold">if</span> <span style="color:#366">len</span>(basicAuthFile) &gt; <span style="color:#f60">0</span> {
+        basicAuth, err <span style="color:#555">:=</span> <span style="color:#c0f">newAuthenticatorFromBasicAuthFile</span>(basicAuthFile)
+        <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+            <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>, err
+        }
+        authenticators = <span style="color:#366">append</span>(authenticators, basicAuth)
+    }
+
+    <span style="color:#069;font-weight:bold">if</span> <span style="color:#366">len</span>(clientCAFile) &gt; <span style="color:#f60">0</span> {
+        certAuth, err <span style="color:#555">:=</span> <span style="color:#c0f">newAuthenticatorFromClientCAFile</span>(clientCAFile)
+        <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+            <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>, err
+        }
+        authenticators = <span style="color:#366">append</span>(authenticators, certAuth)
+    }
+
+    <span style="color:#069;font-weight:bold">if</span> <span style="color:#366">len</span>(tokenFile) &gt; <span style="color:#f60">0</span> {
+        tokenAuth, err <span style="color:#555">:=</span> <span style="color:#c0f">newAuthenticatorFromTokenFile</span>(tokenFile)
+        <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+            <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>, err
+        }
+        authenticators = <span style="color:#366">append</span>(authenticators, tokenAuth)
+    }
+
+    <span style="color:#069;font-weight:bold">if</span> <span style="color:#366">len</span>(serviceAccountKeyFile) &gt; <span style="color:#f60">0</span> {
+        serviceAccountAuth, err <span style="color:#555">:=</span> <span style="color:#c0f">newServiceAccountAuthenticator</span>(serviceAccountKeyFile, serviceAccountLookup, helper)
+        <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+            <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>, err
+        }
+        authenticators = <span style="color:#366">append</span>(authenticators, serviceAccountAuth)
+    }
+    fmt.<span style="color:#c0f">Println</span>(<span style="color:#c30">&#34;the length of authticator:&#34;</span>, <span style="color:#366">len</span>(authenticators))
+    <span style="color:#069;font-weight:bold">switch</span> <span style="color:#366">len</span>(authenticators) {
+    <span style="color:#069;font-weight:bold">case</span> <span style="color:#f60">0</span>:
+        <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>, <span style="color:#069;font-weight:bold">nil</span>
+    <span style="color:#069;font-weight:bold">case</span> <span style="color:#f60">1</span>:
+        <span style="color:#069;font-weight:bold">return</span> authenticators[<span style="color:#f60">0</span>], <span style="color:#069;font-weight:bold">nil</span>
+    <span style="color:#069;font-weight:bold">default</span>:
+        <span style="color:#069;font-weight:bold">return</span> union.<span style="color:#c0f">New</span>(authenticators<span style="color:#555">...</span>), <span style="color:#069;font-weight:bold">nil</span>
+    }
+}</code></pre></div>
+<p>结合上面的分析，这部分的代码结构就比较清楚了，返回的结果是一个<code>authenticator.Request</code>对象数组，每一个元素都是一个认证器，根据传入的参数是否为空来判断最后要生成多少个认证器，最后的union.New函数实际上返回的就是一个authenticator.Request数组：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// unionAuthRequestHandler authenticates requests using a chain of authenticator.Requests
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">type</span> unionAuthRequestHandler []authenticator.Request
+
+<span style="color:#09f;font-style:italic">// New returns a request authenticator that validates credentials using a chain of authenticator.Request objects
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">func</span> <span style="color:#c0f">New</span>(authRequestHandlers <span style="color:#555">...</span>authenticator.Request) authenticator.Request {
+    <span style="color:#069;font-weight:bold">return</span> <span style="color:#c0f">unionAuthRequestHandler</span>(authRequestHandlers)
+}</code></pre></div>
+<p>我们可以看一下authenticator.Request接口的实现：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// Request attempts to extract authentication information from a request and returns
+</span><span style="color:#09f;font-style:italic">// information about the current user and true if successful, false if not successful,
+</span><span style="color:#09f;font-style:italic">// or an error if the request could not be checked.
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">type</span> Request <span style="color:#069;font-weight:bold">interface</span> {
+    <span style="color:#c0f">AuthenticateRequest</span>(req <span style="color:#555">*</span>http.Request) (user.Info, <span style="color:#078;font-weight:bold">bool</span>, <span style="color:#078;font-weight:bold">error</span>)
+}</code></pre></div>
+<p>其中的方法 <code>AuthenticateRequest</code>的主要功能就是把userinfo从request中提取出来，并返回是否认证成功，以及对应的错误信息。</p>
+
+<h2 id="生成带有认证器的handler"><strong>生成带有认证器的handler</strong></h2>
+
+<p>下面我们直接跳到对于api请求的认证部分，看一下当某个请求过来的时候，apiserver是如何对其进行认证的，具体代码在/pkg/master/master.go的<code>func (m *Master) init(c *Config)</code>函数中：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// Install Authenticator
+</span><span style="color:#09f;font-style:italic"></span>    <span style="color:#069;font-weight:bold">if</span> c.Authenticator <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        authenticatedHandler, err <span style="color:#555">:=</span> handlers.<span style="color:#c0f">NewRequestAuthenticator</span>(m.requestContextMapper, c.Authenticator, handlers.<span style="color:#c0f">Unauthorized</span>(c.SupportsBasicAuth), handler)
+        <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+            glog.<span style="color:#c0f">Fatalf</span>(<span style="color:#c30">&#34;Could not initialize authenticator: %v&#34;</span>, err)
+        }
+        handler = authenticatedHandler
+    }   }
+        handler = authenticatedHandler
+    }</code></pre></div>
+<p>实现细节暂不讨论，从功能上讲，这一段就是对handler进行一层包装，生成一个带有认证器的handler。 其中<code>handlers.Unauthorized(c.SupportsBasicAuth)</code>函数是一个返回Unauthorized信息的函数，如果认证失败，这个函数就会被调用。</p>
+
+<p>我们大致看一下NewRequestAuthenticator函数：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> <span style="color:#c0f">NewRequestAuthenticator</span>(mapper api.RequestContextMapper, auth authenticator.Request, failed http.Handler, handler http.Handler) (http.Handler, <span style="color:#078;font-weight:bold">error</span>) {
+    <span style="color:#069;font-weight:bold">return</span> api.<span style="color:#c0f">NewRequestContextFilter</span>(
+        mapper,
+        http.<span style="color:#c0f">HandlerFunc</span>(<span style="color:#069;font-weight:bold">func</span>(w http.ResponseWriter, req <span style="color:#555">*</span>http.Request) {
+            user, ok, err <span style="color:#555">:=</span> auth.<span style="color:#c0f">AuthenticateRequest</span>(req)
+            <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> <span style="color:#555">||</span> !ok {
+                <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+                    glog.<span style="color:#c0f">Errorf</span>(<span style="color:#c30">&#34;Unable to authenticate the request due to an error: %v&#34;</span>, err)
+                }
+                failed.<span style="color:#c0f">ServeHTTP</span>(w, req)
+                <span style="color:#069;font-weight:bold">return</span>
+            }
+
+            <span style="color:#069;font-weight:bold">if</span> ctx, ok <span style="color:#555">:=</span> mapper.<span style="color:#c0f">Get</span>(req); ok {
+                mapper.<span style="color:#c0f">Update</span>(req, api.<span style="color:#c0f">WithUser</span>(ctx, user))
+            }
+
+            handler.<span style="color:#c0f">ServeHTTP</span>(w, req)
+        }),
+    )
+}</code></pre></div>
+<p>可以看到HandleFunc中调用的函数，就是要调用我们之前提到的AuthenticateRequest函数，使用其提取用户信息，判断验证是否成功，如果有错误或者认证失败，返回Unauthorized新的的函数就会被调用。结合之前的分析，我们只要把每种认证器的AuthenticateRequest函数分析一下，就可以了解认证操作的具体实现过程了。</p>
+
+<h2 id="每种认证操作的具体实现过程"><strong>每种认证操作的具体实现过程</strong></h2>
+
+<p>结合上面的<code>NewAuthenticator</code>源码可以知道，最多一共有五种authenticators:即<code>basicAuth</code>、<code>certAuth</code>、<code>tokenAuth</code>、<code>serviceAccountAuth</code>，还有通过Union.New生成的<code>unionAuthRequestHandler</code>，下面我们结合每个认证器的生成过程具体看一下每个<code>authenticators</code>的<code>AuthenticateRequest</code>函数：</p>
+
+<ul>
+<li><p><strong>unionAuthRequestHandler实例</strong></p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> (authHandler unionAuthRequestHandler) <span style="color:#c0f">AuthenticateRequest</span>(req <span style="color:#555">*</span>http.Request) (user.Info, <span style="color:#078;font-weight:bold">bool</span>, <span style="color:#078;font-weight:bold">error</span>) { 
+<span style="color:#069;font-weight:bold">var</span> errlist []<span style="color:#078;font-weight:bold">error</span> <span style="color:#069;font-weight:bold">for</span> _, 
+currAuthRequestHandler <span style="color:#555">:=</span> <span style="color:#069;font-weight:bold">range</span> authHandler { 
+info, ok, err <span style="color:#555">:=</span> currAuthRequestHandler.<span style="color:#c0f">AuthenticateRequest</span>(req) 
+<span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> { 
+        errlist = <span style="color:#366">append</span>(errlist, err) 
+        <span style="color:#069;font-weight:bold">continue</span>
+ }
+ <span style="color:#069;font-weight:bold">if</span> ok {
+     <span style="color:#069;font-weight:bold">return</span> info, <span style="color:#069;font-weight:bold">true</span>, <span style="color:#069;font-weight:bold">nil</span>
+ }
+}     
+<span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>, <span style="color:#069;font-weight:bold">false</span>, errors.<span style="color:#c0f">NewAggregate</span>(errlist) 
+}</code></pre></div></li>
+</ul>
+
+<p>结合之前的NewAuthenticator可以看到，当authenticators数目大于1的时候，会生成<code>unionAuthRequestHandler</code>实例，之后会遍历其中的元素，调用每一个元素的<code>AuthenticateReques</code>方法，<strong>只要其中有一种认证方式成功，最后认证就会返回true</strong>。</p>
+
+<ul>
+<li><strong>basicAuth：</strong></li>
+</ul>
+
+<p>bacisAuth的认证比较直接，就是把信息从.csv文件中读取出来，返回一个PasswordAuthenticator结构，其中包含一个map:<code>users map[string]*userPasswordInfo</code>,具体验证的时候，就从map中读取已有信息，比较用户名和密码，可以看出这种认证方式确实比较基础，仅仅做了基本的认证。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> <span style="color:#c0f">newAuthenticatorFromBasicAuthFile</span>(basicAuthFile <span style="color:#078;font-weight:bold">string</span>) (authenticator.Request, <span style="color:#078;font-weight:bold">error</span>) {
+  basicAuthenticator, err <span style="color:#555">:=</span> passwordfile.<span style="color:#c0f">NewCSV</span>(basicAuthFile) 
+  <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> { 
+    <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>, err 
+  }  
+	<span style="color:#069;font-weight:bold">return</span> basicauth.<span style="color:#c0f">New</span>(basicAuthenticator), <span style="color:#069;font-weight:bold">nil</span>
+}</code></pre></div>
+<p>首先会生成一个basicAuthenticator实例（PasswordAuthenticator对象），之后会将这个对象转化为Authenticator实例，里面包含authenticator.Password接口，PasswordAuthenticator实现了这个接口。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">type</span> Authenticator <span style="color:#069;font-weight:bold">struct</span> { auth authenticator.Password }</code></pre></div>
+<p>具体的AuthenticateRequest的调用代码比较简单：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> (a <span style="color:#555">*</span>Authenticator) <span style="color:#c0f">AuthenticateRequest</span>(req <span style="color:#555">*</span>http.Request) (user.Info, <span style="color:#078;font-weight:bold">bool</span>, <span style="color:#078;font-weight:bold">error</span>) { 
+  auth <span style="color:#555">:=</span> strings.<span style="color:#c0f">TrimSpace</span>(req.Header.<span style="color:#c0f">Get</span>(<span style="color:#c30">&#34;Authorization&#34;</span>)) 
+  <span style="color:#069;font-weight:bold">if</span> auth <span style="color:#555">==</span> <span style="color:#c30">&#34;&#34;</span> { 
+    <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>, <span style="color:#069;font-weight:bold">false</span>, <span style="color:#069;font-weight:bold">nil</span> 
+  } 
+  parts <span style="color:#555">:=</span> strings.<span style="color:#c0f">Split</span>(auth, <span style="color:#c30">&#34; &#34;</span>) 
+  <span style="color:#069;font-weight:bold">if</span> <span style="color:#366">len</span>(parts) &lt; <span style="color:#f60">2</span> <span style="color:#555">||</span> strings.<span style="color:#c0f">ToLower</span>(parts<span style="color:#a00;background-color:#faa">\</span>[<span style="color:#f60">0</span><span style="color:#a00;background-color:#faa">\</span>]) <span style="color:#555">!=</span> <span style="color:#c30">&#34;basic&#34;</span> { 
+    <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>, <span style="color:#069;font-weight:bold">false</span>, <span style="color:#069;font-weight:bold">nil</span> 
+  }
+  payload, err <span style="color:#555">:=</span> base64.StdEncoding.<span style="color:#c0f">DecodeString</span>(parts[<span style="color:#f60">1</span>])
+  <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+      <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>, <span style="color:#069;font-weight:bold">false</span>, err
+  }
+
+  pair <span style="color:#555">:=</span> strings.<span style="color:#c0f">SplitN</span>(<span style="color:#366">string</span>(payload), <span style="color:#c30">&#34;:&#34;</span>, <span style="color:#f60">2</span>)
+  <span style="color:#069;font-weight:bold">if</span> <span style="color:#366">len</span>(pair) <span style="color:#555">!=</span> <span style="color:#f60">2</span> {
+      <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>, <span style="color:#069;font-weight:bold">false</span>, errors.<span style="color:#c0f">New</span>(<span style="color:#c30">&#34;malformed basic auth header&#34;</span>)
+  }
+  username <span style="color:#555">:=</span> pair[<span style="color:#f60">0</span>]
+  password <span style="color:#555">:=</span> pair[<span style="color:#f60">1</span>]
+  <span style="color:#069;font-weight:bold">return</span> a.auth.<span style="color:#c0f">AuthenticatePassword</span>(username, password)
+}</code></pre></div>
+<p>主要就是从request的Header中提取出Authorization字段的信息，用basic作为分隔，之后根据<code>:</code>作为分隔，提取出用户名和密码，调用AuthenticatePassword进行检验。这里的a.auth是之前传过来的PasswordAuthenticator对象，可以看下具体的这对象的AuthenticatePassword的实现：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> (a <span style="color:#555">*</span>PasswordAuthenticator) <span style="color:#c0f">AuthenticatePassword</span>(username, password <span style="color:#078;font-weight:bold">string</span>) (user.Info, <span style="color:#078;font-weight:bold">bool</span>, <span style="color:#078;font-weight:bold">error</span>){ 
+	user, ok <span style="color:#555">:=</span> a.users[username] 
+	<span style="color:#069;font-weight:bold">if</span> !ok { 
+		<span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>, <span style="color:#069;font-weight:bold">false</span>, <span style="color:#069;font-weight:bold">nil</span> 
+	} 
+	<span style="color:#069;font-weight:bold">if</span> user.password <span style="color:#555">!=</span> password { 
+		<span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>, <span style="color:#069;font-weight:bold">false</span>, <span style="color:#069;font-weight:bold">nil</span> 
+	} 
+	<span style="color:#069;font-weight:bold">return</span> user.info, <span style="color:#069;font-weight:bold">true</span>, <span style="color:#069;font-weight:bold">nil</span> 
+}</code></pre></div>
+<p>就是根据username把info从map中提取出来进行检验，比较简单。</p>
+
+<ul>
+<li><strong>certAuth：</strong></li>
+</ul>
+
+<p>这里首先要声明一点， <strong>https仅仅是认证方式的一种，secureport可以是https的也可以不是https的，不要把这两个弄混。</strong>关于golang中https的使用的基本内容以及相关证书的生成可以参考<a href="http://wangzhezhe.github.io/blog/2015/08/05/httpsandgolang/">之前这个文章</a>。</p>
+
+<p>ca文件指定了之后，说明要使用https的方式，这里是cafile是给客户端证书签名的根证书，用于https握手的时候对客户端进行身份认证。正常情况下还要指定服务端的.key和.crt文件，这里默认的就是使用双向认证的方式，在服务端启动的时候，要把对应的证书也加进去，分别用到的是<code>tls-cert-file</code>以及<code>tls-private-key-file</code>这个两个参数，如果这两个参数没指定的话，证书就会使用自签名的方式被自动生成，放在<code>CertDirectory: &quot;/var/run/kubernetes&quot;</code>目录下。</p>
+
+<p>这里具体验证的操作使用的是包含x509验证对象的AuthenticateRequest函数（./plugin/pkg/auth/authenticator/request/x509/x509.go），遵循的也是通常的https认证原理，具体细节不在此讨论。</p>
+
+<p>使用ca认证的时候，只要是ca签名过的证书都可以通过验证，这个时候ca的安全性就比较重要了，在某些使用场景中，证书应该如何分发问题可能是需要考虑的。</p>
+
+<ul>
+<li>tokenAuth：</li>
+</ul>
+
+<p>是用token的方式，具体代码的结构与basic auth file的方式比较类似，代码不再赘述，主要功能是先从指定的.csv文件中把信息加载进来，存在服务端TokenAuthenticator实例的一个tokens的map中<code>tokens map[string]*user.DefaultInfo</code>，之后用户信息发送过来，会从Authorization中提取出携带token值，只不过这里标记token的关键字使用的是&rdquo;bearer&rdquo;，把token值提取出来之后，进行对比，看是否ok。</p>
+
+<ul>
+<li>serviceAccountAuth：</li>
+</ul>
+
+<p>saAuth实际上是token auth的变形，这里用到的是jwt(json web token)来进行具体的操作，具体的功能可以参考这个<a href="http://www.sel.zju.edu.cn/?p=588">文章</a>，本质上来说，saAuth也是一个token认证，只不过这个token是把一些信息加密（签名）之后生成的。大致介绍一下jwt，具体格式可以参考<a href="http://haomou.net/2014/08/13/2014_web_token/">这个文章</a>这里从实现的角度进行一些分析:</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> <span style="color:#c0f">newServiceAccountAuthenticator</span>(keyfile <span style="color:#078;font-weight:bold">string</span>, lookup <span style="color:#078;font-weight:bold">bool</span>, helper tools.EtcdHelper) (authenticator.Request, <span style="color:#078;font-weight:bold">error</span>) { publicKey, err <span style="color:#555">:=</span> serviceaccount.<span style="color:#c0f">ReadPublicKey</span>(keyfile) <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> { <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>, err }
+
+<span style="color:#069;font-weight:bold">var</span> serviceAccountGetter serviceaccount.ServiceAccountTokenGetter
+<span style="color:#069;font-weight:bold">if</span> lookup {
+    <span style="color:#09f;font-style:italic">// If we need to look up service accounts and tokens,
+</span><span style="color:#09f;font-style:italic"></span>    <span style="color:#09f;font-style:italic">// go directly to etcd to avoid recursive auth insanity
+</span><span style="color:#09f;font-style:italic"></span>    serviceAccountGetter = serviceaccount.<span style="color:#c0f">NewGetterFromEtcdHelper</span>(helper)
+}
+
+tokenAuthenticator <span style="color:#555">:=</span> serviceaccount.<span style="color:#c0f">JWTTokenAuthenticator</span>([]<span style="color:#555">*</span>rsa.PublicKey{publicKey}, lookup, serviceAccountGetter)
+<span style="color:#069;font-weight:bold">return</span> bearertoken.<span style="color:#c0f">New</span>(tokenAuthenticator), <span style="color:#069;font-weight:bold">nil</span> 
+}</code></pre></div>
+<p>可以看到，首先将publickey提取出来，之后如果lookup参数为true，会根据etcdhelper生成一个serviceAccountGetter,否则使用默认的serviceAccountGetter,用来从etcd中取具体的sa和secret，secret可以理解为某些敏感信息：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">type</span> ServiceAccountTokenGetter <span style="color:#069;font-weight:bold">interface</span> { <span style="color:#c0f">GetServiceAccount</span>(namespace, name <span style="color:#078;font-weight:bold">string</span>) (<span style="color:#555">*</span>api.ServiceAccount, <span style="color:#078;font-weight:bold">error</span>) <span style="color:#c0f">GetSecret</span>(namespace, name <span style="color:#078;font-weight:bold">string</span>) (<span style="color:#555">*</span>api.Secret, <span style="color:#078;font-weight:bold">error</span>) }</code></pre></div>
+<p>我们先看最后一部分<code>bearertoken.New(tokenAuthenticator)</code>,返回的Authenticator结构的AuthenticateRequest方法就和tokenauth中的一样，从Authorization字段中提取出bearer token，之后使用接口中的方法<code>a.auth.AuthenticateToken(token)</code>进行验证，这里实际执行AuthenticateToken方法的是tokenAuthenticator对象（jwtTokenAuthenticator实例），<code>func (j *jwtTokenAuthenticator) AuthenticateToken(token string)</code>函数代码较长，就不在赘述，其主要的功能是使用之前提取出来的公钥密钥对信息进行解密，得到<code>parsedToken</code>:</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">type</span> Token <span style="color:#069;font-weight:bold">struct</span> { 
+Raw <span style="color:#078;font-weight:bold">string</span> <span style="color:#09f;font-style:italic">// The raw token. Populated when you Parse a token 
+</span><span style="color:#09f;font-style:italic"></span>Method    SigningMethod <span style="color:#09f;font-style:italic">// The signing method used or to be used 
+</span><span style="color:#09f;font-style:italic"></span>Header     <span style="color:#069;font-weight:bold">map</span>[<span style="color:#078;font-weight:bold">string</span>]<span style="color:#069;font-weight:bold">interface</span>{} <span style="color:#09f;font-style:italic">// The first segment of the token       
+</span><span style="color:#09f;font-style:italic"></span>Claims       <span style="color:#069;font-weight:bold">map</span>[<span style="color:#078;font-weight:bold">string</span>]<span style="color:#069;font-weight:bold">interface</span>{} <span style="color:#09f;font-style:italic">// The second segment of the token     
+</span><span style="color:#09f;font-style:italic"></span>Signature <span style="color:#078;font-weight:bold">string</span> <span style="color:#09f;font-style:italic">// The third segment of the token. Populated when you Parse a token 
+</span><span style="color:#09f;font-style:italic"></span>Valid <span style="color:#078;font-weight:bold">bool</span> <span style="color:#555">//</span> Is the token valid<span style="color:#a00;background-color:#faa">?</span> Populated when you Parse<span style="color:#555">/</span>Verify a token }</code></pre></div>
+<p>之后提取出其中的Claims信息并进行检验，看是否符合要求，如果look up字段为true的话，就会根据标记在Claims中的namespace ，secretName ，serviceAccountName , 利用之前生成的ServiceAccountTokenGetter从etcd中取出已设置好的serviceaccount以及secret来进行身份验证，验证通过之后会返回user信息。</p>
+
+<p>ServiceAccount的相关部分代码还在不断完善中，这里只分析了大概逻辑，相比其他方式serviceaccount还是挺好使用的，相当于是token的升级版，由于信息加密的原因，比仅仅使用token安全了不少，下面是参考k8相关代码生成的使用serviceacount方式发送api的方式，实际使用中，后面的发送api的部分直接使用源码中自己的kubectl，设置好对应的BearerToken字段即可：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">package</span> main
+
+
+<span style="color:#069;font-weight:bold">import</span> ( <span style="color:#09f;font-style:italic">//&#34;crypto/rsa&#34; &#34;crypto/tls&#34; &#34;fmt&#34; &#34;github.com/GoogleCloudPlatform/kubernetes/pkg/serviceaccount&#34; &#34;github.com/dgrijalva/jwt-go&#34; &#34;io/ioutil&#34; &#34;net/http&#34; )
+</span><span style="color:#09f;font-style:italic"></span>
+<span style="color:#069;font-weight:bold">const</span> ( test1 = <span style="color:#c30">&#34;test1&#34;</span> test2 = <span style="color:#c30">&#34;test2&#34;</span> )
+
+<span style="color:#069;font-weight:bold">func</span> <span style="color:#c0f">main</span>() {
+
+<span style="color:#09f;font-style:italic">// Create the token
+</span><span style="color:#09f;font-style:italic"></span>token <span style="color:#555">:=</span> jwt.<span style="color:#c0f">New</span>(jwt.SigningMethodRS256)
+<span style="color:#09f;font-style:italic">// Set some claims
+</span><span style="color:#09f;font-style:italic"></span>token.Claims[test1] = <span style="color:#c30">&#34;zjusel&#34;</span>
+token.Claims[test2] = <span style="color:#c30">&#34;zjusel&#34;</span>
+
+<span style="color:#09f;font-style:italic">// Sign and get the complete encoded token as a string
+</span><span style="color:#09f;font-style:italic"></span>
+<span style="color:#09f;font-style:italic">//客户端用私钥进行加密 服务端用公钥进行解密
+</span><span style="color:#09f;font-style:italic"></span>privateKey, err <span style="color:#555">:=</span> serviceaccount.<span style="color:#c0f">ReadPrivateKey</span>(<span style="color:#c30">&#34;sa.key&#34;</span>)
+
+fmt.<span style="color:#c0f">Println</span>(privateKey)
+<span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+    fmt.<span style="color:#c0f">Println</span>(err.<span style="color:#c0f">Error</span>())
+    <span style="color:#069;font-weight:bold">return</span>
+}
+
+tokenString, err <span style="color:#555">:=</span> token.<span style="color:#c0f">SignedString</span>(privateKey)
+<span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+    fmt.<span style="color:#c0f">Println</span>(err.<span style="color:#c0f">Error</span>())
+}
+fmt.<span style="color:#c0f">Println</span>(<span style="color:#c30">&#34;token string: &#34;</span>, tokenString)
+
+tr <span style="color:#555">:=</span> <span style="color:#555">&amp;</span>http.Transport{
+    TLSClientConfig: <span style="color:#555">&amp;</span>tls.Config{
+        InsecureSkipVerify: <span style="color:#069;font-weight:bold">true</span>},
+    DisableCompression: <span style="color:#069;font-weight:bold">true</span>,
+}
+
+client <span style="color:#555">:=</span> <span style="color:#555">&amp;</span>http.Client{Transport: tr}
+
+url <span style="color:#555">:=</span> <span style="color:#c30">&#34;https://10.10.105.34:8081/api/v1/nodes&#34;</span>
+
+reqest, err <span style="color:#555">:=</span> http.<span style="color:#c0f">NewRequest</span>(<span style="color:#c30">&#34;GET&#34;</span>, url, <span style="color:#069;font-weight:bold">nil</span>)
+reqest.Header.<span style="color:#c0f">Set</span>(<span style="color:#c30">&#34;Content-Type&#34;</span>, <span style="color:#c30">&#34;application/x-www-form-urlencoded&#34;</span>)
+reqest.Header.<span style="color:#c0f">Set</span>(<span style="color:#c30">&#34;Authorization&#34;</span>, <span style="color:#c30">&#34;bearer &#34;</span><span style="color:#555">+</span>tokenString)
+resp, err <span style="color:#555">:=</span> client.<span style="color:#c0f">Do</span>(reqest)
+
+<span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+    fmt.<span style="color:#c0f">Println</span>(err.<span style="color:#c0f">Error</span>())
+    <span style="color:#069;font-weight:bold">return</span>
+}
+
+body, _ <span style="color:#555">:=</span> ioutil.<span style="color:#c0f">ReadAll</span>(resp.Body)
+fmt.<span style="color:#c0f">Println</span>(<span style="color:#366">string</span>(body))
+
+}</code></pre></div>
+<h2 id="总结"><strong>总结</strong></h2>
+
+<p>通过上面的分析，相信对kube-apiserver启动时候的身份验证部分的参数已经可以做到“心中有数”，即使有不清楚的地方，至少也可以做到按图索骥，从源码的角度分析参数应该如何设置，在实际使用中可以根据不同的场景使用合适的方式进行认证。</p>
+                        </div>
+                        
+                        
+                        
+                        
+                        
+                        
+
+                        
+                        <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+                        <script src="https://unpkg.com/gitalk@latest/dist/gitalk.min.js"></script> 
+                        <script type="text/javascript" src="/assets/js/md5.min.js"></script>
+                        <div id="gitalk-container"></div>     
+                        <script type="text/javascript">
+                            var gitalk = new Gitalk({
+                              clientID: '835183d2dcbd1167ac28', 
+                            
+                              clientSecret: 'd873919fac3cc76921ee0800172c2279bc612f8d', 
+                            
+                              repo: 'Sel-Website-talk',
+                              owner: 'Peeknut',
+                              admin: ['Peeknut','Rachel-Shao'],
+                              id: location.href.split("/").pop().substring(0, 49),      
+                              distractionFreeMode: false  
+                            })
+                            gitalk.render('gitalk-container')
+                        </script> 
+                        
+
+                    </div>
+                    
+
+                    
+
+                    
+
+                    <div class="col-md-3">
+
+                        
+
+                        
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+      <h3 class="panel-title">搜索栏</h3>
+      
+    </div>
+
+    <div class="panel-body">
+        
+        <div class="search" id="search">
+            <div class="input-group">
+                <input type="text" name="q" class="form-control" placeholder="请输入文章标题或摘要..." id="search-key">
+                <input type="hidden" name="sitesearch" value="https://Congrool.github.io/">
+                <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main" onclick="search()"><i class="fas fa-search"></i></button>
+                </span>
+            </div>
+            <h1 id="search-tip" style="color: red;text-align: center;display: none;font-size: medium;">搜索中，请稍后 ...</h1>
+        </div>
+        <script type="text/javascript">
+            
+            window.onload = function() {
+                      document.onkeydown = function(ev) {
+                        var event = ev || event
+                        if (event.keyCode == 13) {
+                          search()
+                        }
+                      }
+                    }
+            
+            function search() {
+                    
+                      key = document.getElementById("search-key").value;
+                      if (key === "") {
+                        
+                        return;
+                      }
+                      key = key.toLowerCase();
+                      document.getElementById("search-key").value = "";
+                  
+                      
+                      document.getElementById("search-tip").innerText = "搜索中，请稍后 ...";
+                      document.getElementById("search-tip").style.display = "block";
+                  
+                      
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      var childs = el.childNodes;
+                      for (var i = childs.length - 1; i >= 0; i--) {
+                        el.removeChild(childs[i]);
+                      }
+                  
+                      
+                      xmltext = new XMLHttpRequest;
+                      xmltext.open("GET", "/index.xml", false);
+                      xmltext.send();
+                      resp = xmltext.responseXML;
+                      
+                      items = resp.getElementsByTagName("item");
+                      
+                      var i = 0;
+                      haveResult = false;
+                      while (i < items.length) {
+                        txt = items[i].getElementsByTagName("title")[0].innerHTML + items[i].getElementsByTagName("description")[0].innerHTML
+                        txt = txt.toLowerCase();
+                        if (txt.indexOf(key) > -1) {
+                          haveResult = true;
+                          title = items[i].getElementsByTagName("title")[0].innerHTML;
+                          link = items[i].getElementsByTagName("link")[0].innerHTML;
+                          time = items[i].getElementsByTagName("pubDate")[0].innerHTML;
+                          mark = items[i].getElementsByTagName("description")[0].innerHTML;
+                          time = time.slice(0, -5);
+                          addItem(title, link, time, mark)
+                        }
+                        i++;
+                      }
+                      if (!haveResult) {
+                        document.getElementById("search-tip").innerText = "搜索完毕，未发现结果 ...";
+                        document.getElementById("search-tip").style.display = "block";
+                      }
+
+                      
+                      var el = document.getElementById("blog-head");
+                      el.innerHTML="Blogs"
+                    }
+                  
+                    
+                    function addItem(title, link, time, mark) {
+                      document.getElementById("search-tip").style.display = "none";
+                      tmpl = "<article class=\"post\" style=\"border-bottom: 1px solid #e6e6e6;\" >" +
+                        "<header class=\"post-header\">" +
+                        "<h1 class=\"post-title\"><a class=\"post-link\" href=\"" + link + "\" target=\"_blank\">" + title + "</a></h1>" +
+                        "<div class=\"post-meta\">" +
+                        " <span class=\"post-time\">" + time + "</span>" +
+                        "</div>" +
+                        " </header>" +
+                        "<div class=\"post-content\">" +
+                        "<div class=\"post-summary\">" + mark + "</div>" +
+                        "<div class=\"read-more\">" +
+                        "<a href=" + link + " class=\"read-more-link\" target=\"_blank\">阅读更多</a>" +
+                        "</div>" +
+                        " </div>" +
+                        "</article>"
+                      div = document.createElement("div")
+                      div.innerHTML = tmpl;
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      el.appendChild(div)
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+
+        </script>
+        
+    </div>
+</div>
+
+
+
+
+
+
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">归档栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="nav nav-pills nav-stacked">
+            
+            
+            <li>
+                <a href="/categories/bosh">bosh (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloud_controller_ng">cloud_controller_ng (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloudfoundry">cloudfoundry (15)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/containerd">containerd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/docker">docker (19)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/etcd">etcd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/haproxy">haproxy (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/healthmanager">healthmanager (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/karmada">karmada (4)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubeedge">kubeedge (5)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubernetes">kubernetes (14)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/network">network (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/openyurt">openyurt (2)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/service-mesh">service-mesh (4)</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+<div class="panel sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">标签栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="tag-cloud">
+            
+            
+            <li>
+                <a href="/tags/agent"><i class="fas fa-tags"></i> agent</a>
+            </li>
+            
+            <li>
+                <a href="/tags/apiserver"><i class="fas fa-tags"></i> apiserver</a>
+            </li>
+            
+            <li>
+                <a href="/tags/books"><i class="fas fa-tags"></i> books</a>
+            </li>
+            
+            <li>
+                <a href="/tags/bosh"><i class="fas fa-tags"></i> bosh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/ccng"><i class="fas fa-tags"></i> ccng</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cf-release"><i class="fas fa-tags"></i> cf-release</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cgroups"><i class="fas fa-tags"></i> cgroups</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudfoundry"><i class="fas fa-tags"></i> cloudfoundry</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudnative"><i class="fas fa-tags"></i> cloudnative</a>
+            </li>
+            
+            <li>
+                <a href="/tags/collector"><i class="fas fa-tags"></i> collector</a>
+            </li>
+            
+            <li>
+                <a href="/tags/containerd"><i class="fas fa-tags"></i> containerd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cri"><i class="fas fa-tags"></i> cri</a>
+            </li>
+            
+            <li>
+                <a href="/tags/dea"><i class="fas fa-tags"></i> dea</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker"><i class="fas fa-tags"></i> docker</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker-network"><i class="fas fa-tags"></i> docker-network</a>
+            </li>
+            
+            <li>
+                <a href="/tags/edgecomputing"><i class="fas fa-tags"></i> edgecomputing</a>
+            </li>
+            
+            <li>
+                <a href="/tags/etcd"><i class="fas fa-tags"></i> etcd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/gorouter"><i class="fas fa-tags"></i> gorouter</a>
+            </li>
+            
+            <li>
+                <a href="/tags/haproxy"><i class="fas fa-tags"></i> haproxy</a>
+            </li>
+            
+            <li>
+                <a href="/tags/healthmanager"><i class="fas fa-tags"></i> healthmanager</a>
+            </li>
+            
+            <li>
+                <a href="/tags/istio"><i class="fas fa-tags"></i> istio</a>
+            </li>
+            
+            <li>
+                <a href="/tags/karmada"><i class="fas fa-tags"></i> karmada</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubeedge"><i class="fas fa-tags"></i> kubeedge</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubelet"><i class="fas fa-tags"></i> kubelet</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubernetes"><i class="fas fa-tags"></i> kubernetes</a>
+            </li>
+            
+            <li>
+                <a href="/tags/libcontainer"><i class="fas fa-tags"></i> libcontainer</a>
+            </li>
+            
+            <li>
+                <a href="/tags/micro-service"><i class="fas fa-tags"></i> micro-service</a>
+            </li>
+            
+            <li>
+                <a href="/tags/namespace"><i class="fas fa-tags"></i> namespace</a>
+            </li>
+            
+            <li>
+                <a href="/tags/nats"><i class="fas fa-tags"></i> nats</a>
+            </li>
+            
+            <li>
+                <a href="/tags/news"><i class="fas fa-tags"></i> news</a>
+            </li>
+            
+            <li>
+                <a href="/tags/openyurt"><i class="fas fa-tags"></i> openyurt</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pipework"><i class="fas fa-tags"></i> pipework</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pouch"><i class="fas fa-tags"></i> pouch</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runc"><i class="fas fa-tags"></i> runc</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runtime"><i class="fas fa-tags"></i> runtime</a>
+            </li>
+            
+            <li>
+                <a href="/tags/security"><i class="fas fa-tags"></i> security</a>
+            </li>
+            
+            <li>
+                <a href="/tags/serverless"><i class="fas fa-tags"></i> serverless</a>
+            </li>
+            
+            <li>
+                <a href="/tags/service-mesh"><i class="fas fa-tags"></i> service-mesh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/syslog_aggregator"><i class="fas fa-tags"></i> syslog_aggregator</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+                        
+
+                    </div>
+                    
+
+                    
+
+                </div>
+                
+
+            </div>
+            
+        </div>
+        
+
+        <footer id="footer">
+    <div class="container">
+
+        
+        <div class="col-md-4 col-sm-6">
+            <h4></h4>
+
+            <p><strong>关于我们：<strong> <p>浙大SEL实验室</p><p>地址：杭州市浙大路38号曹光彪西楼405室</p><p><strong></strong>
+            <a href="/contact" class="btn btn-small btn-template-main" >跳转到关于</a>
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+        <div class="col-md-4 col-sm-6">
+
+             
+            <h4>最新博客</h4>
+            
+
+            <div class="blog-entries">
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/27/overview.png" class="img-responsive" alt="基于KubeEdge的边缘节点分组管理设计与实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">基于KubeEdge的边缘节点分组管理设计与实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/20/karmada-scheduler.png" class="img-responsive" alt="多云环境下的资源调度：karmada scheduler的框架和实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">多云环境下的资源调度：karmada scheduler的框架和实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">
+                          
+                            <img src="/img/blogs/19/karmada-arch.jpg" class="img-responsive" alt="多云环境下的成员集群管理，看看开源项目karmada是如何做到的">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">多云环境下的成员集群管理，看看开源项目karmada是如何做到的</a></h5>
+                    </div>
+                </div>
+                
+            </div>
+
+            <hr class="hidden-md hidden-lg">
+             
+
+        </div>
+        
+
+        
+        <div class="col-md-4 col-sm-6">
+
+          <h4></h4>
+
+            <p><strong>联系我们: 
+                                    <p>团队负责人：丁轶群 yiqunding@zju.edu.cn</p>
+                                    <p>网站维护人：刘佳文 839809484@qq.com</p>                
+    </strong>
+
+            
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+    </div>
+    
+</footer>
+
+
+
+
+
+
+
+<div id="copyright">
+    <div class="container">
+        <div class="col-md-12">
+            
+            <p class="pull-left">Copyright ©️ 2020 SEL Laboratory , ZJ University all rights reserved.</p>
+            
+            <p class="pull-right">
+               <a href="https://bootstrapious.com/p/universal-business-e-commerce-template">Bootstrapious</a>.
+              
+
+               <a href="https://github.com/devcows/hugo-universal-theme">DevCows</a>.
+            </p>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+    </div>
+    
+
+    
+
+
+<script src="/js/jquery.min.js"></script>
+<script src="/js/bootstrap.min.js"></script>
+
+
+
+<script src="/js/jquery.cookie.min.js"></script>
+<script src="/js/jquery.waypoints.min.js"></script>
+<script src="/js/jquery.counterup.min.js"></script>
+<script src="/js/jquery-parallax.js"></script>
+
+
+<script src="/js/front.js"></script>
+
+
+<script src="/js/owl.carousel.min.js"></script>
+
+
+
+  </body>
+</html>

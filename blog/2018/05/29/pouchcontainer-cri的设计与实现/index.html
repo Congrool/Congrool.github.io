@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="robots" content="all,follow">
+  <meta name="googlebot" content="index,follow,snippet,archive">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <title>PouchContainer CRI的设计与实现</title>
+  <meta name="author" content="姚增增" />
+  
+  
+  
+  
+  <meta name="keywords" content="cri, kubelet, Kubernetes, pouch">
+  
+  
+  <meta name="description" content="本文从引入CRI的缘由而起，简要描述了CRI的架构，重点叙述了PouchContainer对CRI各个核心功能模块的实现。CRI的存在让PouchContainer容器加入Kubernetes生态变得更为简单快捷。而我们也相信，PouchContainer独有的特性必定会让Kubernetes生态变得更加丰富多彩。">
+
+  <meta name="generator" content="Hugo 0.68.3" />
+
+  
+  <link href='//fonts.googleapis.com/css?family=Roboto:400,100,100italic,300,300italic,500,700,800' rel='stylesheet' type='text/css'>
+
+  
+  
+  
+  
+  
+
+  <link href="/css/all.css" rel="stylesheet">
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+
+  
+  <link href="/css/animate.css" rel="stylesheet">
+
+  
+  
+    <link href="/css/style.default.css" rel="stylesheet" id="theme-stylesheet">
+  
+
+  
+  <link href="/css/custom.css" rel="stylesheet">
+
+  
+  
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+        <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  
+
+  
+  <link rel="shortcut icon" href="/img/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
+
+  
+  <link href="/css/owl.carousel.css" rel="stylesheet">
+  <link href="/css/owl.theme.css" rel="stylesheet">
+
+  
+  <link rel="alternate" href="https://Congrool.github.io/index.xml" type="application/rss+xml" title="浙大SEL实验室">
+
+  
+  
+  
+  
+  
+  
+  <meta property="og:updated_time" content="2018-05-29T10:35:04Z">
+  
+    
+    
+    <meta property="article:section" content="Kubernetes">
+    <meta property="article:tag" content="cri">
+    <meta property="article:tag" content="kubelet">
+    <meta property="article:tag" content="Kubernetes">
+    <meta property="article:tag" content="pouch">
+    
+    
+    <meta property="article:published_time" content="2018-05-29T10:35:04Z">
+    <meta property="article:modified_time" content="2018-05-29T10:35:04Z">
+  
+
+  
+  <meta name="twitter:card" content="summary">
+  
+  <meta name="twitter:title" content="PouchContainer CRI的设计与实现">
+  
+  <meta name="twitter:description" content="本文从引入CRI的缘由而起，简要描述了CRI的架构，重点叙述了PouchContainer对CRI各个核心功能模块的实现。CRI的存在让PouchContainer容器加入Kubernetes生态变得更为简单快捷。而我们也相信，PouchContainer独有的特性必定会让Kubernetes生态变得更加丰富多彩。">
+  
+  
+</head>
+
+
+  <body>
+
+    <div id="all">
+
+        <header class="navbar-affixed-top" data-spy="affix" data-offset-top="62">
+    <div class="navbar navbar-default yamm" role="navigation" id="navbar" style="background-color:white;">    
+        <div class="container">
+            <div class="navbar-header">
+                <a class="navbar-brand home" href="/">
+                    <img src="/img/sel.png" alt="PouchContainer CRI的设计与实现" class="hidden-xs hidden-sm img-responsive">
+                    
+                    <span class="sr-only">PouchContainer CRI的设计与实现 - </span>
+                </a>
+                <div class="navbar-buttons">
+                    <button type="button" class="navbar-toggle btn-template-main" data-toggle="collapse" data-target="#navigation">
+                      <span class="sr-only"></span>
+                        <i class="fas fa-align-justify"></i>
+                    </button>
+                </div>
+            </div>
+            
+
+            <div class="navbar-collapse collapse" id="navigation">
+                <ul class="nav navbar-nav navbar-right">
+                  
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/">主页</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/blog/">博客</a>
+                    
+                  </li>
+
+                  <li class="dropdown">
+                    
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">社区 <span class="caret"></span></a>
+                  <ul class="dropdown-menu">
+                    
+                      <li><a href="https://www.servicemesher.com/">ServiceMesh社区</a></li>
+                    
+                      <li><a href="">kubeedge社区</a></li>
+
+                      <li><a href="http://www.icsoft.zju.edu.cn/index.php">浙江大学智能计算与软件中心</a></li>
+                    
+                  </ul>
+
+                  <li class="dropdown">
+                    
+                    <a href="/archives/">归档</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/contact/">关于</a>
+                    
+                  </li>
+                  
+                </li>
+
+                
+                
+
+                
+                </ul>
+            </div>
+            
+
+            <div class="collapse clearfix" id="search">    
+                <form class="navbar-form" role="search">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search">
+                        <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main"><i class="fas fa-search"></i></button>
+                </span>
+                    </div>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+
+    
+</header>
+
+
+
+
+        <div id="heading-breadcrumbs">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h1>PouchContainer CRI的设计与实现</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+        <div id="content">
+            <div class="container">
+
+                <div class="row">
+
+                    
+
+                    <div class="col-md-9" id="blog-post">
+
+                        
+                          <p class="text-muted text-uppercase mb-small text-right">
+                             <a href="#">姚增增</a>
+                             | 
+                            2018-05-29
+                          </p>
+                        
+
+                        <div id="post-content">
+                          <h3 id="1-cri简介">1. CRI简介</h3>
+
+<p>在每个Kubernetes节点的最底层都有一个程序负责具体的容器创建删除工作，Kubernetes会对其接口进行调用，从而完成容器的编排调度。我们将这一层软件称之为容器运行时（Container Runtime），大名鼎鼎的Docker就是其中的代表。</p>
+
+<p>当然，容器运行时并非只有Docker一种，包括CoreOS的rkt，hyper.sh的runV，Google的gvisor，以及本文的主角PouchContainer，都包含了完整的容器操作，能够用来创建特性各异的容器。不同的容器运行时有着各自独特的优点，能够满足不同用户的需求，因此Kubernetes支持多种容器运行时势在必行。</p>
+
+<p>最初，Kubernetes原生内置了对Docker的调用接口，之后社区又在Kubernetes 1.3中集成了rkt的接口，使其成为了Docker以外，另一个可选的容器运行时。不过，此时不论是对于Docker还是对于rkt的调用都是和Kubernetes的核心代码强耦合的，这无疑会带来如下两方面的问题：</p>
+
+<ol>
+<li>新兴的容器运行时，例如PouchContainer这样的后起之秀，加入Kubernetes生态难度颇大。容器运行时的开发者必须对于Kubernetes的代码（至少是Kubelet）有着非常深入的理解，才能顺利完成两者之间的对接。</li>
+<li>Kubernetes的代码将更加难以维护，这也体现在两方面：（1）将各种容器运行时的调用接口全部硬编码进Kubernetes，会让Kubernetes的核心代码变得臃肿不堪，（2）容器运行时接口细微的改动都会引发Kubernetes核心代码的修改，增加Kubernetes的不稳定性</li>
+</ol>
+
+<p>为了解决这些问题，社区在Kubernetes 1.5引入了CRI（Container Runtime Interface），通过定义一组容器运行时的公共接口将Kubernetes对于各种容器运行时的调用接口屏蔽至核心代码以外，Kubernetes核心代码只对该抽象接口层进行调用。而对于各种容器运行时，只要满足了CRI中定义的各个接口就能顺利接入Kubernetes，成为其中的一个容器运行时选项。方案虽然简单，但是对于Kubernetes社区维护者和容器运行时开发者来说，都是一种解放。</p>
+
+<h3 id="2-cri设计概述">2. CRI设计概述</h3>
+
+<p><center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605799721/sel/cri_uhnevd.png" alt="cri" style="zoom:40%;" />
+</center></p>
+
+<p>如上图所示，左边的Kubelet是Kubernetes集群的Node Agent，它会对本节点上容器的状态进行监控，保证它们都按照预期状态运行。为了实现这一目标，Kubelet会不断调用相关的CRI接口来对容器进行同步。</p>
+
+<p>CRI shim则可以认为是一个接口转换层，它会将CRI接口，转换成对应底层容器运行时的接口，并调用执行，返回结果。对于有的容器运行时，CRI shim是作为一个独立的进程存在的，例如当选用Docker为Kubernetes的容器运行时，Kubelet初始化时，会附带启动一个Docker shim进程，它就是Docker的CRI shime。而对于PouchContainer，它的CRI shim则是内嵌在Pouchd中的，我们将其称之为CRI manager。关于这一点，我们会在下一节讨论PouchContainer相关架构时再详细叙述。</p>
+
+<p>CRI本质上是一套gRPC接口，Kubelet内置了一个gRPC Client，CRI shim中则内置了一个gRPC Server。Kubelet每一次对CRI接口的调用，都将转换为gRPC请求由gRPC Client发送给CRI shim中的gRPC Server。Server调用底层的容器运行时对请求进行处理并返回结果，由此完成一次CRI接口调用。</p>
+
+<p>CRI定义的gRPC接口可划分两类，ImageService和RuntimeService：其中ImageService负责管理容器的镜像，而RuntimeService则负责对容器生命周期进行管理以及与容器进行交互（exec/attach/port-forward）。</p>
+
+<h3 id="3-cri-manager架构设计">3. CRI Manager架构设计</h3>
+
+<p><center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605799773/sel/pouchcri_d62csd.png" alt="image-20180529160914652" style="zoom:40%;" />
+</center></p>
+
+<p>在PouchContainer的整个架构体系中，CRI Manager实现了CRI定义的全部接口，担任了PouchContainer中CRI shim的角色。当Kubelet调用一个CRI接口时，请求就会通过Kubelet的gRPC Client发送到上图的gRPC Server中。Server会对请求进行解析，并调用CRI Manager相应的方法进行处理。</p>
+
+<p>我们先通过一个例子来简单了解一下各个模块的功能。例如，当到达的请求为创建一个Pod，那么CRI Manager会先将获取到的CRI格式的配置转换成符合PouchContainer接口要求的格式，调用Image Manager拉取所需的镜像，再调用Container Manager创建所需的容器，并调用CNI Manager，利用CNI插件对Pod的网络进行配置。最后，Stream Server会对交互类型的CRI请求，例如exec/attach/portforward进行处理。</p>
+
+<p>值得注意的是，CNI Manager和Stream Server是CRI Manager的子模块，而CRI Manager，Container Manager以及Image Manager是三个平等的模块，它们都位于同一个二进制文件Pouchd中，因此它们之间的调用都是最为直接的函数调用，并不存在例如Docker shim与Docker交互时，所需要的远程调用开销。下面，我们将进入CRI Manager内部，对其中重要功能的实现做更为深入的理解。</p>
+
+<h3 id="4-pod模型的实现">4. Pod模型的实现</h3>
+
+<p>在Kubernetes的世界里，Pod是最小的调度部署单元。简单地说，一个Pod就是由一些关联较为紧密的容器构成的容器组。作为一个整体，这些“亲密”的容器之间会共享一些东西，从而让它们之间的交互更为高效。例如，对于网络，同一个Pod中的容器会共享同一个IP地址和端口空间，从而使它们能直接通过localhost互相访问。对于存储，Pod中定义的volume会挂载到其中的每个容器中，从而让每个容器都能对其进行访问。</p>
+
+<p>事实上，只要一组容器之间共享某些Linux Namespace以及挂载相同的volume就能实现上述的所有特性。下面，我们就通过创建一个具体的Pod来分析PouchContainer中的CRI Manager是如何实现Pod模型的：</p>
+
+<ol>
+<li>当Kubelet需要新建一个Pod时，首先会对<code>RunPodSandbox</code>这一CRI接口进行调用，而CRI Manager对该接口的实现是创建一个我们称之为&rdquo;infra container&rdquo;的特殊容器。从容器实现的角度来看，它并不特殊，无非是调用Container Manager，创建一个镜像为<code>pause-amd64:3.0</code>的普通容器。但是从整个Pod容器组的角度来看，它是有着特殊作用的，正是它将自己的Linux Namespace贡献出来，作为上文所说的各容器共享的Linux Namespace，将容器组中的所有容器联结到一起。它更像是一个载体，承载了Pod中所有其他的容器，为它们的运行提供基础设施。而一般我们也用infra container代表一个Pod。</li>
+<li>在infra container创建完成之后，Kubelet会对Pod容器组中的其他容器进行创建。每创建一个容器就是连续调用<code>CreateContainer</code>和<code>StartContainer</code>这两个CRI接口。对于<code>CreateContainer</code>，CRI Manager仅仅只是将CRI格式的容器配置转换为PouchContainer格式的容器配置，再将其传递给Container Manager，由其完成具体的容器创建工作。这里我们唯一需要关心的问题是，该容器如何加入上文中提到的infra container的Linux Namespace。其实真正的实现非常简单，在Container Manager的容器配置参数中有<code>PidMode</code>, <code>IpcMode</code>以及<code>NetworkMode</code>三个参数，分别用于配置容器的Pid Namespace，Ipc Namespace和Network Namespace。笼统地说，对于容器的Namespace的配置一般都有两种模式：&rdquo;None&rdquo;模式，即创建该容器自己独有的Namespace，另一种即为&rdquo;Container&rdquo;模式，即加入另一个容器的Namespace。显然，我们只需要将上述三个参数配置为&rdquo;Container&rdquo;模式，加入infra container的Namespace即可。具体是如何加入的，CRI Manager并不需要关心。对于<code>StartContainer</code>，CRI Manager仅仅只是做了一层转发，从请求中获取容器ID并调用Container Manager的<code>Start</code>接口启动容器。</li>
+<li>最后，Kubelet会不断调用<code>ListPodSandbox</code>和<code>ListContainers</code>这两个CRI接口来获取本节点上容器的运行状态。其中<code>ListPodSandbox</code>罗列的其实就是各个infra container的状态，而<code>ListContainer</code>罗列的是除了infra container以外其他容器的状态。现在问题是，对于Container Manager来说，infra container和其他container并不存在任何区别。那么CRI Manager是如何对这些容器进行区分的呢？事实上，CRI Manager在创建容器时，会在已有容器配置的基础之上，额外增加一个label，标志该容器的类型。从而在实现<code>ListPodSandbox</code>和<code>ListContainers</code>接口的时候，以该label的值作为条件，就能对不同类型的容器进行过滤。</li>
+</ol>
+
+<p>综上，对于Pod的创建，我们可以概述为先创建infra container，再创建pod中的其他容器，并让它们加入infra container的Linux Namespace。</p>
+
+<h3 id="5-pod网络配置">5. Pod网络配置</h3>
+
+<p>因为Pod中所有的容器都是共享Network Namespace的，因此我们只需要在创建infra container的时候，对它的Network Namespace进行配置即可。</p>
+
+<p>在Kubernetes生态体系中容器的网络功能都是由CNI实现的。和CRI类似，CNI也是一套标准接口，各种网络方案只要实现了该接口就能无缝接入Kubernetes。CRI Manager中的CNI Manager就是对CNI的简单封装。它在初始化的过程中会加载目录<code>/etc/cni/net.d</code>下的配置文件，如下所示：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">$ cat &gt;/etc/cni/net.d/10-mynet.conflist <span style="color:#c30">&lt;&lt;EOF
+</span><span style="color:#c30">{
+</span><span style="color:#c30">        &#34;cniVersion&#34;: &#34;0.3.0&#34;,
+</span><span style="color:#c30">        &#34;name&#34;: &#34;mynet&#34;,
+</span><span style="color:#c30">        &#34;plugins&#34;: [
+</span><span style="color:#c30">          {
+</span><span style="color:#c30">                &#34;type&#34;: &#34;bridge&#34;,
+</span><span style="color:#c30">                &#34;bridge&#34;: &#34;cni0&#34;,
+</span><span style="color:#c30">                &#34;isGateway&#34;: true,
+</span><span style="color:#c30">                &#34;ipMasq&#34;: true,
+</span><span style="color:#c30">                &#34;ipam&#34;: {
+</span><span style="color:#c30">                        &#34;type&#34;: &#34;host-local&#34;,
+</span><span style="color:#c30">                        &#34;subnet&#34;: &#34;10.22.0.0/16&#34;,
+</span><span style="color:#c30">                        &#34;routes&#34;: [
+</span><span style="color:#c30">                                { &#34;dst&#34;: &#34;0.0.0.0/0&#34; }
+</span><span style="color:#c30">                        ]
+</span><span style="color:#c30">                }
+</span><span style="color:#c30">          }
+</span><span style="color:#c30">        ]
+</span><span style="color:#c30">}
+</span><span style="color:#c30">EOF</span></code></pre></div>
+<p>其中指定了配置Pod网络会使用到的CNI插件，例如上文中的<code>bridge</code>，以及一些网络配置信息，例如本节点Pod所属的子网范围和路由配置。</p>
+
+<p>下面我们就通过具体的步骤来展示如何将一个Pod加入CNI网络：</p>
+
+<ol>
+<li>当调用container manager创建infra container时，将<code>NetworkMode</code>设置为&rdquo;None&rdquo;模式，表示创建一个该infra container独有的Network Namespace且不做任何配置。</li>
+<li>根据infra container对应的PID，获取其对应的Network Namespace路径<code>/proc/{pid}/ns/net</code>。</li>
+<li>调用CNI Manager的<code>SetUpPodNetwork</code>方法，核心参数为步骤二中获取的Network Namespace路径。该方法做的工作就是调用CNI Manager初始化时指定的CNI插件，例如上文中的bridge，对参数中指定的Network Namespace进行配置，包括创建各种网络设备，进行各种网络配置，将该Network Namespace加入插件对应的CNI网络中。</li>
+</ol>
+
+<p>对于大多数Pod，网络配置都是按照上述步骤操作的，大部分的工作将由CNI以及对应的CNI插件替我们完成。但是对于一些特殊的Pod，它们会将自己的网络模式设置为&rdquo;Host&rdquo;，即和宿主机共享Network Namespace。这时，我们只需要在调用Container Manager创建infra container时，将<code>NetworkMode</code>设置为&rdquo;Host&rdquo;，并且跳过CNI Manager的配置即可。</p>
+
+<p>对于Pod中其他的容器，不论Pod是处于&rdquo;Host&rdquo;网络模式，还是拥有独立的Network Namespace，都只需要在调用Container Manager创建容器时，将<code>NetworkMode</code>配置为&rdquo;Container&rdquo;模式，加入infra container所在的Network Namespace即可。</p>
+
+<h3 id="6-io流处理">6. IO流处理</h3>
+
+<p>Kubernetes提供了例如<code>kubectl exec/attach/port-forward</code>这样的功能来实现用户和某个具体的Pod或者容器的直接交互。如下所示：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">aster $ kubectl <span style="color:#366">exec</span> -it shell-demo -- /bin/bash
+root@shell-demo:/# ls
+bin   dev  home  lib64  mnt  proc  run   srv  tmp  var
+boot  etc  lib   media  opt  root  sbin  sys  usr
+root@shell-demo:/#</code></pre></div>
+<p>可以看到，<code>exec</code>一个Pod等效于<code>ssh</code>登录到该容器中。下面，我们根据<code>kubectl exec</code>的执行流来分析Kubernetes中对于IO请求的处理，以及CRI Manager在其中扮演的角色。
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605799831/sel/stream_wxlyqy.png" alt="stream" style="zoom:40%;" />
+</center></p>
+
+<p>如上图所示，执行一条<code>kubectl exec</code>命令的步骤如下：</p>
+
+<ol>
+<li><p><code>kubectl exec</code>命令的本质其实是对Kubernetes集群中某个容器执行exec命令，并将由此产生的IO流转发到用户的手中。所以请求将首先层层转发到达该容器所在节点的Kubelet，Kubelet再根据配置调用CRI中的<code>Exec</code>接口。请求的配置参数如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">type</span> ExecRequest <span style="color:#069;font-weight:bold">struct</span> {
+ContainerId <span style="color:#078;font-weight:bold">string</span>  <span style="color:#09f;font-style:italic">// 执行exec的目标容器
+</span><span style="color:#09f;font-style:italic"></span>Cmd []<span style="color:#078;font-weight:bold">string</span>    <span style="color:#09f;font-style:italic">// 具体执行的exec命令
+</span><span style="color:#09f;font-style:italic"></span>Tty <span style="color:#078;font-weight:bold">bool</span>    <span style="color:#09f;font-style:italic">// 是否在一个TTY中执行exec命令
+</span><span style="color:#09f;font-style:italic"></span>Stdin <span style="color:#078;font-weight:bold">bool</span>  <span style="color:#09f;font-style:italic">// 是否包含Stdin流
+</span><span style="color:#09f;font-style:italic"></span>Stdout <span style="color:#078;font-weight:bold">bool</span> <span style="color:#09f;font-style:italic">// 是否包含Stdout流
+</span><span style="color:#09f;font-style:italic"></span>Stderr <span style="color:#078;font-weight:bold">bool</span> <span style="color:#09f;font-style:italic">// 是否包含Stderr流
+</span><span style="color:#09f;font-style:italic"></span>}</code></pre></div></li>
+
+<li><p>令人感到意外的是，CRI Manager的<code>Exec</code>方法并没有直接调用Container Manager，对目标容器执行exec命令，而是转而调用了其内置的Stream Server的<code>GetExec</code>方法。</p></li>
+
+<li><p>Stream Server的<code>GetExec</code>方法所做的工作是将该exec请求的内容保存到了上图所示的Request Cache中，并返回一个token，利用该token，我们可以重新从Request Cache中找回对应的exec请求。最后，将这个token写入一个URL中，并作为执行结果层层返回到ApiServer。</p></li>
+
+<li><p>ApiServer利用返回的URL直接对目标容器所在节点的Stream Server发起一个http请求，请求的头部包含了&rdquo;Upgrade&rdquo;字段，要求将http协议升级为websocket或者SPDY这样的streaming protocol，用于支持多条IO流的处理，本文我们以SPDY为例。</p></li>
+
+<li><p>Stream Server对ApiServer发送的请求进行处理，首先根据URL中的token，从Request Cache中获取之前保存的exec请求配置。之后，回复该http请求，同意将协议升级为SPDY，并根据exec请求的配置等待ApiServer创建指定数量的stream，分别对应标准输入Stdin，标准输出Stdout，标准错误输出Stderr。</p></li>
+
+<li><p>待Stream Server获取指定数量的Stream之后，依次调用Container Manager的<code>CreateExec</code>和<code>startExec</code>方法，对目标容器执行exec操作并将IO流转发至对应的各个stream中。</p></li>
+
+<li><p>最后，ApiServer将各个stream的数据转发至用户，开启用户与目标容器的IO交互。</p></li>
+</ol>
+
+<p>事实上，在引入CRI之前，Kubernetes对于IO的处理方式和我们的预期是一致的，Kubelet会直接对目标容器执行exec命令，并将IO流转发回ApiServer。但是这样会让Kubelet承载过大的压力，所有的IO流都需要经过它的转发，这显然是不必要的。因此上述的处理虽然初看较为复杂，但是有效地缓解了Kubelet的压力，并且也让IO的处理更为高效。</p>
+
+<h3 id="7-总结">7. 总结</h3>
+
+<p>本文从引入CRI的缘由而起，简要描述了CRI的架构，重点叙述了PouchContainer对CRI各个核心功能模块的实现。CRI的存在让PouchContainer容器加入Kubernetes生态变得更为简单快捷。而我们也相信，PouchContainer独有的特性必定会让Kubernetes生态变得更加丰富多彩。</p>
+
+<h3 id="参考文献">参考文献</h3>
+
+<ul>
+<li><p><a href="https://kubernetes.io/blog/2016/12/container-runtime-interface-cri-in-kubernetes/">Introducing Container Runtime Interface (CRI) in Kubernetes</a></p></li>
+
+<li><p><a href="https://docs.google.com/document/d/1OE_QoInPlVCK9rMAx9aybRmgFiVjHpJCHI9LrfdNM_s/edit#">CRI Streaming Requests Design Doc</a></p></li>
+</ul>
+                        </div>
+                        
+                        
+                        
+                        
+                        
+                        
+
+                        
+                        <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+                        <script src="https://unpkg.com/gitalk@latest/dist/gitalk.min.js"></script> 
+                        <script type="text/javascript" src="/assets/js/md5.min.js"></script>
+                        <div id="gitalk-container"></div>     
+                        <script type="text/javascript">
+                            var gitalk = new Gitalk({
+                              clientID: '835183d2dcbd1167ac28', 
+                            
+                              clientSecret: 'd873919fac3cc76921ee0800172c2279bc612f8d', 
+                            
+                              repo: 'Sel-Website-talk',
+                              owner: 'Peeknut',
+                              admin: ['Peeknut','Rachel-Shao'],
+                              id: location.href.split("/").pop().substring(0, 49),      
+                              distractionFreeMode: false  
+                            })
+                            gitalk.render('gitalk-container')
+                        </script> 
+                        
+
+                    </div>
+                    
+
+                    
+
+                    
+
+                    <div class="col-md-3">
+
+                        
+
+                        
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+      <h3 class="panel-title">搜索栏</h3>
+      
+    </div>
+
+    <div class="panel-body">
+        
+        <div class="search" id="search">
+            <div class="input-group">
+                <input type="text" name="q" class="form-control" placeholder="请输入文章标题或摘要..." id="search-key">
+                <input type="hidden" name="sitesearch" value="https://Congrool.github.io/">
+                <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main" onclick="search()"><i class="fas fa-search"></i></button>
+                </span>
+            </div>
+            <h1 id="search-tip" style="color: red;text-align: center;display: none;font-size: medium;">搜索中，请稍后 ...</h1>
+        </div>
+        <script type="text/javascript">
+            
+            window.onload = function() {
+                      document.onkeydown = function(ev) {
+                        var event = ev || event
+                        if (event.keyCode == 13) {
+                          search()
+                        }
+                      }
+                    }
+            
+            function search() {
+                    
+                      key = document.getElementById("search-key").value;
+                      if (key === "") {
+                        
+                        return;
+                      }
+                      key = key.toLowerCase();
+                      document.getElementById("search-key").value = "";
+                  
+                      
+                      document.getElementById("search-tip").innerText = "搜索中，请稍后 ...";
+                      document.getElementById("search-tip").style.display = "block";
+                  
+                      
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      var childs = el.childNodes;
+                      for (var i = childs.length - 1; i >= 0; i--) {
+                        el.removeChild(childs[i]);
+                      }
+                  
+                      
+                      xmltext = new XMLHttpRequest;
+                      xmltext.open("GET", "/index.xml", false);
+                      xmltext.send();
+                      resp = xmltext.responseXML;
+                      
+                      items = resp.getElementsByTagName("item");
+                      
+                      var i = 0;
+                      haveResult = false;
+                      while (i < items.length) {
+                        txt = items[i].getElementsByTagName("title")[0].innerHTML + items[i].getElementsByTagName("description")[0].innerHTML
+                        txt = txt.toLowerCase();
+                        if (txt.indexOf(key) > -1) {
+                          haveResult = true;
+                          title = items[i].getElementsByTagName("title")[0].innerHTML;
+                          link = items[i].getElementsByTagName("link")[0].innerHTML;
+                          time = items[i].getElementsByTagName("pubDate")[0].innerHTML;
+                          mark = items[i].getElementsByTagName("description")[0].innerHTML;
+                          time = time.slice(0, -5);
+                          addItem(title, link, time, mark)
+                        }
+                        i++;
+                      }
+                      if (!haveResult) {
+                        document.getElementById("search-tip").innerText = "搜索完毕，未发现结果 ...";
+                        document.getElementById("search-tip").style.display = "block";
+                      }
+
+                      
+                      var el = document.getElementById("blog-head");
+                      el.innerHTML="Blogs"
+                    }
+                  
+                    
+                    function addItem(title, link, time, mark) {
+                      document.getElementById("search-tip").style.display = "none";
+                      tmpl = "<article class=\"post\" style=\"border-bottom: 1px solid #e6e6e6;\" >" +
+                        "<header class=\"post-header\">" +
+                        "<h1 class=\"post-title\"><a class=\"post-link\" href=\"" + link + "\" target=\"_blank\">" + title + "</a></h1>" +
+                        "<div class=\"post-meta\">" +
+                        " <span class=\"post-time\">" + time + "</span>" +
+                        "</div>" +
+                        " </header>" +
+                        "<div class=\"post-content\">" +
+                        "<div class=\"post-summary\">" + mark + "</div>" +
+                        "<div class=\"read-more\">" +
+                        "<a href=" + link + " class=\"read-more-link\" target=\"_blank\">阅读更多</a>" +
+                        "</div>" +
+                        " </div>" +
+                        "</article>"
+                      div = document.createElement("div")
+                      div.innerHTML = tmpl;
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      el.appendChild(div)
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+
+        </script>
+        
+    </div>
+</div>
+
+
+
+
+
+
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">归档栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="nav nav-pills nav-stacked">
+            
+            
+            <li>
+                <a href="/categories/bosh">bosh (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloud_controller_ng">cloud_controller_ng (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloudfoundry">cloudfoundry (15)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/containerd">containerd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/docker">docker (19)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/etcd">etcd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/haproxy">haproxy (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/healthmanager">healthmanager (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/karmada">karmada (4)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubeedge">kubeedge (5)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubernetes">kubernetes (14)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/network">network (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/openyurt">openyurt (2)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/service-mesh">service-mesh (4)</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+<div class="panel sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">标签栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="tag-cloud">
+            
+            
+            <li>
+                <a href="/tags/agent"><i class="fas fa-tags"></i> agent</a>
+            </li>
+            
+            <li>
+                <a href="/tags/apiserver"><i class="fas fa-tags"></i> apiserver</a>
+            </li>
+            
+            <li>
+                <a href="/tags/books"><i class="fas fa-tags"></i> books</a>
+            </li>
+            
+            <li>
+                <a href="/tags/bosh"><i class="fas fa-tags"></i> bosh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/ccng"><i class="fas fa-tags"></i> ccng</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cf-release"><i class="fas fa-tags"></i> cf-release</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cgroups"><i class="fas fa-tags"></i> cgroups</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudfoundry"><i class="fas fa-tags"></i> cloudfoundry</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudnative"><i class="fas fa-tags"></i> cloudnative</a>
+            </li>
+            
+            <li>
+                <a href="/tags/collector"><i class="fas fa-tags"></i> collector</a>
+            </li>
+            
+            <li>
+                <a href="/tags/containerd"><i class="fas fa-tags"></i> containerd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cri"><i class="fas fa-tags"></i> cri</a>
+            </li>
+            
+            <li>
+                <a href="/tags/dea"><i class="fas fa-tags"></i> dea</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker"><i class="fas fa-tags"></i> docker</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker-network"><i class="fas fa-tags"></i> docker-network</a>
+            </li>
+            
+            <li>
+                <a href="/tags/edgecomputing"><i class="fas fa-tags"></i> edgecomputing</a>
+            </li>
+            
+            <li>
+                <a href="/tags/etcd"><i class="fas fa-tags"></i> etcd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/gorouter"><i class="fas fa-tags"></i> gorouter</a>
+            </li>
+            
+            <li>
+                <a href="/tags/haproxy"><i class="fas fa-tags"></i> haproxy</a>
+            </li>
+            
+            <li>
+                <a href="/tags/healthmanager"><i class="fas fa-tags"></i> healthmanager</a>
+            </li>
+            
+            <li>
+                <a href="/tags/istio"><i class="fas fa-tags"></i> istio</a>
+            </li>
+            
+            <li>
+                <a href="/tags/karmada"><i class="fas fa-tags"></i> karmada</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubeedge"><i class="fas fa-tags"></i> kubeedge</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubelet"><i class="fas fa-tags"></i> kubelet</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubernetes"><i class="fas fa-tags"></i> kubernetes</a>
+            </li>
+            
+            <li>
+                <a href="/tags/libcontainer"><i class="fas fa-tags"></i> libcontainer</a>
+            </li>
+            
+            <li>
+                <a href="/tags/micro-service"><i class="fas fa-tags"></i> micro-service</a>
+            </li>
+            
+            <li>
+                <a href="/tags/namespace"><i class="fas fa-tags"></i> namespace</a>
+            </li>
+            
+            <li>
+                <a href="/tags/nats"><i class="fas fa-tags"></i> nats</a>
+            </li>
+            
+            <li>
+                <a href="/tags/news"><i class="fas fa-tags"></i> news</a>
+            </li>
+            
+            <li>
+                <a href="/tags/openyurt"><i class="fas fa-tags"></i> openyurt</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pipework"><i class="fas fa-tags"></i> pipework</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pouch"><i class="fas fa-tags"></i> pouch</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runc"><i class="fas fa-tags"></i> runc</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runtime"><i class="fas fa-tags"></i> runtime</a>
+            </li>
+            
+            <li>
+                <a href="/tags/security"><i class="fas fa-tags"></i> security</a>
+            </li>
+            
+            <li>
+                <a href="/tags/serverless"><i class="fas fa-tags"></i> serverless</a>
+            </li>
+            
+            <li>
+                <a href="/tags/service-mesh"><i class="fas fa-tags"></i> service-mesh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/syslog_aggregator"><i class="fas fa-tags"></i> syslog_aggregator</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+                        
+
+                    </div>
+                    
+
+                    
+
+                </div>
+                
+
+            </div>
+            
+        </div>
+        
+
+        <footer id="footer">
+    <div class="container">
+
+        
+        <div class="col-md-4 col-sm-6">
+            <h4></h4>
+
+            <p><strong>关于我们：<strong> <p>浙大SEL实验室</p><p>地址：杭州市浙大路38号曹光彪西楼405室</p><p><strong></strong>
+            <a href="/contact" class="btn btn-small btn-template-main" >跳转到关于</a>
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+        <div class="col-md-4 col-sm-6">
+
+             
+            <h4>最新博客</h4>
+            
+
+            <div class="blog-entries">
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/27/overview.png" class="img-responsive" alt="基于KubeEdge的边缘节点分组管理设计与实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">基于KubeEdge的边缘节点分组管理设计与实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/20/karmada-scheduler.png" class="img-responsive" alt="多云环境下的资源调度：karmada scheduler的框架和实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">多云环境下的资源调度：karmada scheduler的框架和实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">
+                          
+                            <img src="/img/blogs/19/karmada-arch.jpg" class="img-responsive" alt="多云环境下的成员集群管理，看看开源项目karmada是如何做到的">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">多云环境下的成员集群管理，看看开源项目karmada是如何做到的</a></h5>
+                    </div>
+                </div>
+                
+            </div>
+
+            <hr class="hidden-md hidden-lg">
+             
+
+        </div>
+        
+
+        
+        <div class="col-md-4 col-sm-6">
+
+          <h4></h4>
+
+            <p><strong>联系我们: 
+                                    <p>团队负责人：丁轶群 yiqunding@zju.edu.cn</p>
+                                    <p>网站维护人：刘佳文 839809484@qq.com</p>                
+    </strong>
+
+            
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+    </div>
+    
+</footer>
+
+
+
+
+
+
+
+<div id="copyright">
+    <div class="container">
+        <div class="col-md-12">
+            
+            <p class="pull-left">Copyright ©️ 2020 SEL Laboratory , ZJ University all rights reserved.</p>
+            
+            <p class="pull-right">
+               <a href="https://bootstrapious.com/p/universal-business-e-commerce-template">Bootstrapious</a>.
+              
+
+               <a href="https://github.com/devcows/hugo-universal-theme">DevCows</a>.
+            </p>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+    </div>
+    
+
+    
+
+
+<script src="/js/jquery.min.js"></script>
+<script src="/js/bootstrap.min.js"></script>
+
+
+
+<script src="/js/jquery.cookie.min.js"></script>
+<script src="/js/jquery.waypoints.min.js"></script>
+<script src="/js/jquery.counterup.min.js"></script>
+<script src="/js/jquery-parallax.js"></script>
+
+
+<script src="/js/front.js"></script>
+
+
+<script src="/js/owl.carousel.min.js"></script>
+
+
+
+  </body>
+</html>

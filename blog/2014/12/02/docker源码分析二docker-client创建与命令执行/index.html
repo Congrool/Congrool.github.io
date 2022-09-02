@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="robots" content="all,follow">
+  <meta name="googlebot" content="index,follow,snippet,archive">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <title>Docker源码分析（二）：Docker Client创建与命令执行</title>
+  <meta name="author" content="孙宏亮" />
+  
+  
+  
+  
+  <meta name="keywords" content="Docker">
+  
+  
+  <meta name="description" content="如今，Docker作为业界领先的轻量级虚拟化容器管理引擎，给全球开发者提供了一种新颖、便捷的软件集成测试与部署之道。在团队开发软件时，Docker可以提供可复用的运行环境、灵活的资源配置、便捷的集成测试方法以及一键式的部署方式。可以说，Docker的优势在简化持续集成、运维部署方面体现得淋漓尽致，它完全让开发者从前者中解放出来，把精力真正地倾注在开发上。">
+
+  <meta name="generator" content="Hugo 0.68.3" />
+
+  
+  <link href='//fonts.googleapis.com/css?family=Roboto:400,100,100italic,300,300italic,500,700,800' rel='stylesheet' type='text/css'>
+
+  
+  
+  
+  
+  
+
+  <link href="/css/all.css" rel="stylesheet">
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+
+  
+  <link href="/css/animate.css" rel="stylesheet">
+
+  
+  
+    <link href="/css/style.default.css" rel="stylesheet" id="theme-stylesheet">
+  
+
+  
+  <link href="/css/custom.css" rel="stylesheet">
+
+  
+  
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+        <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  
+
+  
+  <link rel="shortcut icon" href="/img/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
+
+  
+  <link href="/css/owl.carousel.css" rel="stylesheet">
+  <link href="/css/owl.theme.css" rel="stylesheet">
+
+  
+  <link rel="alternate" href="https://Congrool.github.io/index.xml" type="application/rss+xml" title="浙大SEL实验室">
+
+  
+  
+  
+  
+  
+  
+  <meta property="og:updated_time" content="2014-12-02T13:01:39Z">
+  
+    
+    
+    <meta property="article:section" content="Docker">
+    <meta property="article:tag" content="Docker">
+    
+    
+    <meta property="article:published_time" content="2014-12-02T13:01:39Z">
+    <meta property="article:modified_time" content="2014-12-02T13:01:39Z">
+  
+
+  
+  <meta name="twitter:card" content="summary">
+  
+  <meta name="twitter:title" content="Docker源码分析（二）：Docker Client创建与命令执行">
+  
+  <meta name="twitter:description" content="如今，Docker作为业界领先的轻量级虚拟化容器管理引擎，给全球开发者提供了一种新颖、便捷的软件集成测试与部署之道。在团队开发软件时，Docker可以提供可复用的运行环境、灵活的资源配置、便捷的集成测试方法以及一键式的部署方式。可以说，Docker的优势在简化持续集成、运维部署方面体现得淋漓尽致，它完全让开发者从前者中解放出来，把精力真正地倾注在开发上。">
+  
+  
+</head>
+
+
+  <body>
+
+    <div id="all">
+
+        <header class="navbar-affixed-top" data-spy="affix" data-offset-top="62">
+    <div class="navbar navbar-default yamm" role="navigation" id="navbar" style="background-color:white;">    
+        <div class="container">
+            <div class="navbar-header">
+                <a class="navbar-brand home" href="/">
+                    <img src="/img/sel.png" alt="Docker源码分析（二）：Docker Client创建与命令执行" class="hidden-xs hidden-sm img-responsive">
+                    
+                    <span class="sr-only">Docker源码分析（二）：Docker Client创建与命令执行 - </span>
+                </a>
+                <div class="navbar-buttons">
+                    <button type="button" class="navbar-toggle btn-template-main" data-toggle="collapse" data-target="#navigation">
+                      <span class="sr-only"></span>
+                        <i class="fas fa-align-justify"></i>
+                    </button>
+                </div>
+            </div>
+            
+
+            <div class="navbar-collapse collapse" id="navigation">
+                <ul class="nav navbar-nav navbar-right">
+                  
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/">主页</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/blog/">博客</a>
+                    
+                  </li>
+
+                  <li class="dropdown">
+                    
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">社区 <span class="caret"></span></a>
+                  <ul class="dropdown-menu">
+                    
+                      <li><a href="https://www.servicemesher.com/">ServiceMesh社区</a></li>
+                    
+                      <li><a href="">kubeedge社区</a></li>
+
+                      <li><a href="http://www.icsoft.zju.edu.cn/index.php">浙江大学智能计算与软件中心</a></li>
+                    
+                  </ul>
+
+                  <li class="dropdown">
+                    
+                    <a href="/archives/">归档</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/contact/">关于</a>
+                    
+                  </li>
+                  
+                </li>
+
+                
+                
+
+                
+                </ul>
+            </div>
+            
+
+            <div class="collapse clearfix" id="search">    
+                <form class="navbar-form" role="search">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search">
+                        <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main"><i class="fas fa-search"></i></button>
+                </span>
+                    </div>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+
+    
+</header>
+
+
+
+
+        <div id="heading-breadcrumbs">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h1>Docker源码分析（二）：Docker Client创建与命令执行</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+        <div id="content">
+            <div class="container">
+
+                <div class="row">
+
+                    
+
+                    <div class="col-md-9" id="blog-post">
+
+                        
+                          <p class="text-muted text-uppercase mb-small text-right">
+                             <a href="#">孙宏亮</a>
+                             | 
+                            2014-12-02
+                          </p>
+                        
+
+                        <div id="post-content">
+                          <h1 id="1-前言"><strong>1. 前言</strong></h1>
+
+<p>如今，Docker作为业界领先的轻量级虚拟化容器管理引擎，给全球开发者提供了一种新颖、便捷的软件集成测试与部署之道。在团队开发软件时，Docker可以提供可复用的运行环境、灵活的资源配置、便捷的集成测试方法以及一键式的部署方式。可以说，Docker的优势在简化持续集成、运维部署方面体现得淋漓尽致，它完全让开发者从前者中解放出来，把精力真正地倾注在开发上。</p>
+
+<p>然而，把Docker的功能发挥到极致，并非一件易事。在深刻理解Docker架构的情况下，熟练掌握Docker Client的使用也非常有必要。前者可以参阅<a href="http://www.sel.zju.edu.cn/?p=112">《Docker源码分析》系列之Docker架构篇</a>，而本文主要针对后者，从源码的角度分析Docker Client，力求帮助开发者更深刻的理解Docker Client的具体实现，最终更好的掌握Docker Client的使用方法。即本文为《Docker源码分析》系列的第二篇——Docker Client篇。</p>
+
+<h1 id="2-docker-client源码分析章节安排"><strong>2. Docker Client源码分析章节安排</strong></h1>
+
+<p>本文从源码的角度，主要分析Docker Client的两个方面：创建与命令执行。前四章安排如下： 第一章为前言，介绍Docker的作用以及研究Docker Client的必要性。 第二章介绍部分章节安排。 第三章从Docker Client的创建入手，进行源码分析，主要分为三小节。 在3.1节中，分析如何通过docker命令，解析出命令行flag参数，以及docker命令中的请求参数。 在3.2节中，分析如何处理具体的flag参数信息，并收集Docker Client所需的配置信息。 在3.3节中，分析如何创建一个Docker Client。 第四章在已有Docker Client的基础上，分析如何执行docker命令，分为两小节。 在4.1节中，分析如何解析docker命令中的请求参数，获取请求的类型。 在4.2节中，分析Docker Client如何将执行具体的请求命令，最终将请求发送至Docker Server。</p>
+
+<h1 id="3-docker-client的创建"><strong>3. Docker Client的创建</strong></h1>
+
+<p>Docker Client的创建，实质上是Docker用户通过可执行文件docker，与Docker Server建立联系的客户端。以下分三个小节分别阐述Docker Client的创建流程。 以下为整个docker源代码运行的流程图：
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605616369/sel/docker-2-1_pigueq.jpg" alt="" style="zoom:50%;" />
+</center></p>
+
+<p>上图通过流程图的方式，使得读者更为清晰的了解Docker Client创建及执行请求的过程。其中涉及了诸多源代码中的特有名词，在下文中会一一解释与分析。</p>
+
+<h3 id="3-1-docker命令的flag参数解析"><strong>3.1. Docker命令的flag参数解析</strong></h3>
+
+<p>众所周知，在Docker的具体实现中，Docker Server与Docker Client均由可执行文件docker来完成创建并启动。那么，了解docker可执行文件通过何种方式区分两者，就显得尤为重要。 对于两者，首先举例说明其中的区别。Docker Server的启动，命令为docker -d或docker &ndash;daemon=true；而Docker Client的启动则体现为docker &ndash;daemon=false ps、docker pull NAME等。 可以把以上Docker请求中的参数分为两类：第一类为命令行参数，即docker程序运行时所需提供的参数，如: -D、&ndash;daemon=true、&ndash;daemon=false等；第二类为docker发送给Docker Server的实际请求参数，如：ps、pull NAME等。</p>
+
+<p>对于第一类，我们习惯将其称为flag参数，在go语言的标准库中，同时还提供了一个<a href="https://github.com/docker/docker/blob/master/pkg/mflag/flag.go">flag包</a>，方便进行命令行参数的解析。 交待以上背景之后，随即进入实现Docker Client创建的源码，位于<a href="https://github.com/docker/docker/blob/v1.2.0/docker/docker.go">./docker/docker/docker.go</a>，在该go文件中，包含了整个Docker的main函数，也就是整个Docker（不论Docker Daemon还是Docker Client）的运行入口。部分main函数代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> <span style="color:#c0f">main</span>() {
+        <span style="color:#069;font-weight:bold">if</span> reexec.<span style="color:#c0f">Init</span>() {
+            <span style="color:#069;font-weight:bold">return</span>
+        }
+        flag.<span style="color:#c0f">Parse</span>()
+        <span style="color:#09f;font-style:italic">// FIXME: validate daemon flags here
+</span><span style="color:#09f;font-style:italic"></span>        <span style="color:#a00;background-color:#faa">……</span>
+}</code></pre></div>
+<p>在以上代码中，首先判断reexec.Init()方法的返回值，若为真，则直接退出运行，否则的话继续执行。查看位于./docker/reexec/reexec.go中<a href="https://github.com/docker/docker/blob/v1.2.0/reexec/reexec.go#L23">reexec.Init()</a>的定义，可以发现由于在docker运行之前没有任何的Initializer注册，故该代码段执行的返回值为假。 紧接着，main函数通过调用flag.Parse()解析命令行中的flag参数。查看源码可以发现Docker在<a href="https://github.com/docker/docker/blob/v1.2.0/docker/docker.go">./docker/docker/flag.go</a>中定义了多个flag参数，并通过init函数进行初始化。代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">var</span> (
+    flVersion     = flag.<span style="color:#c0f">Bool</span>([]<span style="color:#078;font-weight:bold">string</span>{<span style="color:#c30">&#34;v&#34;</span>, <span style="color:#c30">&#34;-version&#34;</span>}, <span style="color:#069;font-weight:bold">false</span>, <span style="color:#c30">&#34;Print version information and quit&#34;</span>)
+    flDaemon      = flag.<span style="color:#c0f">Bool</span>([]]<span style="color:#078;font-weight:bold">string</span>{<span style="color:#c30">&#34;d&#34;</span>, <span style="color:#c30">&#34;-daemon&#34;</span>}, <span style="color:#069;font-weight:bold">false</span>, <span style="color:#c30">&#34;Enable daemon mode&#34;</span>)
+    flDebug       = flag.<span style="color:#c0f">Bool</span>([]<span style="color:#078;font-weight:bold">string</span>{<span style="color:#c30">&#34;D&#34;</span>, <span style="color:#c30">&#34;-debug&#34;</span>}, <span style="color:#069;font-weight:bold">false</span>, <span style="color:#c30">&#34;Enable debug mode&#34;</span>)
+    flSocketGroup = flag.<span style="color:#c0f">String</span>([]<span style="color:#078;font-weight:bold">string</span>{<span style="color:#c30">&#34;G&#34;</span>, <span style="color:#c30">&#34;-group&#34;</span>}, <span style="color:#c30">&#34;docker&#34;</span>, <span style="color:#c30">&#34;Group to assign the unix socket specified by -H when running in daemon mode use &#39;&#39; (the empty string) to disable setting of a group&#34;</span>)
+    flEnableCors  = flag.<span style="color:#c0f">Bool</span>([]<span style="color:#078;font-weight:bold">string</span>{<span style="color:#c30">&#34;#api-enable-cors&#34;</span>, <span style="color:#c30">&#34;-api-enable-cors&#34;</span>}, <span style="color:#069;font-weight:bold">false</span>, <span style="color:#c30">&#34;Enable CORS headers in the remote API&#34;</span>)
+    flTls         = flag.<span style="color:#c0f">Bool</span>([]<span style="color:#078;font-weight:bold">string</span>{<span style="color:#c30">&#34;-tls&#34;</span>}, <span style="color:#069;font-weight:bold">false</span>, <span style="color:#c30">&#34;Use TLS; implied by tls-verify flags&#34;</span>)
+    flTlsVerify   = flag.<span style="color:#c0f">Bool</span>([]<span style="color:#078;font-weight:bold">string</span>{<span style="color:#c30">&#34;-tlsverify&#34;</span>}, <span style="color:#069;font-weight:bold">false</span>, <span style="color:#c30">&#34;Use TLS and verify the remote (daemon: verify client, client: verify daemon)&#34;</span>)
+
+<span style="color:#09f;font-style:italic">// these are initialized in init() below since their default values depend on dockerCertPath which isn&#39;t fully initialized     until init() runs
+</span><span style="color:#09f;font-style:italic"></span>    flCa    <span style="color:#555">*</span><span style="color:#078;font-weight:bold">string</span>
+    flCert  <span style="color:#555">*</span><span style="color:#078;font-weight:bold">string</span>
+    flKey   <span style="color:#555">*</span><span style="color:#078;font-weight:bold">string</span>
+    flHosts []<span style="color:#078;font-weight:bold">string</span>
+    )
+
+    <span style="color:#069;font-weight:bold">func</span> <span style="color:#c0f">init</span>() {
+    flCa = flag.<span style="color:#c0f">String</span>([]<span style="color:#078;font-weight:bold">string</span>{<span style="color:#c30">&#34;-tlscacert&#34;</span>}, filepath.<span style="color:#c0f">Join</span>(dockerCertPath, defaultCaFile), <span style="color:#c30">&#34;Trust only remotes providing a certificate signed by the CA given here&#34;</span>)
+    flCert = flag.<span style="color:#c0f">String</span>([]<span style="color:#078;font-weight:bold">string</span>{<span style="color:#c30">&#34;-tlscert&#34;</span>}, filepath.<span style="color:#c0f">Join</span>(dockerCertPath, defaultCertFile), <span style="color:#c30">&#34;Path to TLS certificate file&#34;</span>)
+    flKey = flag.<span style="color:#c0f">String</span>([]<span style="color:#078;font-weight:bold">string</span>{<span style="color:#c30">&#34;-tlskey&#34;</span>}, filepath.<span style="color:#c0f">Join</span>(dockerCertPath, defaultKeyFile), <span style="color:#c30">&#34;Path to TLS key file&#34;</span>)
+    opts.<span style="color:#c0f">HostListVar</span>(<span style="color:#555">&amp;</span>flHosts, []<span style="color:#078;font-weight:bold">string</span>{<span style="color:#c30">&#34;H&#34;</span>, <span style="color:#c30">&#34;-host&#34;</span>}, <span style="color:#c30">&#34;The socket(s) to bind to in daemon mode\\nspecified using one or more tcp://host:port, unix:///path/to/socket, fd://\* or fd://socketfd.&#34;</span>)
+    }</code></pre></div>
+<p>这里涉及到了Golang的一个特性，即init函数的执行。在Golang中init函数的特性如下：</p>
+
+<ul>
+<li>init函数用于程序执行前包的初始化工作，比如初始化变量等；</li>
+<li>每个包可以有多个init函数；</li>
+<li>包的每一个源文件也可以有多个init函数；</li>
+<li>同一个包内的init函数的执行顺序没有明确的定义；</li>
+<li>不同包的init函数按照包导入的依赖关系决定初始化的顺序；</li>
+<li>init函数不能被调用，而是在main函数调用前自动被调用。</li>
+</ul>
+
+<p>因此，在main函数执行之前，Docker已经定义了诸多flag参数，并对很多flag参数进行初始化。定义的命令行flag参数有：flVersion、flDaemon、flDebug、flSocketGroup、flEnableCors、flTls、flTlsVerify、flCa、flCert、flKey、flHosts等。 以下具体分析flDaemon：</p>
+
+<ul>
+<li>定义：flDaemon = flag.Bool([]string{&ldquo;d&rdquo;, &ldquo;-daemon&rdquo;}, false, &ldquo;Enable daemon mode&rdquo;)</li>
+<li>flDaemon的类型为Bool类型</li>
+<li>flDaemon名称为”d”或者”-daemon”，该名称会出现在docker命令中</li>
+<li>flDaemon的默认值为false</li>
+<li>flDaemon的帮助信息为”Enable daemon mode”</li>
+<li>访问flDaemon的值时，使用指针* flDaemon解引用访问</li>
+</ul>
+
+<p>在解析命令行flag参数时，以下的语言为合法的：</p>
+
+<ul>
+<li>-d, &ndash;daemon</li>
+<li>-d=true, &ndash;daemon=true</li>
+<li>-d=”true”, &ndash;daemon=”true”</li>
+<li>-d=’true’, &ndash;daemon=’true’</li>
+</ul>
+
+<p>当解析到第一个非定义的flag参数时，命令行flag参数解析工作结束。举例说明，当执行docker命令docker &ndash;daemon=false &ndash;version=false ps时，flag参数解析主要完成两个工作：</p>
+
+<ul>
+<li>完成命令行flag参数的解析，名为-daemon和-version的flag参数flDaemon和flVersion分别获得相应的值，均为false；</li>
+<li>遇到第一个非flag参数的参数ps时，将ps及其之后所有的参数存入flag.Args()，以便之后执行Docker Client具体的请求时使用。</li>
+</ul>
+
+<p>如需深入学习flag的解析，可以参见源码<a href="https://github.com/docker/docker/blob/master/pkg/mflag/flag.go">命令行参数flag的解析</a>。</p>
+
+<h3 id="3-2-处理flag信息并收集docker-client的配置信息"><strong>3.2. 处理flag信息并收集Docker Client的配置信息</strong></h3>
+
+<p>有了以上flag参数解析的相关知识，分析Docker的main函数就变得简单易懂很多。通过总结，首先列出源代码中处理的flag信息以及收集Docker Client的配置信息，然后再一一对此分析：</p>
+
+<ul>
+<li>处理的flag参数有：flVersion、flDebug、flDaemon、flTlsVerify以及flTls；</li>
+<li>为Docker Client收集的配置信息有：protoAddrParts(通过flHosts参数获得，作用为提供Docker Client与Server的通信协议以及通信地址)、tlsConfig(通过一系列flag参数获得，如_flTls、_flTlsVerify，作用为提供安全传输层协议的保障)。</li>
+</ul>
+
+<p>随即分析处理这些flag参数信息，以及配置信息。 在flag.Parse()之后的代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">if</span> <span style="color:#555">*</span>flVersion {
+    <span style="color:#c0f">showVersion</span>()
+    <span style="color:#069;font-weight:bold">return</span>
+}</code></pre></div>
+<p>不难理解的是，当经过解析flag参数后，若flVersion参数为真时，调用showVersion()显示版本信息，并从main函数退出；否则的话，继续往下执行。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">if</span> <span style="color:#555">*</span>flDebug {
+    os.<span style="color:#c0f">Setenv</span>(<span style="color:#c30">&#34;DEBUG&#34;</span>, <span style="color:#c30">&#34;1&#34;</span>)
+}</code></pre></div>
+<p>若flDebug参数为真的话，通过os包的中Setenv函数创建一个名为DEBUG的系统环境变量，并将其值设为”1”。继续往下执行。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">if</span> <span style="color:#366">len</span>(flHosts) <span style="color:#555">==</span> <span style="color:#f60">0</span> {
+    defaultHost <span style="color:#555">:=</span> os.<span style="color:#c0f">Getenv</span>(<span style="color:#c30">&#34;DOCKER_HOST&#34;</span>)
+    <span style="color:#069;font-weight:bold">if</span> defaultHost <span style="color:#555">==</span> <span style="color:#c30">&#34;&#34;</span> <span style="color:#555">||</span> <span style="color:#555">*</span>flDaemon {
+        <span style="color:#09f;font-style:italic">// If we do not have a host, default to unix socket
+</span><span style="color:#09f;font-style:italic"></span>        defaultHost = fmt.<span style="color:#c0f">Sprintf</span>(<span style="color:#c30">&#34;unix://%s&#34;</span>, api.DEFAULTUNIXSOCKET)
+    }
+    <span style="color:#069;font-weight:bold">if</span> _, err <span style="color:#555">:=</span> api.<span style="color:#c0f">ValidateHost</span>(defaultHost); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        log.<span style="color:#c0f">Fatal</span>(err)
+    }
+    flHosts = <span style="color:#366">append</span>(flHosts, defaultHost)
+}</code></pre></div>
+<p>以上的源码主要分析内部变量flHosts。flHosts的作用是为Docker Client提供所要连接的host对象，也为Docker Server提供所要监听的对象。 分析过程中，首先判断flHosts变量是否长度为0，若是的话，通过os包获取名为DOCKER_HOST环境变量的值，将其赋值于defaultHost。若defaultHost为空或者flDaemon为真的话，说明目前还没有一个定义的host对象，则将其默认设置为unix socket，值为api.DEFAULTUNIXSOCKET，该常量位于<a href="https://github.com/docker/docker/blob/v1.2.0/api/common.go#L17">./docker/api/common.go</a>，值为&rdquo;/var/run/docker.sock&rdquo;，故defaultHost为”unix:///var/run/docker.sock”。验证该defaultHost的合法性之后，将defaultHost的值追加至flHost的末尾。继续往下执行。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">if</span> <span style="color:#555">*</span>flDaemon {
+    <span style="color:#c0f">mainDaemon</span>()
+    <span style="color:#069;font-weight:bold">return</span>
+}</code></pre></div>
+<p>若flDaemon参数为真的话，则执行mainDaemon函数，实现Docker Daemon的启动，若mainDaemon函数执行完毕，则退出main函数，一般mainDaemon函数不会主动终结。由于本章节介绍Docker Client的启动，故假设flDaemon参数为假，不执行以上代码块。继续往下执行。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">if</span> <span style="color:#366">len</span>(flHosts) &gt; <span style="color:#f60">1</span> {
+    log.<span style="color:#c0f">Fatal</span>(<span style="color:#c30">&#34;Please specify only one -H&#34;</span>)
+protoAddrParts <span style="color:#555">:=</span> strings.<span style="color:#c0f">SplitN</span>(flHosts[<span style="color:#f60">0</span>], <span style="color:#c30">&#34;://&#34;</span>, <span style="color:#f60">2</span>)</code></pre></div>
+<p>以上，若flHosts的长度大于1的话，则抛出错误日志。接着将flHosts这个string数组中的第一个元素，进行分割，通过”://”来分割，分割出的两个部分放入变量protoAddrParts数组中。protoAddrParts的作用为解析出与Docker Server建立通信的协议与地址，为Docker Client创建过程中不可或缺的配置信息之一。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">var</span> (
+    cli       <span style="color:#555">*</span>client.DockerCli
+    tlsConfig tls.Config
+)
+tlsConfig.InsecureSkipVerify = <span style="color:#069;font-weight:bold">true</span></code></pre></div>
+<p>由于之前已经假设过flDaemon为假，则可以认定main函数的运行是为了Docker Client的创建与执行。在这里创建两个变量：一个为类型是client.DockerCli指针的对象cli，另一个为类型是tls.Config的对象tlsConfig。并将tlsConfig的InsecureSkipVerify属性设置为真。TlsConfig对象的创建是为了保障cli在传输数据的时候，遵循安全传输层协议(TLS)。安全传输层协议(TLS) 用于两个通信应用程序之间保密性与数据完整性，该协议有两层组成：TLS记录协议和TLS握手协议。tlsConfig是Docker Client创建过程中可选的配置信息。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// If we should verify the server, we need to load a trusted ca
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">if</span> <span style="color:#555">*</span>flTlsVerify {
+    <span style="color:#555">*</span>flTls = <span style="color:#069;font-weight:bold">true</span>
+    certPool <span style="color:#555">:=</span> x509.<span style="color:#c0f">NewCertPool</span>()
+    file, err <span style="color:#555">:=</span> ioutil.<span style="color:#c0f">ReadFile</span>(<span style="color:#555">*</span>flCa)
+    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        log.<span style="color:#c0f">Fatalf</span>(<span style="color:#c30">&#34;Couldn&#39;t read ca cert %s: %s&#34;</span>, <span style="color:#555">*</span>flCa, err)
+    }
+    certPool.<span style="color:#c0f">AppendCertsFromPEM</span>(file)
+    tlsConfig.RootCAs = certPool
+    tlsConfig.InsecureSkipVerify = <span style="color:#069;font-weight:bold">false</span>
+}</code></pre></div>
+<p>若flTlsVerify这个flag参数为真的话，则说明需要验证server端的安全性，tlsConfig对象需要加载一个受信的ca文件。该ca文件的路径为*flCA参数的值，最终完成tlsConfig对象中RootCAs属性的赋值，并将InsecureSkipVerify属性置为假。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// If tls is enabled, try to load and send client certificates
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">if</span> <span style="color:#555">*</span>flTls <span style="color:#555">||</span> <span style="color:#555">*</span>flTlsVerify {
+    _, errCert <span style="color:#555">:=</span> os.<span style="color:#c0f">Stat</span>(<span style="color:#555">*</span>flCert)
+    _, errKey <span style="color:#555">:=</span> os.<span style="color:#c0f">Stat</span>(<span style="color:#555">*</span>flKey)
+    <span style="color:#069;font-weight:bold">if</span> errCert <span style="color:#555">==</span> <span style="color:#069;font-weight:bold">nil</span> <span style="color:#555">&amp;&amp;</span> errKey <span style="color:#555">==</span> <span style="color:#069;font-weight:bold">nil</span> {
+        <span style="color:#555">*</span>flTls = <span style="color:#069;font-weight:bold">true</span>
+        cert, err <span style="color:#555">:=</span> tls.<span style="color:#c0f">LoadX509KeyPair</span>(<span style="color:#555">*</span>flCert, <span style="color:#555">*</span>flKey)
+        <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+            log.<span style="color:#c0f">Fatalf</span>(<span style="color:#c30">&#34;Couldn&#39;t load X509 key pair: %s. Key encrypted?&#34;</span>, err)
+        }
+        tlsConfig.Certificates = []tls.Certificate{cert}
+    }
+}</code></pre></div>
+<p>如果flTls和flTlsVerify两个flag参数中有一个为真，则说明需要加载以及发送client端的证书。最终将证书内容交给tlsConfig的Certificates属性。 至此，flag参数已经全部处理，并已经收集完毕Docker Client所需的配置信息。之后的内容为Docker Client如何实现创建并执行。</p>
+
+<h3 id="3-3-docker-client的启动"><strong>3.3. Docker Client的启动</strong></h3>
+
+<p>Docker Client的创建其实就是在已有配置参数信息的情况，通过Client包中的NewDockerCli方法创建一个实例cli，源码实现如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">if</span> <span style="color:#555">*</span>flTls <span style="color:#555">||</span> <span style="color:#555">*</span>flTlsVerify {
+    cli = client.<span style="color:#c0f">NewDockerCli</span>(os.Stdin, os.Stdout, os.Stderr, protoAddrParts[<span style="color:#f60">0</span>], protoAddrParts[<span style="color:#f60">1</span>], <span style="color:#555">&amp;</span>tlsConfig)
+} <span style="color:#069;font-weight:bold">else</span> {
+    cli = client.<span style="color:#c0f">NewDockerCli</span>(os.Stdin, os.Stdout, os.Stderr, protoAddrParts[<span style="color:#f60">0</span>], protoAddrParts[<span style="color:#f60">1</span>], <span style="color:#069;font-weight:bold">nil</span>)
+}</code></pre></div>
+<p>如果flag参数flTls为真或者flTlsVerify为真的话，则说明需要使用TLS协议来保障传输的安全性，故创建Docker Client的时候，将TlsConfig参数传入；否则的话，同样创建Docker Client，只不过TlsConfig为nil。 关于Client包中的NewDockerCli函数的实现，可以具体参见<a href="https://github.com/docker/docker/blob/v1.2.0/api/client/cli.go#L81">./docker/api/client/cli.go</a>。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> <span style="color:#c0f">NewDockerCli</span>(in io.ReadCloser, out, err io.Writer, proto, addr <span style="color:#078;font-weight:bold">string</span>, tlsConfig <span style="color:#555">*</span>tls.Config) <span style="color:#555">*</span>DockerCli {
+    <span style="color:#069;font-weight:bold">var</span> (
+        isTerminal = <span style="color:#069;font-weight:bold">false</span>
+        terminalFd <span style="color:#078;font-weight:bold">uintptr</span>
+        scheme     = <span style="color:#c30">&#34;http&#34;</span>
+    )
+
+    <span style="color:#069;font-weight:bold">if</span> tlsConfig <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        scheme = <span style="color:#c30">&#34;https&#34;</span>
+    }
+
+    <span style="color:#069;font-weight:bold">if</span> in <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        <span style="color:#069;font-weight:bold">if</span> file, ok <span style="color:#555">:=</span> out.(<span style="color:#555">*</span>os.File); ok {
+            terminalFd = file.<span style="color:#c0f">Fd</span>()
+            isTerminal = term.<span style="color:#c0f">IsTerminal</span>(terminalFd)
+        }
+    }
+
+    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">==</span> <span style="color:#069;font-weight:bold">nil</span> {
+        err = out
+    }
+    <span style="color:#069;font-weight:bold">return</span> <span style="color:#555">&amp;</span>DockerCli{
+        proto:      proto,
+        addr:       addr,
+        in:         in,
+        out:        out,
+        err:        err,
+        isTerminal: isTerminal,
+        terminalFd: terminalFd,
+        tlsConfig:  tlsConfig,
+        scheme:     scheme,
+    }
+}</code></pre></div>
+<p>总体而言，创建DockerCli对象较为简单，较为重要的DockerCli的属性有proto：传输协议；addr：host的目标地址，tlsConfig：安全传输层协议的配置。若tlsConfig为不为空，则说明需要使用安全传输层协议，DockerCli对象的scheme设置为“https”，另外还有关于输入，输出以及错误显示的配置，最终返回该对象。 通过调用NewDockerCli函数，程序最终完成了创建Docker Client，并返回main函数继续执行。</p>
+
+<h2 id="4-docker命令执行"><strong>4. Docker命令执行</strong></h2>
+
+<p>main函数执行到目前为止，有以下内容需要为Docker命令的执行服务：创建完毕的Docker Client，docker命令中的请求参数（经flag解析后存放于flag.Arg()）。也就是说，需要使用Docker Client来分析docker 命令中的请求参数，并最终发送相应请求给Docker Server。</p>
+
+<h3 id="4-1-docker-client解析请求命令"><strong>4.1. Docker Client解析请求命令</strong></h3>
+
+<p>Docker Client解析请求命令的工作，在Docker命令执行部分第一个完成，直接进入main函数之后的<a href="https://github.com/docker/docker/blob/v1.2.0/docker/docker.go#L102">源码部分</a>：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> cli.<span style="color:#c0f">Cmd</span>(flag.<span style="color:#c0f">Args</span>()<span style="color:#555">...</span>); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+    <span style="color:#069;font-weight:bold">if</span> sterr, ok <span style="color:#555">:=</span> err.(<span style="color:#555">*</span>utils.StatusError); ok {
+        <span style="color:#069;font-weight:bold">if</span> sterr.Status <span style="color:#555">!=</span> <span style="color:#c30">&#34;&#34;</span> {
+            log.<span style="color:#c0f">Println</span>(sterr.Status)
+        }
+        os.<span style="color:#c0f">Exit</span>(sterr.StatusCode)
+    }
+    log.<span style="color:#c0f">Fatal</span>(err)
+}</code></pre></div>
+<p>查阅以上源码，可以发现，正如之前所说，首先解析存放于flag.Args()中的具体请求参数，执行的函数为cli对象的Cmd函数。进入<a href="https://github.com/docker/docker/blob/v1.2.0/api/client/cli.go#L51">./docker/api/client/cli.go的Cmd函数</a>：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// Cmd executes the specified command
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">func</span> (cli <span style="color:#555">*</span>DockerCli) <span style="color:#c0f">Cmd</span>(args <span style="color:#555">...</span><span style="color:#078;font-weight:bold">string</span>) <span style="color:#078;font-weight:bold">error</span> {
+    <span style="color:#069;font-weight:bold">if</span> <span style="color:#366">len</span>(args) &gt; <span style="color:#f60">0</span> {
+        method, exists <span style="color:#555">:=</span> cli.<span style="color:#c0f">getMethod</span>(args[<span style="color:#f60">0</span>])
+        <span style="color:#069;font-weight:bold">if</span> !exists {
+            fmt.<span style="color:#c0f">Println</span>(<span style="color:#c30">&#34;Error: Command not found:&#34;</span>, args[<span style="color:#f60">0</span>])
+            <span style="color:#069;font-weight:bold">return</span> cli.<span style="color:#c0f">CmdHelp</span>(args[<span style="color:#f60">1</span>:]<span style="color:#555">...</span>)
+        }
+        <span style="color:#069;font-weight:bold">return</span> <span style="color:#c0f">method</span>(args[<span style="color:#f60">1</span>:]<span style="color:#555">...</span>)
+    }
+    <span style="color:#069;font-weight:bold">return</span> cli.<span style="color:#c0f">CmdHelp</span>(args<span style="color:#555">...</span>)
+}</code></pre></div>
+<p>由代码注释可知，Cmd函数执行具体的指令。源码实现中，首先判断请求参数列表的长度是否大于0，若不是的话，说明没有请求信息，返回docker命令的Help信息；若长度大于1的话，说明有请求信息，则首先通过请求参数列表中的第一个元素args[0]来获取具体的method的方法。如果上述method方法不存在，则返回docker命令的Help信息，若存在的话，调用具体的method方法，参数为args<a href="http://www.infoq.com/cn/articles/docker-command-line-quest">1</a>及其之后所有的请求参数。</p>
+
+<p>还是以一个具体的docker命令为例，docker –daemon=false –version=false pull Name。通过以上的分析，可以总结出以下操作流程： (1) 解析flag参数之后，将docker请求参数”pull”和“Name”存放于flag.Args(); (2) 创建好的Docker Client为cli，cli执行cli.Cmd(flag.Args()…); 在Cmd函数中，通过args[0]也就是”pull”,执行cli.getMethod(args[0])，获取method的名称； (3) 在getMothod方法中，通过处理最终返回method的值为”CmdPull”; (4) 最终执行method(args[1:]…)也就是CmdPull(args[1:]…)。</p>
+
+<h3 id="4-2-docker-client执行请求命令"><strong>4.2. Docker Client执行请求命令</strong></h3>
+
+<p>上一节通过一系列的命令解析，最终找到了具体的命令的执行方法，本节内容主要介绍Docker Client如何通过该执行方法处理并发送请求。 由于不同的请求内容不同，执行流程大致相同，本节依旧以一个例子来阐述其中的流程，例子为：docker pull NAME。 Docker Client在执行以上请求命令的时候，会执行CmdPull函数，传入参数为args[1:]&hellip;。源码具体为<a href="https://github.com/docker/docker/blob/v1.2.0/api/client/commands.go#L1183">./docker/api/client/command.go中的CmdPull函数</a>。 以下逐一分析CmdPull的源码实现。</p>
+
+<p>(1)</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">cmd <span style="color:#555">:=</span> cli.<span style="color:#c0f">Subcmd</span>(<span style="color:#c30">&#34;pull&#34;</span>, <span style="color:#c30">&#34;NAME[:TAG]&#34;</span>, <span style="color:#c30">&#34;Pull an image or a repository from the registry&#34;</span>) </code></pre></div>
+<p>通过cli包中的Subcmd方法定义一个类型为Flagset的对象cmd；</p>
+
+<p>(2)</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">tag <span style="color:#555">:=</span> cmd.<span style="color:#c0f">String</span>([]<span style="color:#078;font-weight:bold">string</span>{<span style="color:#c30">&#34;#t&#34;</span>, <span style="color:#c30">&#34;#-tag&#34;</span>}, <span style="color:#c30">&#34;&#34;</span>, <span style="color:#c30">&#34;Download tagged image in a repository&#34;</span>) </code></pre></div>
+<p>给cmd对象定义一个类型为String的flag，名为”#t”或”#-tag”，初始值为空。</p>
+
+<p>(3)</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> cmd.<span style="color:#c0f">Parse</span>(args); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> { 
+    <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>
+}</code></pre></div>
+<p>将args参数进行解析，解析过程中，先提取出是否有符合tag这个flag的参数，若有，将其给赋值给tag参数，其余的参数存入cmd.NArg();若无的话，所有的参数存入cmd.NArg()中。</p>
+
+<p>(4)</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">if</span> cmd.<span style="color:#c0f">NArg</span>() <span style="color:#555">!=</span> <span style="color:#f60">1</span> {
+    cmd.<span style="color:#c0f">Usage</span>()
+    <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span> 
+} </code></pre></div>
+<p>判断经过flag解析后的参数列表，若参数列表中参数的个数不为1，则说明需要pull多个image，pull命令不支持，则调用错误处理方法cmd.Usage()，并返回nil。</p>
+
+<p>(5)</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">var</span> (
+    v = url.Values{} 
+    remote = cmd.<span style="color:#c0f">Arg</span>(<span style="color:#f60">0</span>) 
+)
+v.<span style="color:#c0f">Set</span>(<span style="color:#c30">&#34;fromImage&#34;</span>, remote) 
+<span style="color:#069;font-weight:bold">if</span> <span style="color:#555">*</span>tag <span style="color:#555">==</span> <span style="color:#c30">&#34;&#34;</span> {
+    v.<span style="color:#c0f">Set</span>(<span style="color:#c30">&#34;tag&#34;</span>, <span style="color:#555">*</span>tag) 
+} </code></pre></div>
+<p>创建一个map类型的变量v，该变量用于存放pull镜像时所需的url参数；随后将参数列表的第一个值赋给remote变量，并将remote作为键为fromImage的值添加至v；最后若有tag信息的话，将tag信息作为键为”tag”的值添加至v。</p>
+
+<p>(6)</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">remote, _ = parsers.<span style="color:#c0f">ParseRepositoryTag</span>(remote) 
+<span style="color:#09f;font-style:italic">// Resolve the Repository name from fqn to hostname + name
+</span><span style="color:#09f;font-style:italic"></span>hostname, _, err <span style="color:#555">:=</span> registry.<span style="color:#c0f">ResolveRepositoryName</span>(remote) 
+<span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+    <span style="color:#069;font-weight:bold">return</span> err
+} </code></pre></div>
+<p>通过remote变量解析出镜像所在的host地址，以及镜像的名称。</p>
+
+<p>(7)</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">cli.<span style="color:#c0f">LoadConfigFile</span>()
+<span style="color:#09f;font-style:italic">// Resolve the Auth config relevant for this server 
+</span><span style="color:#09f;font-style:italic"></span>authConfig <span style="color:#555">:=</span> cli.configFile.<span style="color:#c0f">ResolveAuthConfig</span>(hostname)</code></pre></div>
+<p>通过cli对象获取与Docker Server通信所需要的认证配置信息。</p>
+
+<p>(8)</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">pull <span style="color:#555">:=</span> <span style="color:#069;font-weight:bold">func</span>(authConfig registry.AuthConfig) <span style="color:#078;font-weight:bold">error</span> {
+    buf, err <span style="color:#555">:=</span> json.<span style="color:#c0f">Marshal</span>(authConfig) 
+    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> { 
+        <span style="color:#069;font-weight:bold">return</span> err 
+    } 
+    registryAuthHeader <span style="color:#555">:=</span> []<span style="color:#078;font-weight:bold">string</span>{ 
+        base64.URLEncoding.<span style="color:#c0f">EncodeToString</span>(buf),
+    } 
+    <span style="color:#069;font-weight:bold">return</span> cli.<span style="color:#c0f">stream</span>(<span style="color:#c30">&#34;POST&#34;</span>, <span style="color:#c30">&#34;/images/create?&#34;</span><span style="color:#555">+</span>v.<span style="color:#c0f">Encode</span>(), <span style="color:#069;font-weight:bold">nil</span>, cli.out, <span style="color:#069;font-weight:bold">map</span>[<span style="color:#078;font-weight:bold">string</span>][]<span style="color:#078;font-weight:bold">string</span>{
+        <span style="color:#c30">&#34; X-Registry-Auth&#34;</span>: registryAuthHeader, .
+        })
+    } </code></pre></div>
+<p>定义一个名为pull的函数，传入的参数类型为registry.AuthConfig，返回类型为error。函数执行块中最主要的内容为：cli.stream(……)部分。该部分具体发起了一个给Docker Server的POST请求，请求的url为&rdquo;/images/create?&ldquo;+v.Encode()，请求的认证信息为：map[string][]string{&ldquo;X-Registry-Auth&rdquo;: registryAuthHeader,}。</p>
+
+<p>(9)</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> <span style="color:#c0f">pull</span>(authConfig); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+    <span style="color:#069;font-weight:bold">if</span> strings.<span style="color:#c0f">Contains</span>(err.<span style="color:#c0f">Error</span>(), <span style="color:#c30">&#34;Status 401&#34;</span>) {
+        fmt.<span style="color:#c0f">Fprintln</span>(cli.out, <span style="color:#c30">&#34;\\nPlease login prior to pull:&#34;</span>)
+        <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> cli.<span style="color:#c0f">CmdLogin</span>(hostname); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+            <span style="color:#069;font-weight:bold">return</span> err 
+        }
+        authConfig <span style="color:#555">:=</span> cli.configFile.<span style="color:#c0f">ResolveAuthConfig</span>(hostname)
+        <span style="color:#069;font-weight:bold">return</span> <span style="color:#c0f">pull</span>(authConfig) 
+        }
+        <span style="color:#069;font-weight:bold">return</span> err 
+} </code></pre></div>
+<p>由于上一个步骤只是定义pull函数，这一步骤具体调用执行pull函数，若成功则最终返回，若返回错误，则做相应的错误处理。若返回错误为401，则需要先登录，转至登录环节，完成之后，继续执行pull函数，若完成则最终返回。 以上便是pull请求的全部执行过程，其他请求的执行在流程上也是大同小异。总之，请求执行过程中，大多都是将命令行中关于请求的参数进行初步处理，并添加相应的辅助信息，最终通过指定的协议给Docker Server发送Docker Client和Docker Server约定好的API请求。</p>
+
+<h2 id="5-总结"><strong>5. 总结</strong></h2>
+
+<p>本文从源码的角度分析了从docker可执行文件开始，到创建Docker Client，最终发送给Docker Server请求的完整过程。 笔者认为，通过学习与理解Docker Client相关的源码实现，不仅可以让用户熟练掌握Docker命令的使用，还可以使得用户在特殊情况下有能力修改Docker Client的源码，使其满足自身系统的某些特殊需求，以达到定制Docker Client的目的，最大发挥Docker开放思想的价值。</p>
+
+<h2 id="6-参考文献"><strong>6. 参考文献</strong></h2>
+
+<ol>
+<li><a href="http://www.infoq.com/cn/articles/docker-command-line-quest">深入浅出Docker（二）：Docker命令行探秘</a></li>
+<li><a href="http://docs.studygolang.com/pkg/">The Go Programming Language</a></li>
+<li><a href="http://blog.studygolang.com/2013/02/%E6%A0%87%E5%87%86%E5%BA%93-%E5%91%BD%E4%BB%A4%E8%A1%8C%E5%8F%82%E6%95%B0%E8%A7%A3%E6%9E%90flag/">GO标准库—命令行参数解析flag包</a></li>
+<li><a href="https://docs.docker.com/reference/commandline/cli/">Docker Reference-Command Line</a></li>
+</ol>
+                        </div>
+                        
+                        
+                        
+                        
+                        
+                        
+
+                        
+                        <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+                        <script src="https://unpkg.com/gitalk@latest/dist/gitalk.min.js"></script> 
+                        <script type="text/javascript" src="/assets/js/md5.min.js"></script>
+                        <div id="gitalk-container"></div>     
+                        <script type="text/javascript">
+                            var gitalk = new Gitalk({
+                              clientID: '835183d2dcbd1167ac28', 
+                            
+                              clientSecret: 'd873919fac3cc76921ee0800172c2279bc612f8d', 
+                            
+                              repo: 'Sel-Website-talk',
+                              owner: 'Peeknut',
+                              admin: ['Peeknut','Rachel-Shao'],
+                              id: location.href.split("/").pop().substring(0, 49),      
+                              distractionFreeMode: false  
+                            })
+                            gitalk.render('gitalk-container')
+                        </script> 
+                        
+
+                    </div>
+                    
+
+                    
+
+                    
+
+                    <div class="col-md-3">
+
+                        
+
+                        
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+      <h3 class="panel-title">搜索栏</h3>
+      
+    </div>
+
+    <div class="panel-body">
+        
+        <div class="search" id="search">
+            <div class="input-group">
+                <input type="text" name="q" class="form-control" placeholder="请输入文章标题或摘要..." id="search-key">
+                <input type="hidden" name="sitesearch" value="https://Congrool.github.io/">
+                <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main" onclick="search()"><i class="fas fa-search"></i></button>
+                </span>
+            </div>
+            <h1 id="search-tip" style="color: red;text-align: center;display: none;font-size: medium;">搜索中，请稍后 ...</h1>
+        </div>
+        <script type="text/javascript">
+            
+            window.onload = function() {
+                      document.onkeydown = function(ev) {
+                        var event = ev || event
+                        if (event.keyCode == 13) {
+                          search()
+                        }
+                      }
+                    }
+            
+            function search() {
+                    
+                      key = document.getElementById("search-key").value;
+                      if (key === "") {
+                        
+                        return;
+                      }
+                      key = key.toLowerCase();
+                      document.getElementById("search-key").value = "";
+                  
+                      
+                      document.getElementById("search-tip").innerText = "搜索中，请稍后 ...";
+                      document.getElementById("search-tip").style.display = "block";
+                  
+                      
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      var childs = el.childNodes;
+                      for (var i = childs.length - 1; i >= 0; i--) {
+                        el.removeChild(childs[i]);
+                      }
+                  
+                      
+                      xmltext = new XMLHttpRequest;
+                      xmltext.open("GET", "/index.xml", false);
+                      xmltext.send();
+                      resp = xmltext.responseXML;
+                      
+                      items = resp.getElementsByTagName("item");
+                      
+                      var i = 0;
+                      haveResult = false;
+                      while (i < items.length) {
+                        txt = items[i].getElementsByTagName("title")[0].innerHTML + items[i].getElementsByTagName("description")[0].innerHTML
+                        txt = txt.toLowerCase();
+                        if (txt.indexOf(key) > -1) {
+                          haveResult = true;
+                          title = items[i].getElementsByTagName("title")[0].innerHTML;
+                          link = items[i].getElementsByTagName("link")[0].innerHTML;
+                          time = items[i].getElementsByTagName("pubDate")[0].innerHTML;
+                          mark = items[i].getElementsByTagName("description")[0].innerHTML;
+                          time = time.slice(0, -5);
+                          addItem(title, link, time, mark)
+                        }
+                        i++;
+                      }
+                      if (!haveResult) {
+                        document.getElementById("search-tip").innerText = "搜索完毕，未发现结果 ...";
+                        document.getElementById("search-tip").style.display = "block";
+                      }
+
+                      
+                      var el = document.getElementById("blog-head");
+                      el.innerHTML="Blogs"
+                    }
+                  
+                    
+                    function addItem(title, link, time, mark) {
+                      document.getElementById("search-tip").style.display = "none";
+                      tmpl = "<article class=\"post\" style=\"border-bottom: 1px solid #e6e6e6;\" >" +
+                        "<header class=\"post-header\">" +
+                        "<h1 class=\"post-title\"><a class=\"post-link\" href=\"" + link + "\" target=\"_blank\">" + title + "</a></h1>" +
+                        "<div class=\"post-meta\">" +
+                        " <span class=\"post-time\">" + time + "</span>" +
+                        "</div>" +
+                        " </header>" +
+                        "<div class=\"post-content\">" +
+                        "<div class=\"post-summary\">" + mark + "</div>" +
+                        "<div class=\"read-more\">" +
+                        "<a href=" + link + " class=\"read-more-link\" target=\"_blank\">阅读更多</a>" +
+                        "</div>" +
+                        " </div>" +
+                        "</article>"
+                      div = document.createElement("div")
+                      div.innerHTML = tmpl;
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      el.appendChild(div)
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+
+        </script>
+        
+    </div>
+</div>
+
+
+
+
+
+
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">归档栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="nav nav-pills nav-stacked">
+            
+            
+            <li>
+                <a href="/categories/bosh">bosh (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloud_controller_ng">cloud_controller_ng (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloudfoundry">cloudfoundry (15)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/containerd">containerd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/docker">docker (19)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/etcd">etcd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/haproxy">haproxy (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/healthmanager">healthmanager (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/karmada">karmada (4)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubeedge">kubeedge (5)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubernetes">kubernetes (14)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/network">network (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/openyurt">openyurt (2)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/service-mesh">service-mesh (4)</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+<div class="panel sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">标签栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="tag-cloud">
+            
+            
+            <li>
+                <a href="/tags/agent"><i class="fas fa-tags"></i> agent</a>
+            </li>
+            
+            <li>
+                <a href="/tags/apiserver"><i class="fas fa-tags"></i> apiserver</a>
+            </li>
+            
+            <li>
+                <a href="/tags/books"><i class="fas fa-tags"></i> books</a>
+            </li>
+            
+            <li>
+                <a href="/tags/bosh"><i class="fas fa-tags"></i> bosh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/ccng"><i class="fas fa-tags"></i> ccng</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cf-release"><i class="fas fa-tags"></i> cf-release</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cgroups"><i class="fas fa-tags"></i> cgroups</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudfoundry"><i class="fas fa-tags"></i> cloudfoundry</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudnative"><i class="fas fa-tags"></i> cloudnative</a>
+            </li>
+            
+            <li>
+                <a href="/tags/collector"><i class="fas fa-tags"></i> collector</a>
+            </li>
+            
+            <li>
+                <a href="/tags/containerd"><i class="fas fa-tags"></i> containerd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cri"><i class="fas fa-tags"></i> cri</a>
+            </li>
+            
+            <li>
+                <a href="/tags/dea"><i class="fas fa-tags"></i> dea</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker"><i class="fas fa-tags"></i> docker</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker-network"><i class="fas fa-tags"></i> docker-network</a>
+            </li>
+            
+            <li>
+                <a href="/tags/edgecomputing"><i class="fas fa-tags"></i> edgecomputing</a>
+            </li>
+            
+            <li>
+                <a href="/tags/etcd"><i class="fas fa-tags"></i> etcd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/gorouter"><i class="fas fa-tags"></i> gorouter</a>
+            </li>
+            
+            <li>
+                <a href="/tags/haproxy"><i class="fas fa-tags"></i> haproxy</a>
+            </li>
+            
+            <li>
+                <a href="/tags/healthmanager"><i class="fas fa-tags"></i> healthmanager</a>
+            </li>
+            
+            <li>
+                <a href="/tags/istio"><i class="fas fa-tags"></i> istio</a>
+            </li>
+            
+            <li>
+                <a href="/tags/karmada"><i class="fas fa-tags"></i> karmada</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubeedge"><i class="fas fa-tags"></i> kubeedge</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubelet"><i class="fas fa-tags"></i> kubelet</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubernetes"><i class="fas fa-tags"></i> kubernetes</a>
+            </li>
+            
+            <li>
+                <a href="/tags/libcontainer"><i class="fas fa-tags"></i> libcontainer</a>
+            </li>
+            
+            <li>
+                <a href="/tags/micro-service"><i class="fas fa-tags"></i> micro-service</a>
+            </li>
+            
+            <li>
+                <a href="/tags/namespace"><i class="fas fa-tags"></i> namespace</a>
+            </li>
+            
+            <li>
+                <a href="/tags/nats"><i class="fas fa-tags"></i> nats</a>
+            </li>
+            
+            <li>
+                <a href="/tags/news"><i class="fas fa-tags"></i> news</a>
+            </li>
+            
+            <li>
+                <a href="/tags/openyurt"><i class="fas fa-tags"></i> openyurt</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pipework"><i class="fas fa-tags"></i> pipework</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pouch"><i class="fas fa-tags"></i> pouch</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runc"><i class="fas fa-tags"></i> runc</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runtime"><i class="fas fa-tags"></i> runtime</a>
+            </li>
+            
+            <li>
+                <a href="/tags/security"><i class="fas fa-tags"></i> security</a>
+            </li>
+            
+            <li>
+                <a href="/tags/serverless"><i class="fas fa-tags"></i> serverless</a>
+            </li>
+            
+            <li>
+                <a href="/tags/service-mesh"><i class="fas fa-tags"></i> service-mesh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/syslog_aggregator"><i class="fas fa-tags"></i> syslog_aggregator</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+                        
+
+                    </div>
+                    
+
+                    
+
+                </div>
+                
+
+            </div>
+            
+        </div>
+        
+
+        <footer id="footer">
+    <div class="container">
+
+        
+        <div class="col-md-4 col-sm-6">
+            <h4></h4>
+
+            <p><strong>关于我们：<strong> <p>浙大SEL实验室</p><p>地址：杭州市浙大路38号曹光彪西楼405室</p><p><strong></strong>
+            <a href="/contact" class="btn btn-small btn-template-main" >跳转到关于</a>
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+        <div class="col-md-4 col-sm-6">
+
+             
+            <h4>最新博客</h4>
+            
+
+            <div class="blog-entries">
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/27/overview.png" class="img-responsive" alt="基于KubeEdge的边缘节点分组管理设计与实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">基于KubeEdge的边缘节点分组管理设计与实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/20/karmada-scheduler.png" class="img-responsive" alt="多云环境下的资源调度：karmada scheduler的框架和实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">多云环境下的资源调度：karmada scheduler的框架和实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">
+                          
+                            <img src="/img/blogs/19/karmada-arch.jpg" class="img-responsive" alt="多云环境下的成员集群管理，看看开源项目karmada是如何做到的">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">多云环境下的成员集群管理，看看开源项目karmada是如何做到的</a></h5>
+                    </div>
+                </div>
+                
+            </div>
+
+            <hr class="hidden-md hidden-lg">
+             
+
+        </div>
+        
+
+        
+        <div class="col-md-4 col-sm-6">
+
+          <h4></h4>
+
+            <p><strong>联系我们: 
+                                    <p>团队负责人：丁轶群 yiqunding@zju.edu.cn</p>
+                                    <p>网站维护人：刘佳文 839809484@qq.com</p>                
+    </strong>
+
+            
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+    </div>
+    
+</footer>
+
+
+
+
+
+
+
+<div id="copyright">
+    <div class="container">
+        <div class="col-md-12">
+            
+            <p class="pull-left">Copyright ©️ 2020 SEL Laboratory , ZJ University all rights reserved.</p>
+            
+            <p class="pull-right">
+               <a href="https://bootstrapious.com/p/universal-business-e-commerce-template">Bootstrapious</a>.
+              
+
+               <a href="https://github.com/devcows/hugo-universal-theme">DevCows</a>.
+            </p>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+    </div>
+    
+
+    
+
+
+<script src="/js/jquery.min.js"></script>
+<script src="/js/bootstrap.min.js"></script>
+
+
+
+<script src="/js/jquery.cookie.min.js"></script>
+<script src="/js/jquery.waypoints.min.js"></script>
+<script src="/js/jquery.counterup.min.js"></script>
+<script src="/js/jquery-parallax.js"></script>
+
+
+<script src="/js/front.js"></script>
+
+
+<script src="/js/owl.carousel.min.js"></script>
+
+
+
+  </body>
+</html>

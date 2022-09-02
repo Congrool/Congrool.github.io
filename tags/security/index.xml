@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>security on 浙大SEL实验室</title>
+    <link>https://Congrool.github.io/tags/security/</link>
+    <description>Recent content in security on 浙大SEL实验室</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Thu, 30 Jul 2015 13:41:07 +0000</lastBuildDate>
+    
+	<atom:link href="https://Congrool.github.io/tags/security/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>4S: Services Account, Secret, Security Context and Security in Kubernetes</title>
+      <link>https://Congrool.github.io/blog/2015/07/30/4s-services-account-secret-security-context-and-security-in-kubernetes/</link>
+      <pubDate>Thu, 30 Jul 2015 13:41:07 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2015/07/30/4s-services-account-secret-security-context-and-security-in-kubernetes/</guid>
+      <description>&lt;p&gt;Service Account, Secrets和Security Contexts作为保证kubernetes集群Security的策略被引入，相关代码一直处于快速变更与迭代中。本文谨从design和初级实践的视角对其进行概略性的分析，以飨读者。&lt;/p&gt;</description>
+    </item>
+    
+  </channel>
+</rss>

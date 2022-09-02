@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>libcontainer on 浙大SEL实验室</title>
+    <link>https://Congrool.github.io/tags/libcontainer/</link>
+    <description>Recent content in libcontainer on 浙大SEL实验室</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Wed, 03 Jun 2015 13:29:26 +0000</lastBuildDate>
+    
+	<atom:link href="https://Congrool.github.io/tags/libcontainer/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>Docker背后的容器管理——libcontainer深度解析</title>
+      <link>https://Congrool.github.io/blog/2015/06/03/docker%E8%83%8C%E5%90%8E%E7%9A%84%E5%AE%B9%E5%99%A8%E7%AE%A1%E7%90%86-libcontainer%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90/</link>
+      <pubDate>Wed, 03 Jun 2015 13:29:26 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2015/06/03/docker%E8%83%8C%E5%90%8E%E7%9A%84%E5%AE%B9%E5%99%A8%E7%AE%A1%E7%90%86-libcontainer%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90/</guid>
+      <description>&lt;p&gt;libcontainer 是Docker中用于容器管理的包，它基于Go语言实现，通过管理&lt;code&gt;namespaces&lt;/code&gt;、&lt;code&gt;cgroups&lt;/code&gt;、&lt;code&gt;capabilities&lt;/code&gt;以及文件系统来进行容器控制。你可以使用libcontainer创建容器，并对容器进行生命周期管理。&lt;/p&gt;</description>
+    </item>
+    
+  </channel>
+</rss>

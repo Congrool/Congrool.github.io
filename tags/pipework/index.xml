@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>pipework on 浙大SEL实验室</title>
+    <link>https://Congrool.github.io/tags/pipework/</link>
+    <description>Recent content in pipework on 浙大SEL实验室</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Fri, 16 Jan 2015 14:20:20 +0000</lastBuildDate>
+    
+	<atom:link href="https://Congrool.github.io/tags/pipework/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>Docker网络详解及pipework源码解读与实践</title>
+      <link>https://Congrool.github.io/blog/2015/01/16/docker%E7%BD%91%E7%BB%9C%E8%AF%A6%E8%A7%A3%E5%8F%8Apipework%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB%E4%B8%8E%E5%AE%9E%E8%B7%B5/</link>
+      <pubDate>Fri, 16 Jan 2015 14:20:20 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2015/01/16/docker%E7%BD%91%E7%BB%9C%E8%AF%A6%E8%A7%A3%E5%8F%8Apipework%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB%E4%B8%8E%E5%AE%9E%E8%B7%B5/</guid>
+      <description>&lt;p&gt;Docker作为目前最火的轻量级容器技术，有很多令人称道的功能，如Docker的镜像管理。然而，Docker同样有着很多不完善的地方，网络方面就是Docker比较薄弱的部分。因此，我们有必要深入了解Docker的网络知识，以满足更高的网络需求。本文首先介绍了Docker自身的4种网络工作方式，然后通过3个样例 —— 将Docker容器配置到本地网络环境中、单主机Docker容器的VLAN划分、多主机Docker容器的VLAN划分，演示了如何使用&lt;a href=&#34;https://github.com/jpetazzo/pipework&#34;&gt;pipework&lt;/a&gt;帮助我们进行复杂的网络设置，以及pipework是如何工作的。&lt;/p&gt;</description>
+    </item>
+    
+  </channel>
+</rss>

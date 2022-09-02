@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="robots" content="all,follow">
+  <meta name="googlebot" content="index,follow,snippet,archive">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <title>Service Mesh深度学习系列（二）| istio pilot模块分析</title>
+  <meta name="author" content="丁轶群" />
+  
+  
+  
+  
+  <meta name="keywords" content="istio, Kubernetes, micro service, service mesh">
+  
+  
+  <meta name="description" content="如下图所示，istio的pilot模块扮演服务注册中心、istio控制平面到Envoy之间的桥梁作用。pilot主要功能包括：1.监控服务注册中心（如Kubernetes）的服务注册情况。在Kubernetes环境下，会监控service、endpoint、pod、node等资源信息 2.监控istio控制面信息变化，在Kubernetes环境下，会监控包括RouteRule、 VirtualService、Gateway、EgressRule、ServiceEntry等以Kubernetes CRD形式存在的istio控制面配置信息。3.将上述两类信息合并组合为Envoy可以理解的（即遵循Envoy data plane api的）配置信息，并将这些信息以gRPC协议提供给Envoy">
+
+  <meta name="generator" content="Hugo 0.68.3" />
+
+  
+  <link href='//fonts.googleapis.com/css?family=Roboto:400,100,100italic,300,300italic,500,700,800' rel='stylesheet' type='text/css'>
+
+  
+  
+  
+  
+  
+
+  <link href="/css/all.css" rel="stylesheet">
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+
+  
+  <link href="/css/animate.css" rel="stylesheet">
+
+  
+  
+    <link href="/css/style.default.css" rel="stylesheet" id="theme-stylesheet">
+  
+
+  
+  <link href="/css/custom.css" rel="stylesheet">
+
+  
+  
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+        <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  
+
+  
+  <link rel="shortcut icon" href="/img/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
+
+  
+  <link href="/css/owl.carousel.css" rel="stylesheet">
+  <link href="/css/owl.theme.css" rel="stylesheet">
+
+  
+  <link rel="alternate" href="https://Congrool.github.io/index.xml" type="application/rss+xml" title="浙大SEL实验室">
+
+  
+  
+  
+  
+  
+  
+  <meta property="og:updated_time" content="2018-07-13T14:15:16Z">
+  
+    
+    
+    <meta property="article:section" content="service mesh">
+    <meta property="article:tag" content="istio">
+    <meta property="article:tag" content="Kubernetes">
+    <meta property="article:tag" content="micro service">
+    <meta property="article:tag" content="service mesh">
+    
+    
+    <meta property="article:published_time" content="2018-07-13T14:15:16Z">
+    <meta property="article:modified_time" content="2018-07-13T14:15:16Z">
+  
+
+  
+  <meta name="twitter:card" content="summary">
+  
+  <meta name="twitter:title" content="Service Mesh深度学习系列（二）| istio pilot模块分析">
+  
+  <meta name="twitter:description" content="如下图所示，istio的pilot模块扮演服务注册中心、istio控制平面到Envoy之间的桥梁作用。pilot主要功能包括：1.监控服务注册中心（如Kubernetes）的服务注册情况。在Kubernetes环境下，会监控service、endpoint、pod、node等资源信息 2.监控istio控制面信息变化，在Kubernetes环境下，会监控包括RouteRule、 …">
+  
+  
+</head>
+
+
+  <body>
+
+    <div id="all">
+
+        <header class="navbar-affixed-top" data-spy="affix" data-offset-top="62">
+    <div class="navbar navbar-default yamm" role="navigation" id="navbar" style="background-color:white;">    
+        <div class="container">
+            <div class="navbar-header">
+                <a class="navbar-brand home" href="/">
+                    <img src="/img/sel.png" alt="Service Mesh深度学习系列（二）| istio pilot模块分析" class="hidden-xs hidden-sm img-responsive">
+                    
+                    <span class="sr-only">Service Mesh深度学习系列（二）| istio pilot模块分析 - </span>
+                </a>
+                <div class="navbar-buttons">
+                    <button type="button" class="navbar-toggle btn-template-main" data-toggle="collapse" data-target="#navigation">
+                      <span class="sr-only"></span>
+                        <i class="fas fa-align-justify"></i>
+                    </button>
+                </div>
+            </div>
+            
+
+            <div class="navbar-collapse collapse" id="navigation">
+                <ul class="nav navbar-nav navbar-right">
+                  
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/">主页</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/blog/">博客</a>
+                    
+                  </li>
+
+                  <li class="dropdown">
+                    
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">社区 <span class="caret"></span></a>
+                  <ul class="dropdown-menu">
+                    
+                      <li><a href="https://www.servicemesher.com/">ServiceMesh社区</a></li>
+                    
+                      <li><a href="">kubeedge社区</a></li>
+
+                      <li><a href="http://www.icsoft.zju.edu.cn/index.php">浙江大学智能计算与软件中心</a></li>
+                    
+                  </ul>
+
+                  <li class="dropdown">
+                    
+                    <a href="/archives/">归档</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/contact/">关于</a>
+                    
+                  </li>
+                  
+                </li>
+
+                
+                
+
+                
+                </ul>
+            </div>
+            
+
+            <div class="collapse clearfix" id="search">    
+                <form class="navbar-form" role="search">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search">
+                        <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main"><i class="fas fa-search"></i></button>
+                </span>
+                    </div>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+
+    
+</header>
+
+
+
+
+        <div id="heading-breadcrumbs">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h1>Service Mesh深度学习系列（二）| istio pilot模块分析</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+        <div id="content">
+            <div class="container">
+
+                <div class="row">
+
+                    
+
+                    <div class="col-md-9" id="blog-post">
+
+                        
+                          <p class="text-muted text-uppercase mb-small text-right">
+                             <a href="#">丁轶群</a>
+                             | 
+                            2018-07-13
+                          </p>
+                        
+
+                        <div id="post-content">
+                          <p>本文分析的istio代码版本为0.8.0，commit为0cd8d67，commit时间为2018年6月18日。</p>
+
+<h2 id="pilot总体架构">pilot总体架构</h2>
+
+<p><center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605799556/sel/68747470733a2f2f63646e2e7261776769742e636f6d2f697374696f2f70696c6f742f6d61737465722f646f632f70696c6f742e737667_iurgnw.svg" alt="istio architecture" style="zoom:40%;" />
+</center>
+首先我们回顾一下pilot总体架构，上面是<a href="https://github.com/istio/old_pilot_repo/blob/master/doc/design.md">官方关于pilot的架构图</a>，因为是old_pilot_repo目录下，可能与最新架构有出入，仅供参考。所谓的pilot包含两个组件：pilot-agent和pilot-discovery。图里的agent对应pilot-agent二进制，proxy对应Envoy二进制，它们两个在同一个容器中，discovery service对应pilot-discovery二进制，在另外一个跟应用分开部署的单独的deployment中。</p>
+
+<ol>
+<li><strong>discovery service</strong>：从Kubernetes apiserver list/watch <code>service</code>、<code>endpoint</code>、<code>pod</code>、<code>node</code>等资源信息，监听istio控制平面配置信息（如VirtualService、DestinationRule等）， 翻译为Envoy可以直接理解的配置格式。</li>
+<li><strong>proxy</strong>：也就是Envoy，直接连接discovery service，间接地从Kubernetes等服务注册中心获取集群中微服务的注册情况</li>
+<li><strong>agent</strong>：生成Envoy配置文件，管理Envoy生命周期</li>
+<li><strong>service A/B</strong>：使用了istio的应用，如Service A/B，的进出网络流量会被proxy接管</li>
+</ol>
+
+<blockquote>
+<p><em>对于模块的命名方法，本文采用模块对应源码main.go所在包名称命名法。其他istio分析文章有其他命名方法。比如pilot-agent也被称为istio pilot，因为它在Kubernetes上的部署形式为一个叫istio-pilot的deployment。</em></p>
+</blockquote>
+
+<h2 id="pilot-discovery的部署存在形式">pilot-discovery的部署存在形式</h2>
+
+<p>pilot-discovery是单独二进制，被封装在Dockerfile.pilot里，在istio-docker.mk里被build成$(HUB)/pilot:$(TAG)镜像。<br />
+根据istio-pilot.yaml.tmpl，在Kubernetes环境下，pilot镜像并非sidecar的一部分，也不是daemonset在每个机器上都有，而是单独部署成一个replica=1的deployment。</p>
+
+<h2 id="pilot-discovery的功能简述">pilot-discovery的功能简述</h2>
+
+<p>pilot-discovery扮演服务注册中心、istio控制平面到Envoy之间的桥梁作用。pilot-discovery的主要功能包括：</p>
+
+<ol>
+<li>监控服务注册中心（如Kubernetes）的服务注册情况。在Kubernetes环境下，会监控<code>service</code>、<code>endpoint</code>、<code>pod</code>、<code>node</code>等资源信息</li>
+<li>监控istio控制面信息变化，在Kubernetes环境下，会监控包括<code>RouteRule</code>、 <code>VirtualService</code>、<code>Gateway</code>、<code>EgressRule</code>、<code>ServiceEntry</code>等以Kubernetes CRD形式存在的istio控制面配置信息。</li>
+<li>将上述两类信息合并组合为Envoy可以理解的（即遵循Envoy data plane api的）配置信息，并将这些信息以gRPC协议提供给Envoy</li>
+</ol>
+
+<h2 id="pilot-discovery主要功能分析之一-初始化">pilot-discovery主要功能分析之一：初始化</h2>
+
+<p>pilot-discovery的初始化主要在pilot-discovery的<code>init</code>方法和在<code>discovery</code>命令处理流程中调用的<code>bootstrap.NewServer</code>完成：</p>
+
+<ol>
+<li>pilot-discovery的<code>init</code>方法为pilot-discovery的<code>discovery</code>命令配置一系列flag及其默认值。flag值被保存在bootstrap包的<code>PilotArgs</code>对象中</li>
+<li><code>bootstrap.NewServer</code>利用<code>PilotArgs</code>构建bootstrap包下的<code>server</code>对象</li>
+</ol>
+
+<p><code>bootstrap.NewServer</code>工作流程如下：</p>
+
+<ol>
+<li><p>创建Kubernetes apiserver client（initKubeClient方法）</p>
+
+<p>根据服务注册中心配置是否包含Kubernetes（一个istio service mesh可以连接多包括Kubernetes在内的多种服务注册中心）创建<code>kubeClient</code>，保存在<code>Server.kubeClient</code>成员中。<code>kubeClient</code>有两种创建方式：</p>
+
+<ol>
+<li>用户提供kubeConfig文件，可以在pilot-discovery的<code>discovery</code>命令的<code>kubeconfig</code> flag中提供文件路径，默认为空。</li>
+<li>当用户没有提供kubeConfig配置文件时，使用in cluster config配置方式，也就是让pilot-discovery通过所在的运行环境，也就是运行着的Kubernetes pod环境，感知集群上下文，自动完成配置。client-go库的注释说这种方式可能有问题：Using the inClusterConfig. This might not work
+<br /></li>
+</ol></li>
+
+<li><p>多集群Kubernetes配置（initClusterRegistryies方法）</p></li>
+</ol>
+
+<p>istio支持使用一个istio control plane来管理跨多个Kubernetes集群上的service mesh。这个叫“multicluster”功能的具体描述参考<a href="https://istio.io/docs/setup/Kubernetes/multicluster-install/">官方文档</a>，当前此特性成熟度仅是<a href="https://istio.io/about/feature-stages/">alpha水平</a>。</p>
+
+<p>istio的控制平面组件（如pilot-discovery）运行所在的Kubernetes集群叫本地集群，通过这个istio控制面板连接的其他Kubernetes集群叫远程集群（remote cluster）。remote cluster信息被保存在<code>Server.clusterStore</code>成员中，里面包含一个map，将<code>Metadata</code>映射成<code>RemoteCluster</code>对象。<code>clusterStore</code>的具体创建流程如下：</p>
+
+<ol>
+<li><p>检测上一步骤是否创建好<code>kubeClient</code>。否，则直接报错返回</p></li>
+
+<li><p>检测服务注册中心中是否包含Mock类型，是的话直接返回</p></li>
+
+<li><p>如果pilot-discovery <code>discovery</code>命令的flag <code>clusterRegistriesConfigMap</code>不为空，则从本地Kubernetes集群中读取一个包含远程Kubernetes集群访问信息的configmap（configmap所在的默认命名空间为<code>“istio-system”</code>，名字通过discovery命令flag <code>clusterRegistriesConfigMap</code>设定）。</p>
+
+<p>这个configmap包含Kubernetes远程集群的访问信息，其形式为键值对。其key为cluster唯一标识符，value为一个使用yaml或json编码的<code>Cluster</code>对象。</p>
+
+<p><code>Cluster</code>对象的Annotations指定一个本地Kubernetes集群中的secret（secret所在命名空间对应的annotation key为<code>config.istio.io/accessConfigSecret</code>，默认为<code>istio-system</code>，secret名称对应annotation key为<code>config.istio.io/accessConfigSecretNamespace</code>）。</p>
+
+<p>到本地Kubernetes集群中读取secret内容，根据这个内容构建保存在<code>clusterStore</code>中的RemoteCluster对象，对应一个远程Kubernetes集群。</p></li>
+
+<li><p>读取mesh配置（initMesh方法）</p></li>
+</ol>
+
+<p>mesh配置由<code>MeshConfig</code>结构体定义，包含<code>MixerCheckServer</code>、<code>MixerReportServer</code>、<code>ProxyListenPort</code>、<code>RdsRefreshDelay</code>、<code>MixerAddress</code>等一些列配置。这里读取默认mesh配置文件&rdquo;/etc/istio/config/mesh&rdquo;（用户可以通过discovery命令的flag <code>meshConfig</code>提供自定义值）。如果配置文件读取失败，也可以从Kubernetes集群中读取configmap获得默认的配置。作为测试，这里也读取flag来覆盖mesh配置的<code>MixerCheckServer</code>和<code>MixerReportServer</code>（但是这两个flag在pilot-discovery的init方法中并没有配置）</p>
+
+<ol>
+<li>配置MixerSan（initMixerSan方法）<br /></li>
+</ol>
+
+<p>如果mesh配置中的控制平面认证策略为mutual TLS(默认为none)，则配置mixerSan</p>
+
+<ol>
+<li>初始化与配置存储中心的连接（initConfigController方法）<br /></li>
+</ol>
+
+<p>对istio做出的各种配置，比如route rule、virtualservice等，需要保存在配置存储中心（config store）内，istio当前支持2种形式的config store:</p>
+
+<ol>
+<li><p>文件存储</p>
+
+<p>通过pilot-discovery <code>discovery</code>命令的<code>configDir</code> flag来设置配置文件的文件系统路径，默认为<code>“configDir”</code>。后续使用pilot/pkg/config/memory包下的controller和pilot/pkg/config/monitor持续监控配置文件的变化。</p></li>
+
+<li><p>Kubernetes CRD</p>
+
+<p>以Kubernetes apiserver作为config store的情况下，config store的初始化流程如下：</p>
+
+<ol>
+<li><p>读取pilot-discovery <code>discovery</code>命令的<code>kubeconfig</code> flag配置的kubeconfig配置文件，flag默认为空。</p></li>
+
+<li><p>注册Kubernetes CRD资源。注册的资源类型定义在bootstrap包下的全局变量<code>ConfigDescriptor</code>变量里，包括:<code>RouteRule</code>、 <code>VirtualService</code>、 <code>Gateway</code>、 <code>EgressRule</code>、 <code>ServiceEntry</code>、 <code>DestinationPolicy</code>、 <code>DestinationRule</code>、 <code>HTTPAPISpec</code>、 <code>HTTPAPISpecBinding</code>、 <code>QuotaSpec</code>、 <code>QuotaSpecBinding</code>、 <code>AuthenticationPolicy</code>, <code>AuthenticationMeshPolicy</code>、 <code>ServiceRole</code>、 <code>ServiceRoleBinding</code>、 <code>RbacConfig</code>。</p>
+
+<p>其中<code>RouteRule</code>、 <code>EgressRule</code>、 <code>DestinationPolicy</code>、 <code>HTTPAPISpec</code>、 <code>HTTPAPISpecBinding</code>、 <code>QuotaSpec</code>、 <code>QuotaSpecBinding</code>、 <code>ServiceRole</code>、 <code>ServiceRoleBinding</code>、 <code>RbacConfig</code>对应istio v1alpha2版本api，<code>VirtualService</code>、<code>Gateway</code>、<code>ServiceEntry</code>、<code>DestinationRule</code>对应istio v1alpha3版本api</p></li>
+</ol>
+
+<p>以文件作为config store显然不灵活，所以我们可以说istio的流量管理策略等控制面信息存储依赖Kubernetes的apiserver。那么当使用cloud foundry等其他非Kubernetes平台作为服务注册中心的时候，istio就需要实现一个“假的”Kubernetes apiserver，不过目前这个工作并没完成，详见社区的一些<a href="https://groups.google.com/forum/#!topic/istio-dev/bhMpHikwrp0">相关讨论</a>。</p>
+
+<p>CRD资源注册完成之后将创建config controller，搭建对CRD资源Add、Update、Delete事件的处理框架。对该框架的处理会在本文&rdquo;pilot-discovery主要功能分析之二：istio控制面信息监控与处理&rdquo;中描述。</p></li>
+
+<li><p>配置与服务注册中心（service registry）的连接（initServiceControllers方法）</p></li>
+</ol>
+
+<p>istio需要从服务注册中心（service registry）获取服务注册的情况。代表pilot-discovery的server对象包含一个<code>ServiceController</code>对象，一个<code>ServiceController</code>对象包含一个或多个service controller(是的，这两个名字只有大小写区别)。每个service controller负责连接服务注册中心并同步相关的服务注册信息。</p>
+
+<p>当前istio支持的服务注册中心类型包括ConfigRegistry, MockRegistry, Kubernetes, Consul, Eureka和CloudFoundry。不过仅对Kubernetes服务注册中心的支持成熟度达到stable水平，其他服务注册中心的集成工作成熟度还都处于alpha水平。</p>
+
+<p><code>ServiceController</code>对象的结构体定义在aggregate包下，从包名可以看出一个<code>ServiceController</code>对象是对多个service controller的聚合。所谓聚合，也就是当对<code>ServiceController</code>操作时，会影响到其聚合的所有service controller。比如，当我们通过<code>AppendServiceHandler</code>或者<code>AppendInstanceHandler</code>向<code>ServiceController</code>添加一个服务注册信息变更事件处理handler时，实际上会将handler注册到所有的service controller上。</p>
+
+<p>具体service controller对服务注册信息的变更处理流程框架将在本文“pilot-discovery主要功能分析之三：服务注册信息监控与处理”中描述。</p>
+
+<p>在istio中有一个特殊的service controller，在pilot-discovery初始化与服务注册中心连接的过程中无需用户在<code>discovery</code>命令的<code>registries</code> flag中提供配置也会默认加载，它就是<code>pilot/pkg/serviceregistry/external</code>包下定义的service entry service controller。该service controller专用来处理istio v1alpha3中的新资源对象ServiceEntry。 ServiceEntry允许用户向istio service mesh中添加外部服务（所以包名叫external），也就是那些不存在于某个服务注册中心的服务，比如下面ServiceEntry资源定义了一个部署在外部的MongoDB服务，关于ServiceEntry的更多使用方法，详见<a href="https://istio.io/docs/reference/config/istio.networking.v1alpha3/#ServiceEntry">官方文档</a>：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml"><span style="color:#bbb">   </span><span style="color:#069;font-weight:bold">apiVersion</span>:<span style="color:#bbb"> </span>networking.istio.io/v1alpha3<span style="color:#bbb">
+</span><span style="color:#bbb">   </span><span style="color:#069;font-weight:bold">kind</span>:<span style="color:#bbb"> </span>ServiceEntry<span style="color:#bbb">
+</span><span style="color:#bbb">   </span><span style="color:#069;font-weight:bold">metadata</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">     </span><span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>external-svc-mongocluster<span style="color:#bbb">
+</span><span style="color:#bbb">   </span><span style="color:#069;font-weight:bold">spec</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">     </span><span style="color:#069;font-weight:bold">hosts</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">     </span>- mymongodb.somedomain<span style="color:#bbb"> </span><span style="color:#09f;font-style:italic"># not used</span><span style="color:#bbb">
+</span><span style="color:#bbb">     </span><span style="color:#069;font-weight:bold">addresses</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">     </span>- <span style="color:#f60">192.192.192.192</span>/<span style="color:#f60">24</span><span style="color:#bbb"> </span><span style="color:#09f;font-style:italic"># VIPs</span><span style="color:#bbb">
+</span><span style="color:#bbb">     </span><span style="color:#069;font-weight:bold">ports</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">     </span>- <span style="color:#069;font-weight:bold">number</span>:<span style="color:#bbb"> </span><span style="color:#f60">27018</span><span style="color:#bbb">
+</span><span style="color:#bbb">       </span><span style="color:#069;font-weight:bold">name</span>:<span style="color:#bbb"> </span>mongodb<span style="color:#bbb">
+</span><span style="color:#bbb">       </span><span style="color:#069;font-weight:bold">protocol</span>:<span style="color:#bbb"> </span>MONGO<span style="color:#bbb">
+</span><span style="color:#bbb">     </span><span style="color:#069;font-weight:bold">location</span>:<span style="color:#bbb"> </span>MESH_INTERNAL<span style="color:#bbb">
+</span><span style="color:#bbb">     </span><span style="color:#069;font-weight:bold">resolution</span>:<span style="color:#bbb"> </span>STATIC<span style="color:#bbb">
+</span><span style="color:#bbb">     </span><span style="color:#069;font-weight:bold">endpoints</span>:<span style="color:#bbb">
+</span><span style="color:#bbb">     </span>- <span style="color:#069;font-weight:bold">address</span>:<span style="color:#bbb"> </span><span style="color:#f60">2.2.2.2</span><span style="color:#bbb">
+</span><span style="color:#bbb">     </span>- <span style="color:#069;font-weight:bold">address</span>:<span style="color:#bbb"> </span><span style="color:#f60">3.3.3.3</span></code></pre></div>
+<ol>
+<li>初始化discovery服务（initDiscoveryService）<br /></li>
+</ol>
+
+<p>istio service mesh中的envoy sidecar通过连接pilot-discovery的discovery服务获取服务注册情况、流量控制策略等控制面的控制信息。discovery服务的初始化主要包括如下几步：</p>
+
+<ol>
+<li><p>创建对外提供REST协议的discovery服务的discovery service对象</p>
+
+<p>istio代码在2018年6月的一次commit （e99cad5）中删除了大量与Envoy v1版本的data plane api相关代码。当前版本的istio中，作为sidecar的Envoy已经不再使用REST协议获取控制面信息。与v1版本Envoy data plane api相关的<code>cds</code>、<code>rds</code>、<code>lds</code>相关代码都已被删除，仅残留<code>sds</code>部分代码。因此作为<code>sds</code>的残留功能，用户依然可以访问<code>&quot;/v1/registration&quot;</code>URL访问与服务<code>endpoint</code>相关的信息，但Envoy并不会访问这个URL。discovery service默认通过8080端口对外提供服务，可以通过pilot-discovery的<code>discovery</code>命令的<code>httpAddr</code> flag自定义端口</p></li>
+
+<li><p>创建对外提供gRPC协议discovery服务的Envoy xds server</p>
+
+<p>所谓的<code>xds</code>代表Envoy v2 data plane api中的<code>eds</code>、 <code>cds</code>、 <code>rds</code>、 <code>lds</code>、 <code>hds</code>、 <code>ads</code>、 <code>kds</code>等一系列api。Envoy xds server默认通过15010和15012端口对外提供服务，可以通过pilot-discovery的<code>discovery</code>命令的<code>grpcAddr</code> 、<code>secureGrpcAddr</code>flag自定义端口。</p>
+
+<p>与Envoy xds server相关代码分析我们将在系列文章的下一篇分析。</p></li>
+
+<li><p>打开运行情况检查端口（initMonitor方法）</p></li>
+</ol>
+
+<p>pilot-discovery默认打开9093端口（端口号可以通过pilot-discovery discovery命令的<code>monitoringAddr</code> flag自定义），对外提供HTTP协议的自身运行状态检查监控功能。当前提供<code>/metrics</code>和<code>/version</code>两个运行状况和基本信息查询URL。</p>
+
+<ol>
+<li>监控多Kubernetes集群中远程集群访问信息变化（initMultiClusterController方法）<br /></li>
+</ol>
+
+<p>当使用一个istio控制面构建跨多个Kubernetes集群的service mesh时，远程Kubernetes集群的访问信息保存在secret中，此处使用list/watch监控secret资源的变化。</p>
+
+<blockquote>
+<p><em>关于上面第五点说的两种config store，代码里实际上还有第三种，通过<code>PilotArgs.Config.Controller</code>配置。但pilot-discovery的<code>init</code>函数里没找到对应flag。</em></p>
+</blockquote>
+
+<p>以上一系列初始化步骤通过bootstrap包的<code>NewServer</code>函数带起，在此过程中pilot-discovery已经启动一部分协程，开始一些控制逻辑的循环执行。比如在上述第九步中的多Kubernetes集群访问信息（secret资源）的监控，在<code>initMonitor</code>方法中，实际上已经启动协程，利用client-go库开始对secret信息的监控（list/watch）与处理。</p>
+
+<p>而pilot-discovery的其他控制逻辑则要在bootstrap包下的<code>Server.Start</code>方法启动，而<code>Start</code>方法的逻辑是顺序执行之前初始化过程中在<code>server</code>对象上注册的一系列启动函数（<code>startFunc</code>）。 本文接下来分析pilot-discovery的其他主要控制逻辑。</p>
+
+<h2 id="pilot-discovery主要功能分析之二-istio控制面信息监控与处理">pilot-discovery主要功能分析之二：istio控制面信息监控与处理</h2>
+
+<p>istio的用户可以通过istioctl创建<code>route rule</code>、<code>virtualservice</code>等实现对服务网络中的流量管理等配置建。而这些配置需要保存在config store中。在当前的istio实现中，config store以Kubernetes CRD的形式将<code>virtualservice</code>等存储在Kubernetes apiserver之后的etcd中。</p>
+
+<p>在前面pilot-discovery初始化第五步骤中pilot-discovery已经完成了<code>RouteRule</code>、<code>VirtualService</code>等CRD资源在Kubernetes apiserver上的注册，接下来pilot-discovery还需要在initConfigController方法中通过config controller搭建CRD资源对象处理的框架。config controller包含以下3个部分：</p>
+
+<ol>
+<li><p>client</p>
+
+<p>client是一个rest client集合，用于连接Kubernetes apiserver，实现对istio CRD资源的list/watch。具体而言，为每个CRD资源的group version (如<code>config.istio.io/v1alpha2</code>、<code>networking.istio.io/v1alpha3</code>)创建一个rest client。该rest client里包含了连接Kubernetes apiserver需要用到的<code>apimachinary</code>、<code>client-go</code>等库里的对象，如<code>GroupVersion</code>、<code>RESTClient</code>等。</p></li>
+
+<li><p>queue</p></li>
+</ol>
+
+<p>用于缓存istio CRD资源对象（如<code>virtual-service</code>、<code>route-rule</code>等）的Add、Update、Delete事件的队列，等待后续由config controller处理。详见本文后续描述</p>
+
+<ol>
+<li>kinds<br /></li>
+</ol>
+
+<p>为每种CRD资源（如<code>virtual-service</code>、<code>route-rule</code>等）创建一个用于list/watch的<code>SharedIndexInformer</code>（Kubernetes client-go库里的概念）。</p>
+
+<p>pilot-discovery在完成config controller的创建之后，向server对象注册<code>startFunc</code>，从而在后续server start的时候启动config controller的主循环逻辑（config controller的Run方法），完成与istio控制面信息相关的监控与处理。config controller主循环主要包括两方面：</p>
+
+<ol>
+<li><p>利用<code>client-go</code>库里的<code>SharedIndexInformer</code>实现对CRD资源的list/watch，为每种CRD资源的Add、Update、Delete事件创建处理统一的流程框架。</p>
+
+<p>这个流程将Add、Update、Delete事件涉及到的CRD资源对象封装为一个Task对象，并将之push到config controller的queue成员里。Task对象除了包含CRD资源对象之外，还包含事件类型（如Add、Update、Delete等），以及处理函数ChainHandler。ChainHandler支持多个处理函数的串联。</p></li>
+
+<li><p>启动协程逐一处理CRD资源事件（queue.run），处理方法是调用每个从queue中取出的Task对象上的ChainHandler</p></li>
+</ol>
+
+<p>这个流程执行结束之后，只是搭建了CRD资源对象变更事件的处理框架，真正CRD变更事件的处理逻辑要等到下面在discovery service中将相应的handler注册到ChainHandler当中。 实际上，前面pilot-discovery初始化第六步中介绍过的service entry service controller就是使用config controller构建的这个事件处理框架的例子。service entry service controller并没有新建与Kubernetes的连接来list/watch ServiceEntry类型的资源对象的更新事件，而是直接在config controller cache上添加了ServiceEntry类型资源更新的事件的ChainHandler上添加了相应的回调函数。</p>
+
+<p>service entry service controller在“搭车”获取ServiceEntry更新事件后，会在回调函数中将更新事件涉及到的ServiceEntry资源对象转换为istio Abstract Model中的service对象，并在后续的pilot-discovery为Envoy提供的<code>cds</code>(cluster discovery service)服务中构建<code>DiscoveryResponse</code>返回给Envoy。关于<code>cds</code>服务以及istio的Abstract Model详见本系列后续文章的说明。</p>
+
+<h2 id="pilot-discovery主要功能分析之三-服务注册信息监控与处理">pilot-discovery主要功能分析之三：服务注册信息监控与处理</h2>
+
+<p>istio需要从服务注册中心（service registry）获取服务注册的情况。当前版本中istio可以对接的服务注册中心类型包括Kubernetes、Consul等。当前istio默认以Kubernetes为服务注册中心，用户可以通过pilot-discovery <code>discovery</code>命令的<code>registries</code> flag提供自定义值。</p>
+
+<p>本小节以Kubernetes服务注册中心为例，分析istio对服务注册信息的变更处理流程框架。</p>
+
+<p>pilot-discovery初始化第六步中通过构建service controller实现对Kubernetes服务注册信息的监控。pilot-discovery在完成service controller的创建之后，会向server对象（server对象代表pilot-discovery组件）注册<code>startFunc</code>，从而在后续server start的时候启动service controller的主循环逻辑（service controller的Run方法），完成服务注册信息的监控与处理。service controller主循环主要包括两方面：</p>
+
+<ol>
+<li>利用<code>client-go</code>库里的<code>SharedIndexInformer</code>监控Kubernetes中的<code>service</code>，<code>endpoints</code>, <code>node</code>和<code>pod</code>资源（默认resync间隔为60秒，可以通过pilot-discovery discovery命令的<code>resync</code> flag配置）。与config controller对于CRD资源的处理方式类似，所有<code>service</code>，<code>endpoints</code>等资源的Add，Update和Delete事件都采用统一处理框架。
+
+<ol>
+<li>将事件封装为Task对象，包含
+
+<ol>
+<li>事件涉及的资源对象</li>
+<li>事件类型：Add、Update和Delete</li>
+<li>Handler：ChainHandler。ChainHandler支持多个处理函数的串联</li>
+</ol></li>
+<li>将Task对象push到service controller的queue成员里。</li>
+</ol></li>
+<li>启动协程逐一处理服务注册信息变更事件（queue.run），处理方法是调用每个从queue中取出的Task对象上的ChainHandler
+<br /></li>
+</ol>
+
+<p>这个流程执行结束之后，只是搭建了服务注册信息变更事件的处理框架，真正服务注册变更事件的处理逻辑要等到下面在discovery service中将相应的handler注册到ChainHandler当中。</p>
+
+<h2 id="pilot-discovery主要功能分析之四-envoy控制面信息服务">pilot-discovery主要功能分析之四：Envoy控制面信息服务</h2>
+
+<p>pilot-discovery创建Envoy xds server对外提供gRPC协议discovery服务。所谓的<code>xds</code>代表<a href="https://github.com/envoyproxy/data-plane-api">data plane api</a>中的<code>cds</code>、 <code>eds</code>、 <code>rds</code>、 <code>lds</code>等。</p>
+
+<p>与<code>xds</code>相关代码分析我们将在系列文章的下一篇分析。</p>
+                        </div>
+                        
+                        
+                        
+                        
+                        
+                        
+
+                        
+                        <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+                        <script src="https://unpkg.com/gitalk@latest/dist/gitalk.min.js"></script> 
+                        <script type="text/javascript" src="/assets/js/md5.min.js"></script>
+                        <div id="gitalk-container"></div>     
+                        <script type="text/javascript">
+                            var gitalk = new Gitalk({
+                              clientID: '835183d2dcbd1167ac28', 
+                            
+                              clientSecret: 'd873919fac3cc76921ee0800172c2279bc612f8d', 
+                            
+                              repo: 'Sel-Website-talk',
+                              owner: 'Peeknut',
+                              admin: ['Peeknut','Rachel-Shao'],
+                              id: location.href.split("/").pop().substring(0, 49),      
+                              distractionFreeMode: false  
+                            })
+                            gitalk.render('gitalk-container')
+                        </script> 
+                        
+
+                    </div>
+                    
+
+                    
+
+                    
+
+                    <div class="col-md-3">
+
+                        
+
+                        
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+      <h3 class="panel-title">搜索栏</h3>
+      
+    </div>
+
+    <div class="panel-body">
+        
+        <div class="search" id="search">
+            <div class="input-group">
+                <input type="text" name="q" class="form-control" placeholder="请输入文章标题或摘要..." id="search-key">
+                <input type="hidden" name="sitesearch" value="https://Congrool.github.io/">
+                <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main" onclick="search()"><i class="fas fa-search"></i></button>
+                </span>
+            </div>
+            <h1 id="search-tip" style="color: red;text-align: center;display: none;font-size: medium;">搜索中，请稍后 ...</h1>
+        </div>
+        <script type="text/javascript">
+            
+            window.onload = function() {
+                      document.onkeydown = function(ev) {
+                        var event = ev || event
+                        if (event.keyCode == 13) {
+                          search()
+                        }
+                      }
+                    }
+            
+            function search() {
+                    
+                      key = document.getElementById("search-key").value;
+                      if (key === "") {
+                        
+                        return;
+                      }
+                      key = key.toLowerCase();
+                      document.getElementById("search-key").value = "";
+                  
+                      
+                      document.getElementById("search-tip").innerText = "搜索中，请稍后 ...";
+                      document.getElementById("search-tip").style.display = "block";
+                  
+                      
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      var childs = el.childNodes;
+                      for (var i = childs.length - 1; i >= 0; i--) {
+                        el.removeChild(childs[i]);
+                      }
+                  
+                      
+                      xmltext = new XMLHttpRequest;
+                      xmltext.open("GET", "/index.xml", false);
+                      xmltext.send();
+                      resp = xmltext.responseXML;
+                      
+                      items = resp.getElementsByTagName("item");
+                      
+                      var i = 0;
+                      haveResult = false;
+                      while (i < items.length) {
+                        txt = items[i].getElementsByTagName("title")[0].innerHTML + items[i].getElementsByTagName("description")[0].innerHTML
+                        txt = txt.toLowerCase();
+                        if (txt.indexOf(key) > -1) {
+                          haveResult = true;
+                          title = items[i].getElementsByTagName("title")[0].innerHTML;
+                          link = items[i].getElementsByTagName("link")[0].innerHTML;
+                          time = items[i].getElementsByTagName("pubDate")[0].innerHTML;
+                          mark = items[i].getElementsByTagName("description")[0].innerHTML;
+                          time = time.slice(0, -5);
+                          addItem(title, link, time, mark)
+                        }
+                        i++;
+                      }
+                      if (!haveResult) {
+                        document.getElementById("search-tip").innerText = "搜索完毕，未发现结果 ...";
+                        document.getElementById("search-tip").style.display = "block";
+                      }
+
+                      
+                      var el = document.getElementById("blog-head");
+                      el.innerHTML="Blogs"
+                    }
+                  
+                    
+                    function addItem(title, link, time, mark) {
+                      document.getElementById("search-tip").style.display = "none";
+                      tmpl = "<article class=\"post\" style=\"border-bottom: 1px solid #e6e6e6;\" >" +
+                        "<header class=\"post-header\">" +
+                        "<h1 class=\"post-title\"><a class=\"post-link\" href=\"" + link + "\" target=\"_blank\">" + title + "</a></h1>" +
+                        "<div class=\"post-meta\">" +
+                        " <span class=\"post-time\">" + time + "</span>" +
+                        "</div>" +
+                        " </header>" +
+                        "<div class=\"post-content\">" +
+                        "<div class=\"post-summary\">" + mark + "</div>" +
+                        "<div class=\"read-more\">" +
+                        "<a href=" + link + " class=\"read-more-link\" target=\"_blank\">阅读更多</a>" +
+                        "</div>" +
+                        " </div>" +
+                        "</article>"
+                      div = document.createElement("div")
+                      div.innerHTML = tmpl;
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      el.appendChild(div)
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+
+        </script>
+        
+    </div>
+</div>
+
+
+
+
+
+
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">归档栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="nav nav-pills nav-stacked">
+            
+            
+            <li>
+                <a href="/categories/bosh">bosh (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloud_controller_ng">cloud_controller_ng (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloudfoundry">cloudfoundry (15)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/containerd">containerd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/docker">docker (19)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/etcd">etcd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/haproxy">haproxy (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/healthmanager">healthmanager (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/karmada">karmada (4)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubeedge">kubeedge (5)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubernetes">kubernetes (14)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/network">network (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/openyurt">openyurt (2)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/service-mesh">service-mesh (4)</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+<div class="panel sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">标签栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="tag-cloud">
+            
+            
+            <li>
+                <a href="/tags/agent"><i class="fas fa-tags"></i> agent</a>
+            </li>
+            
+            <li>
+                <a href="/tags/apiserver"><i class="fas fa-tags"></i> apiserver</a>
+            </li>
+            
+            <li>
+                <a href="/tags/books"><i class="fas fa-tags"></i> books</a>
+            </li>
+            
+            <li>
+                <a href="/tags/bosh"><i class="fas fa-tags"></i> bosh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/ccng"><i class="fas fa-tags"></i> ccng</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cf-release"><i class="fas fa-tags"></i> cf-release</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cgroups"><i class="fas fa-tags"></i> cgroups</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudfoundry"><i class="fas fa-tags"></i> cloudfoundry</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudnative"><i class="fas fa-tags"></i> cloudnative</a>
+            </li>
+            
+            <li>
+                <a href="/tags/collector"><i class="fas fa-tags"></i> collector</a>
+            </li>
+            
+            <li>
+                <a href="/tags/containerd"><i class="fas fa-tags"></i> containerd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cri"><i class="fas fa-tags"></i> cri</a>
+            </li>
+            
+            <li>
+                <a href="/tags/dea"><i class="fas fa-tags"></i> dea</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker"><i class="fas fa-tags"></i> docker</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker-network"><i class="fas fa-tags"></i> docker-network</a>
+            </li>
+            
+            <li>
+                <a href="/tags/edgecomputing"><i class="fas fa-tags"></i> edgecomputing</a>
+            </li>
+            
+            <li>
+                <a href="/tags/etcd"><i class="fas fa-tags"></i> etcd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/gorouter"><i class="fas fa-tags"></i> gorouter</a>
+            </li>
+            
+            <li>
+                <a href="/tags/haproxy"><i class="fas fa-tags"></i> haproxy</a>
+            </li>
+            
+            <li>
+                <a href="/tags/healthmanager"><i class="fas fa-tags"></i> healthmanager</a>
+            </li>
+            
+            <li>
+                <a href="/tags/istio"><i class="fas fa-tags"></i> istio</a>
+            </li>
+            
+            <li>
+                <a href="/tags/karmada"><i class="fas fa-tags"></i> karmada</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubeedge"><i class="fas fa-tags"></i> kubeedge</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubelet"><i class="fas fa-tags"></i> kubelet</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubernetes"><i class="fas fa-tags"></i> kubernetes</a>
+            </li>
+            
+            <li>
+                <a href="/tags/libcontainer"><i class="fas fa-tags"></i> libcontainer</a>
+            </li>
+            
+            <li>
+                <a href="/tags/micro-service"><i class="fas fa-tags"></i> micro-service</a>
+            </li>
+            
+            <li>
+                <a href="/tags/namespace"><i class="fas fa-tags"></i> namespace</a>
+            </li>
+            
+            <li>
+                <a href="/tags/nats"><i class="fas fa-tags"></i> nats</a>
+            </li>
+            
+            <li>
+                <a href="/tags/news"><i class="fas fa-tags"></i> news</a>
+            </li>
+            
+            <li>
+                <a href="/tags/openyurt"><i class="fas fa-tags"></i> openyurt</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pipework"><i class="fas fa-tags"></i> pipework</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pouch"><i class="fas fa-tags"></i> pouch</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runc"><i class="fas fa-tags"></i> runc</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runtime"><i class="fas fa-tags"></i> runtime</a>
+            </li>
+            
+            <li>
+                <a href="/tags/security"><i class="fas fa-tags"></i> security</a>
+            </li>
+            
+            <li>
+                <a href="/tags/serverless"><i class="fas fa-tags"></i> serverless</a>
+            </li>
+            
+            <li>
+                <a href="/tags/service-mesh"><i class="fas fa-tags"></i> service-mesh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/syslog_aggregator"><i class="fas fa-tags"></i> syslog_aggregator</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+                        
+
+                    </div>
+                    
+
+                    
+
+                </div>
+                
+
+            </div>
+            
+        </div>
+        
+
+        <footer id="footer">
+    <div class="container">
+
+        
+        <div class="col-md-4 col-sm-6">
+            <h4></h4>
+
+            <p><strong>关于我们：<strong> <p>浙大SEL实验室</p><p>地址：杭州市浙大路38号曹光彪西楼405室</p><p><strong></strong>
+            <a href="/contact" class="btn btn-small btn-template-main" >跳转到关于</a>
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+        <div class="col-md-4 col-sm-6">
+
+             
+            <h4>最新博客</h4>
+            
+
+            <div class="blog-entries">
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/27/overview.png" class="img-responsive" alt="基于KubeEdge的边缘节点分组管理设计与实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">基于KubeEdge的边缘节点分组管理设计与实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/20/karmada-scheduler.png" class="img-responsive" alt="多云环境下的资源调度：karmada scheduler的框架和实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">多云环境下的资源调度：karmada scheduler的框架和实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">
+                          
+                            <img src="/img/blogs/19/karmada-arch.jpg" class="img-responsive" alt="多云环境下的成员集群管理，看看开源项目karmada是如何做到的">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">多云环境下的成员集群管理，看看开源项目karmada是如何做到的</a></h5>
+                    </div>
+                </div>
+                
+            </div>
+
+            <hr class="hidden-md hidden-lg">
+             
+
+        </div>
+        
+
+        
+        <div class="col-md-4 col-sm-6">
+
+          <h4></h4>
+
+            <p><strong>联系我们: 
+                                    <p>团队负责人：丁轶群 yiqunding@zju.edu.cn</p>
+                                    <p>网站维护人：刘佳文 839809484@qq.com</p>                
+    </strong>
+
+            
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+    </div>
+    
+</footer>
+
+
+
+
+
+
+
+<div id="copyright">
+    <div class="container">
+        <div class="col-md-12">
+            
+            <p class="pull-left">Copyright ©️ 2020 SEL Laboratory , ZJ University all rights reserved.</p>
+            
+            <p class="pull-right">
+               <a href="https://bootstrapious.com/p/universal-business-e-commerce-template">Bootstrapious</a>.
+              
+
+               <a href="https://github.com/devcows/hugo-universal-theme">DevCows</a>.
+            </p>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+    </div>
+    
+
+    
+
+
+<script src="/js/jquery.min.js"></script>
+<script src="/js/bootstrap.min.js"></script>
+
+
+
+<script src="/js/jquery.cookie.min.js"></script>
+<script src="/js/jquery.waypoints.min.js"></script>
+<script src="/js/jquery.counterup.min.js"></script>
+<script src="/js/jquery-parallax.js"></script>
+
+
+<script src="/js/front.js"></script>
+
+
+<script src="/js/owl.carousel.min.js"></script>
+
+
+
+  </body>
+</html>

@@ -1,0 +1,1388 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="robots" content="all,follow">
+  <meta name="googlebot" content="index,follow,snippet,archive">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <title>深入理解Docker容器引擎runC执行框架</title>
+  <meta name="author" content="姚增增" />
+  
+  
+  
+  
+  <meta name="keywords" content="Docker, runc, runtime">
+  
+  
+  <meta name="description" content="根据官方的定义：runC是一个根据OCI标准创建并运行容器的CLI tool。 Docker就是基于runC创建的，简单地说，runC是Docker中最为核心的部分，容器的创建，运行，销毁等等操作最终都将通过调用runC完成。本文以代码走读的形式帮助读者理解runC创建并运行一个容器内部机制。">
+
+  <meta name="generator" content="Hugo 0.68.3" />
+
+  
+  <link href='//fonts.googleapis.com/css?family=Roboto:400,100,100italic,300,300italic,500,700,800' rel='stylesheet' type='text/css'>
+
+  
+  
+  
+  
+  
+
+  <link href="/css/all.css" rel="stylesheet">
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+
+  
+  <link href="/css/animate.css" rel="stylesheet">
+
+  
+  
+    <link href="/css/style.default.css" rel="stylesheet" id="theme-stylesheet">
+  
+
+  
+  <link href="/css/custom.css" rel="stylesheet">
+
+  
+  
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+        <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  
+
+  
+  <link rel="shortcut icon" href="/img/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
+
+  
+  <link href="/css/owl.carousel.css" rel="stylesheet">
+  <link href="/css/owl.theme.css" rel="stylesheet">
+
+  
+  <link rel="alternate" href="https://Congrool.github.io/index.xml" type="application/rss+xml" title="浙大SEL实验室">
+
+  
+  
+  
+  
+  
+  
+  <meta property="og:updated_time" content="2018-05-10T10:16:40Z">
+  
+    
+    
+    <meta property="article:section" content="Docker">
+    <meta property="article:tag" content="Docker">
+    <meta property="article:tag" content="runc">
+    <meta property="article:tag" content="runtime">
+    
+    
+    <meta property="article:published_time" content="2018-05-10T10:16:40Z">
+    <meta property="article:modified_time" content="2018-05-10T10:16:40Z">
+  
+
+  
+  <meta name="twitter:card" content="summary">
+  
+  <meta name="twitter:title" content="深入理解Docker容器引擎runC执行框架">
+  
+  <meta name="twitter:description" content="根据官方的定义：runC是一个根据OCI标准创建并运行容器的CLI tool。 Docker就是基于runC创建的，简单地说，runC是Docker中最为核心的部分，容器的创建，运行，销毁等等操作最终都将通过调用runC完成。本文以代码走读的形式帮助读者理解runC创建并运行一个容器内部机制。">
+  
+  
+</head>
+
+
+  <body>
+
+    <div id="all">
+
+        <header class="navbar-affixed-top" data-spy="affix" data-offset-top="62">
+    <div class="navbar navbar-default yamm" role="navigation" id="navbar" style="background-color:white;">    
+        <div class="container">
+            <div class="navbar-header">
+                <a class="navbar-brand home" href="/">
+                    <img src="/img/sel.png" alt="深入理解Docker容器引擎runC执行框架" class="hidden-xs hidden-sm img-responsive">
+                    
+                    <span class="sr-only">深入理解Docker容器引擎runC执行框架 - </span>
+                </a>
+                <div class="navbar-buttons">
+                    <button type="button" class="navbar-toggle btn-template-main" data-toggle="collapse" data-target="#navigation">
+                      <span class="sr-only"></span>
+                        <i class="fas fa-align-justify"></i>
+                    </button>
+                </div>
+            </div>
+            
+
+            <div class="navbar-collapse collapse" id="navigation">
+                <ul class="nav navbar-nav navbar-right">
+                  
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/">主页</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/blog/">博客</a>
+                    
+                  </li>
+
+                  <li class="dropdown">
+                    
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">社区 <span class="caret"></span></a>
+                  <ul class="dropdown-menu">
+                    
+                      <li><a href="https://www.servicemesher.com/">ServiceMesh社区</a></li>
+                    
+                      <li><a href="">kubeedge社区</a></li>
+
+                      <li><a href="http://www.icsoft.zju.edu.cn/index.php">浙江大学智能计算与软件中心</a></li>
+                    
+                  </ul>
+
+                  <li class="dropdown">
+                    
+                    <a href="/archives/">归档</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/contact/">关于</a>
+                    
+                  </li>
+                  
+                </li>
+
+                
+                
+
+                
+                </ul>
+            </div>
+            
+
+            <div class="collapse clearfix" id="search">    
+                <form class="navbar-form" role="search">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search">
+                        <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main"><i class="fas fa-search"></i></button>
+                </span>
+                    </div>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+
+    
+</header>
+
+
+
+
+        <div id="heading-breadcrumbs">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h1>深入理解Docker容器引擎runC执行框架</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+        <div id="content">
+            <div class="container">
+
+                <div class="row">
+
+                    
+
+                    <div class="col-md-9" id="blog-post">
+
+                        
+                          <p class="text-muted text-uppercase mb-small text-right">
+                             <a href="#">姚增增</a>
+                             | 
+                            2018-05-10
+                          </p>
+                        
+
+                        <div id="post-content">
+                          <h2 id="1-简介">1 简介</h2>
+
+<p>根据官方的定义：runC是一个根据OCI标准创建并运行容器的CLI tool。</p>
+
+<p>Docker就是基于runC创建的，简单地说，runC是Docker中最为核心的部分，容器的创建，运行，销毁等等操作最终都将通过调用runC完成。下面我们将演示如何使用runC，以最精简的方式创建并运行一个容器。</p>
+
+<h3 id="1-1-利用runc运行busybox容器">1.1 利用runC运行busybox容器</h3>
+
+<p>下载并编译runC</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell"><span style="color:#09f;font-style:italic"># create a &#39;github.com/opencontainers&#39; in your GOPATH/src</span>
+<span style="color:#366">cd</span> github.com/opencontainers
+git clone https://github.com/opencontainers/runc
+<span style="color:#366">cd</span> runc
+
+make
+sudo make install</code></pre></div>
+<p>创建容器的根文件系统</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell"><span style="color:#09f;font-style:italic"># create the top most bundle directory</span>
+mkdir /mycontainer
+<span style="color:#366">cd</span> /mycontainer
+
+<span style="color:#09f;font-style:italic"># create the rootfs directory</span>
+mkdir rootfs
+
+<span style="color:#09f;font-style:italic"># export busybox via Docker into the rootfs directory</span>
+docker <span style="color:#366">export</span> <span style="color:#069;font-weight:bold">$(</span>docker create busybox<span style="color:#069;font-weight:bold">)</span> | tar -C rootfs -xvf -</code></pre></div>
+<p>利用runC的spec命令创建默认的配置文件config.json，其中包含了创建一个容器所需的所有配置信息</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">runc spec</code></pre></div>
+<p>利用runC运行busybox容器</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell"><span style="color:#09f;font-style:italic"># run as root</span>
+<span style="color:#366">cd</span> /mycontainer
+runc run mycontainerid
+/ <span style="color:#09f;font-style:italic"># ls</span>
+bin　　dev　　etc　　home　　proc　　root　　sys　　tmp　　usr　　var</code></pre></div>
+<p>可以看到，容器成功运行，此时我们打开另一个终端观察容器的运行状态</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">runc list
+ID              PID         STATUS      BUNDLE         CREATED                          OWNER
+mycontainerid   <span style="color:#f60">1070</span>        running     /mycontainer   2017-12-20T12:26:30.159978871Z   root</code></pre></div>
+<p>事实上，<code>runc run</code>是一个复合命令，它包含了容器的创建<code>runc create</code>，启动<code>runc start</code>以及在退出之后对容器进行的销毁<code>runc delete</code>，从演示的角度看它是最为直观的。但是如果想要深入理解runC内部的实现机制，将容器的创建，启动，销毁三个步骤分开，显然会让整个过程的分析更为简单和易于接受</p>
+
+<p>下面我们就将结合源码，对整个容器技术最为核心的部分进行探究—— 容器是如何创建并启动的</p>
+
+<h2 id="2-源码分析">2 源码分析</h2>
+
+<p>首先，我们来对runC的整体代码结构做一个宏观的把控：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell"><span style="color:#555">[</span>root@VM_68_206_centos runc<span style="color:#555">]</span><span style="color:#09f;font-style:italic"># tree -L 1 -F --dirsfirst</span>
+.
+|-- contrib/
+|-- libcontainer/
+|-- man/
+|-- script/
+|-- tests/
+|-- vendor/
+|-- checkpoint.go
+|-- CONTRIBUTING.md
+|-- create.go
+|-- delete.go
+|-- Dockerfile
+|-- events.go
+|-- exec.go
+|-- init.go
+|-- start.go
+|-- run.go
+......</code></pre></div>
+<p>可以看到在runC的顶层目录中，有着一系列形如<code>create.go</code>, <code>start.go</code>, <code>run.go</code>&hellip;的go文件，它们和runC的子命令，例如<code>runc create...</code>，<code>runc start...</code>，<code>runc run</code>是一致的。 另外，在顶层目录中还有一个名为<code>libcontainer</code>的子目录。对于Docker项目的发展历史有所了解的同学应该都知道，<code>libcontainer</code>曾经是Docker中最为核心的包，容器的创建，删除等一系列工作，最终都是交由它来完成的。</p>
+
+<p>这样一来，runC的代码结构就非常清晰了。我们知道，runC是符合OCI标准的容器运行时。不难猜出，它本质上是对<code>libcontainer</code>的一层薄薄的封装。它会先读取符合OCI标准的容器配置，再将其转换成与<code>libcontainer</code>兼容的格式，最后将转换后的配置交由<code>libcontainer</code>来完成具体的工作。</p>
+
+<h3 id="2-1-容器创建">2.1 容器创建</h3>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// runc/create.go       
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#555">...</span>
+spec, err <span style="color:#555">:=</span> <span style="color:#c0f">setupSpec</span>(context)
+<span style="color:#555">...</span>
+status, err <span style="color:#555">:=</span> <span style="color:#c0f">startContainer</span>(context, spec, CT_ACT_CREATE, <span style="color:#069;font-weight:bold">nil</span>)
+<span style="color:#555">...</span></code></pre></div>
+<p>create.go的工作主要分为如下两部分：</p>
+
+<ol>
+<li><p>将容器配置从config.json文件加载到内存中，保存在一个类型为<a href="https://github.com/opencontainers/runtime-spec/blob/master/specs-go/config.go#L5">*specs.Spec</a> (Spec即为OCI标准的容器配置在内存中的表现形式)的结构体中</p></li>
+
+<li><p>调用<code>startContainer()</code>完成容器的创建工作，值得注意的是<code>runc run</code> , <code>runc create</code>以及<code>runc restore</code>最终都将调用该函数，只是第三个参数不同而已，对于<code>runc create</code>，该参数为<code>CT_ACT_CREATE</code>，表示首次创建容器。接下来程序的执行路径将因该参数的不同而有所不同。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// runc/utils_linux.go
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">func</span> <span style="color:#c0f">startContainer</span>(context <span style="color:#555">*</span>cli.Context, spec <span style="color:#555">*</span>specs.Spec, action CtAct, criuOpts <span style="color:#555">*</span>libcontainer.CriuOpts) (<span style="color:#078;font-weight:bold">int</span>, <span style="color:#078;font-weight:bold">error</span>) {
+    <span style="color:#09f;font-style:italic">// 从参数中获取容器的id
+</span><span style="color:#09f;font-style:italic"></span>    id <span style="color:#555">:=</span> context.<span style="color:#c0f">Args</span>().<span style="color:#c0f">First</span>()
+    <span style="color:#069;font-weight:bold">if</span> id <span style="color:#555">==</span> <span style="color:#c30">&#34;&#34;</span> {
+        <span style="color:#069;font-weight:bold">return</span> <span style="color:#555">-</span><span style="color:#f60">1</span>, errEmptyID
+    }
+    <span style="color:#555">...</span>.
+    <span style="color:#09f;font-style:italic">// 创建符合libcontainer格式的container数据结构
+</span><span style="color:#09f;font-style:italic"></span>    container, err <span style="color:#555">:=</span> <span style="color:#c0f">createContainer</span>(context, id, spec)
+    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        <span style="color:#069;font-weight:bold">return</span> <span style="color:#555">-</span><span style="color:#f60">1</span>, err
+    }
+    <span style="color:#555">...</span>.
+    <span style="color:#09f;font-style:italic">// 创建runner对象
+</span><span style="color:#09f;font-style:italic"></span>    r <span style="color:#555">:=</span> <span style="color:#555">&amp;</span>runner{
+        enableSubreaper: !context.<span style="color:#c0f">Bool</span>(<span style="color:#c30">&#34;no-subreaper&#34;</span>),
+        shouldDestroy:   <span style="color:#069;font-weight:bold">true</span>,
+        container:       container,
+        listenFDs:       listenFDs,
+        notifySocket:    notifySocket,
+        consoleSocket:   context.<span style="color:#c0f">String</span>(<span style="color:#c30">&#34;console-socket&#34;</span>),
+        detach:          context.<span style="color:#c0f">Bool</span>(<span style="color:#c30">&#34;detach&#34;</span>),
+        pidFile:         context.<span style="color:#c0f">String</span>(<span style="color:#c30">&#34;pid-file&#34;</span>),
+        preserveFDs:     context.<span style="color:#c0f">Int</span>(<span style="color:#c30">&#34;preserve-fds&#34;</span>),
+        action:          action,
+        criuOpts:        criuOpts,
+    }
+    <span style="color:#069;font-weight:bold">return</span> r.<span style="color:#c0f">run</span>(spec.Process)
+}
+    </code></pre></div></li>
+</ol>
+
+<p><code>startContainer</code>的工作由如下三部分组成：</p>
+
+<ol>
+<li><p>从参数中获取容器的id，例如对于命令<code>runc create abc</code> ，则获取的id即为<code>abc</code></p></li>
+
+<li><p>调用<code>createContainer</code> ，根据spec中Container相关的内容，调用<code>libcontainer</code> 创建容器对象，且容器的状态设置为<code>Stopped</code>。此时的容器仅仅只是一个内存中的数据结构，并没有与之对应的进程</p></li>
+
+<li><p>创建<code>runner</code>对象并调用相应的<code>run</code>方法，该对象会将spec中的Process转换成<code>libcontainer</code>兼容的模式，并对容器的IO进行配置</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// runc/utils_linux.go
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">func</span> (r <span style="color:#555">*</span>runner) <span style="color:#c0f">run</span>(config <span style="color:#555">*</span>specs.Process) (<span style="color:#078;font-weight:bold">int</span>, <span style="color:#078;font-weight:bold">error</span>) {
+    <span style="color:#555">...</span>
+    <span style="color:#09f;font-style:italic">// 将spec的Process转换为libcontainer要求的Process配置格式
+</span><span style="color:#09f;font-style:italic"></span>    process, err <span style="color:#555">:=</span> <span style="color:#c0f">newProcess</span>(<span style="color:#555">*</span>config)
+    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        r.<span style="color:#c0f">destroy</span>()
+        <span style="color:#069;font-weight:bold">return</span> <span style="color:#555">-</span><span style="color:#f60">1</span>, err
+    }
+    <span style="color:#555">...</span>
+    tty, err <span style="color:#555">:=</span> <span style="color:#c0f">setupIO</span>(process, rootuid, rootgid, config.Terminal, detach, r.consoleSocket)
+    <span style="color:#555">...</span>
+    <span style="color:#069;font-weight:bold">switch</span> r.action {
+    <span style="color:#09f;font-style:italic">// 根据action，创建，恢复或者运行容器
+</span><span style="color:#09f;font-style:italic"></span>    <span style="color:#069;font-weight:bold">case</span> CT_ACT_CREATE:
+        err = r.container.<span style="color:#c0f">Start</span>(process)
+    <span style="color:#069;font-weight:bold">case</span> CT_ACT_RESTORE:
+        err = r.container.<span style="color:#c0f">Restore</span>(process, r.criuOpts)
+    <span style="color:#069;font-weight:bold">case</span> CT_ACT_RUN:
+        err = r.container.<span style="color:#c0f">Run</span>(process)
+    <span style="color:#069;font-weight:bold">default</span>:
+        <span style="color:#366">panic</span>(<span style="color:#c30">&#34;Unknown action&#34;</span>)
+    }</code></pre></div></li>
+</ol>
+
+<p><code>run</code>方法的工作同样由三部分组成：</p>
+
+<ol>
+<li>将OCI标准的进程配置<code>specs.Process</code>转换为符合<code>libcontainer</code>格式的进程配置<code>libcontainer.Process</code></li>
+<li>调用<code>setupIO</code>对进程的IO进行配置，因为IO涉及的内容较为复杂，会在另外的文章中详细叙述</li>
+<li>根据<code>startContainer</code>配置参数的不同，调用不同的方法，分别进行容器的创建，运行或者恢复，本文我们只讨论<code>CT_ACT_CREATE</code>这种情况</li>
+</ol>
+
+<p>到此为止，我们已经将OCI格式的配置，不管是Container还是Process都转换成了<code>libcontainer</code>要求的格式。接着我们将深入<code>libcontainer</code>，真正完成容器实例的创建工作。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// runc/libcontainer/container_linux.go
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">func</span> (c <span style="color:#555">*</span>linuxContainer) <span style="color:#c0f">Start</span>(process <span style="color:#555">*</span>Process) <span style="color:#078;font-weight:bold">error</span> {
+    <span style="color:#555">...</span>
+    status, err <span style="color:#555">:=</span> c.<span style="color:#c0f">currentStatus</span>()
+    <span style="color:#555">...</span>
+    <span style="color:#069;font-weight:bold">if</span> status <span style="color:#555">==</span> Stopped {
+        <span style="color:#09f;font-style:italic">// 如果容器的状态为Stopped，则先创建管道exec.fifo
+</span><span style="color:#09f;font-style:italic"></span>        <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> c.<span style="color:#c0f">createExecFifo</span>(); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+            <span style="color:#069;font-weight:bold">return</span> err
+        }
+    }
+    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> c.<span style="color:#c0f">start</span>(process, status <span style="color:#555">==</span> Stopped); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        <span style="color:#069;font-weight:bold">if</span> status <span style="color:#555">==</span> Stopped {
+            <span style="color:#09f;font-style:italic">// 如果从Stopped状态启动失败，则删除管道exec.fifo
+</span><span style="color:#09f;font-style:italic"></span>            c.<span style="color:#c0f">deleteExecFifo</span>()
+        }
+        <span style="color:#069;font-weight:bold">return</span> err
+    }
+    <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>
+}</code></pre></div>
+<p><code>Start</code>方法仅仅只是对<code>start</code>的一个封装并且会在容器状态为<code>Stopped</code>时（即新建容器时），创建一个路径为<code>/run/runc/$ID/exec.fifo</code>的管道文件，它的作用我们会在后文中详细描述。</p>
+
+<p>值得注意的是<code>start</code>方法的第二个参数对容器的状态进行了判断。事实上，命令<code>runc create</code>和<code>runc exec</code>的代码的执行路径是类似的，它俩共享了大部分的代码。因此，这里我们需要对容器的状态进行判断，如果容器的状态为<code>Stopped</code>说明接下来应当进行容器的创建，否则应当在已有容器中exec一个新进程。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// runc/libcontainer/container_linux.go
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">func</span> (c <span style="color:#555">*</span>linuxContainer) <span style="color:#c0f">start</span>(process <span style="color:#555">*</span>Process, isInit <span style="color:#078;font-weight:bold">bool</span>) <span style="color:#078;font-weight:bold">error</span> {
+    <span style="color:#555">...</span>
+    parent, err <span style="color:#555">:=</span> c.<span style="color:#c0f">newParentProcess</span>(process, isInit)
+    <span style="color:#555">...</span>
+    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> parent.<span style="color:#c0f">start</span>(); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        <span style="color:#555">...</span>
+    }
+    <span style="color:#555">...</span>
+    <span style="color:#069;font-weight:bold">if</span> isInit {
+        <span style="color:#09f;font-style:italic">// 设置容器的状态为created
+</span><span style="color:#09f;font-style:italic"></span>        c.state = <span style="color:#555">&amp;</span>createdState{
+            c: c,
+        }
+        <span style="color:#555">...</span>
+        <span style="color:#069;font-weight:bold">if</span> c.config.Hooks <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+            <span style="color:#09f;font-style:italic">// 返回bundle以及用户定义的annotations
+</span><span style="color:#09f;font-style:italic"></span>            bundle, annotations <span style="color:#555">:=</span> utils.<span style="color:#c0f">Annotations</span>(c.config.Labels)
+            s <span style="color:#555">:=</span> configs.HookState{
+                Version:     c.config.Version,
+                ID:          c.id,
+                Pid:         parent.<span style="color:#c0f">pid</span>(),
+                Bundle:      bundle,
+                Annotations: annotations,
+            }
+            <span style="color:#069;font-weight:bold">for</span> i, hook <span style="color:#555">:=</span> <span style="color:#069;font-weight:bold">range</span> c.config.Hooks.Poststart {
+                <span style="color:#09f;font-style:italic">// 容器启动完成之后，运行PostStart hook
+</span><span style="color:#09f;font-style:italic"></span>                <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> hook.<span style="color:#c0f">Run</span>(s); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+                <span style="color:#555">...</span>
+                }
+            }
+        }
+    } <span style="color:#069;font-weight:bold">else</span> {
+        <span style="color:#09f;font-style:italic">// 如果容器不是第一次启动，标记的状态为running
+</span><span style="color:#09f;font-style:italic"></span>        c.state = <span style="color:#555">&amp;</span>runningState{
+            c: c,
+        }
+    }
+    <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>
+}</code></pre></div>
+<p><code>start</code>方法的工作也可以分为如下三部分：</p>
+
+<ol>
+<li><p>调用<code>newParentProcess</code>创建<code>parentProcess</code> 对象</p></li>
+
+<li><p>调用<code>parentProcess</code>的<code>start</code>方法，它真正完成容器进程的创建以及初始化工作</p></li>
+
+<li><p>如果<code>isInit</code>参数为true，则说明执行的命令为<code>runc create</code>，更新容器状态为<code>Created</code>，并且如果定义了hooks（回调函数），则还需要执行<code>PostStart</code>类型的hook函数。否则，如果执行的命令为<code>runc exec</code>，则更新容器状态为<code>Running</code></p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// runc/libcontainer/container_linux.go
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">func</span> (c <span style="color:#555">*</span>linuxContainer) <span style="color:#c0f">newParentProcess</span>(p <span style="color:#555">*</span>Process, doInit <span style="color:#078;font-weight:bold">bool</span>) (parentProcess, <span style="color:#078;font-weight:bold">error</span>) {
+    parentPipe, childPipe, err <span style="color:#555">:=</span> utils.<span style="color:#c0f">NewSockPair</span>(<span style="color:#c30">&#34;init&#34;</span>)
+    <span style="color:#555">...</span>
+    <span style="color:#09f;font-style:italic">// 创建子进程的运行模板
+</span><span style="color:#09f;font-style:italic"></span>    cmd, err <span style="color:#555">:=</span> c.<span style="color:#c0f">commandTemplate</span>(p, childPipe)
+    <span style="color:#555">...</span>
+    <span style="color:#069;font-weight:bold">if</span> !doInit {
+        <span style="color:#09f;font-style:italic">// 如果为exec命令，则调用c.newSetnsProcess
+</span><span style="color:#09f;font-style:italic"></span>        <span style="color:#069;font-weight:bold">return</span> c.<span style="color:#c0f">newSetnsProcess</span>(p, cmd, parentPipe, childPipe)
+    }
+    <span style="color:#555">...</span>
+    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> c.<span style="color:#c0f">includeExecFifo</span>(cmd); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        <span style="color:#555">...</span>
+    }
+    <span style="color:#069;font-weight:bold">return</span> c.<span style="color:#c0f">newInitProcess</span>(p, cmd, parentPipe, childPipe)
+}</code></pre></div></li>
+</ol>
+
+<p><code>newParentProcess</code>首先创建了一个名为<code>init</code>的管道，它一方面会在创建容器时给容器的初始化进程传输容器的配置信息，另一方面它也会用于runC和容器进程之间的同步。</p>
+
+<p>之后，它会调用<code>commandTemplate</code>创建容器初始化进程的运行模板，如下所示：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// runc/libcontainer/container_linux.go
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">func</span> (c <span style="color:#555">*</span>linuxContainer) <span style="color:#c0f">commandTemplate</span>(p <span style="color:#555">*</span>Process, childPipe <span style="color:#555">*</span>os.File) (<span style="color:#555">*</span>exec.Cmd, <span style="color:#078;font-weight:bold">error</span>) {
+    cmd <span style="color:#555">:=</span> exec.<span style="color:#c0f">Command</span>(c.initPath, c.initArgs[<span style="color:#f60">1</span>:]<span style="color:#555">...</span>)
+    cmd.Args[<span style="color:#f60">0</span>] = c.initArgs[<span style="color:#f60">0</span>]
+    cmd.Stdin = p.Stdin
+    cmd.Stdout = p.Stdout
+    cmd.Stderr = p.Stderr
+    cmd.Dir = c.config.Rootfs
+    <span style="color:#555">...</span>
+    <span style="color:#09f;font-style:italic">// 让子进程获取init pipe的信息
+</span><span style="color:#09f;font-style:italic"></span>    cmd.Env = <span style="color:#366">append</span>(cmd.Env,
+        fmt.<span style="color:#c0f">Sprintf</span>(<span style="color:#c30">&#34;_LIBCONTAINER_INITPIPE=%d&#34;</span>, stdioFdCount<span style="color:#555">+</span><span style="color:#366">len</span>(cmd.ExtraFiles)<span style="color:#555">-</span><span style="color:#f60">1</span>),
+    )
+    <span style="color:#555">...</span>
+    <span style="color:#069;font-weight:bold">return</span> cmd, <span style="color:#069;font-weight:bold">nil</span>
+}</code></pre></div>
+<p>从上面的代码中我们可以看出，环境变量也是runC进程和容器初始化进程之间进行交互的一种重要方式。上文中的<code>init</code> 管道的信息就是通过环境变量的方式从runC传递给容器初始化进程的。</p>
+
+<p>到这里，我们脑海中可能会浮现出另一个问题：<code>c.initPath</code>应该就是容器初始化进程的二进制文件的路径，那么它是一个独立于runC的二进制文件么？它又是放在哪的呢？事实上，<code>c.initPath</code>在上文初始化Container对象时会被初始化为<code>/proc/self/exe</code>，而<code>c.initArgs</code>被设置为<code>init</code> ，因此我们创建子进程的过程其实相当于执行了<code>runc init</code>这条命令。</p>
+
+<p>如果执行的命令为<code>runc create</code>，还需要将前文提到的<code>exec.fifo</code>这个管道同样以环境变量的形式传递到容器初始化进程中。最后，调用<code>newInitProcess</code>将所有配置都填充至结构体<code>initProcess</code>中。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// runc/libcontainer/process_linux.go
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">func</span> (p <span style="color:#555">*</span>initProcess) <span style="color:#c0f">start</span>() <span style="color:#078;font-weight:bold">error</span> {
+    <span style="color:#555">...</span>
+    <span style="color:#09f;font-style:italic">// 启动子进程
+</span><span style="color:#09f;font-style:italic"></span>    err <span style="color:#555">:=</span> p.cmd.<span style="color:#c0f">Start</span>()
+    <span style="color:#555">...</span>
+
+    <span style="color:#09f;font-style:italic">// 将bootstrapData的数据写入pipe
+</span><span style="color:#09f;font-style:italic"></span>    <span style="color:#069;font-weight:bold">if</span> _, err <span style="color:#555">:=</span> io.<span style="color:#c0f">Copy</span>(p.parentPipe, p.bootstrapData); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        <span style="color:#069;font-weight:bold">return</span> <span style="color:#c0f">newSystemErrorWithCause</span>(err, <span style="color:#c30">&#34;copying bootstrap data to pipe&#34;</span>)
+    }
+    <span style="color:#555">...</span>
+    ierr <span style="color:#555">:=</span> <span style="color:#c0f">parseSync</span>(p.parentPipe, <span style="color:#069;font-weight:bold">func</span>(sync <span style="color:#555">*</span>syncT) <span style="color:#078;font-weight:bold">error</span> {
+        <span style="color:#069;font-weight:bold">switch</span> sync.Type {
+        <span style="color:#069;font-weight:bold">case</span> procReady:
+            <span style="color:#555">...</span>
+            <span style="color:#09f;font-style:italic">// call prestart hooks
+</span><span style="color:#09f;font-style:italic"></span>            <span style="color:#09f;font-style:italic">// 调用prestart hooks
+</span><span style="color:#09f;font-style:italic"></span>            <span style="color:#069;font-weight:bold">if</span> !p.config.Config.Namespaces.<span style="color:#c0f">Contains</span>(configs.NEWNS) {
+                <span style="color:#555">...</span>
+                <span style="color:#069;font-weight:bold">if</span> p.config.Config.Hooks <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+                    <span style="color:#555">...</span>
+                    <span style="color:#069;font-weight:bold">for</span> i, hook <span style="color:#555">:=</span> <span style="color:#069;font-weight:bold">range</span> p.config.Config.Hooks.Prestart {
+                        <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> hook.<span style="color:#c0f">Run</span>(s); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+                            <span style="color:#069;font-weight:bold">return</span> <span style="color:#c0f">newSystemErrorWithCausef</span>(err, <span style="color:#c30">&#34;running prestart hook %d&#34;</span>, i)
+                        }
+                    }
+                }
+            }
+            <span style="color:#09f;font-style:italic">// Sync with child.
+</span><span style="color:#09f;font-style:italic"></span>            <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> <span style="color:#c0f">writeSync</span>(p.parentPipe, procRun); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+                <span style="color:#069;font-weight:bold">return</span> <span style="color:#c0f">newSystemErrorWithCause</span>(err, <span style="color:#c30">&#34;writing syncT &#39;run&#39;&#34;</span>)
+            }
+            <span style="color:#555">...</span>
+        <span style="color:#069;font-weight:bold">case</span> procHooks:
+            <span style="color:#09f;font-style:italic">// Setup cgroup before prestart hook, so that the prestart hook could apply cgroup permissions.
+</span><span style="color:#09f;font-style:italic"></span>            <span style="color:#09f;font-style:italic">// 首先设置cgroup
+</span><span style="color:#09f;font-style:italic"></span>            <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> p.manager.<span style="color:#c0f">Set</span>(p.config.Config); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+                <span style="color:#069;font-weight:bold">return</span> <span style="color:#c0f">newSystemErrorWithCause</span>(err, <span style="color:#c30">&#34;setting cgroup config for procHooks process&#34;</span>)
+            }
+            <span style="color:#555">...</span>
+            <span style="color:#069;font-weight:bold">if</span> p.config.Config.Hooks <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+                <span style="color:#555">...</span>
+                <span style="color:#09f;font-style:italic">// 执行hooks
+</span><span style="color:#09f;font-style:italic"></span>                <span style="color:#069;font-weight:bold">for</span> i, hook <span style="color:#555">:=</span> <span style="color:#069;font-weight:bold">range</span> p.config.Config.Hooks.Prestart {
+                    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> hook.<span style="color:#c0f">Run</span>(s); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+                        <span style="color:#069;font-weight:bold">return</span> <span style="color:#c0f">newSystemErrorWithCausef</span>(err, <span style="color:#c30">&#34;running prestart hook %d&#34;</span>, i)
+                    }
+                }
+            }
+            <span style="color:#09f;font-style:italic">// Sync with child.
+</span><span style="color:#09f;font-style:italic"></span>            <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> <span style="color:#c0f">writeSync</span>(p.parentPipe, procResume); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+                <span style="color:#069;font-weight:bold">return</span> <span style="color:#c0f">newSystemErrorWithCause</span>(err, <span style="color:#c30">&#34;writing syncT &#39;resume&#39;&#34;</span>)
+            }
+            <span style="color:#555">...</span>
+        }
+        <span style="color:#555">...</span>
+    })
+    <span style="color:#555">...</span>
+    <span style="color:#09f;font-style:italic">// 关闭init pipe
+</span><span style="color:#09f;font-style:italic"></span>    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> unix.<span style="color:#c0f">Shutdown</span>(<span style="color:#366">int</span>(p.parentPipe.<span style="color:#c0f">Fd</span>()), unix.SHUT_WR); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        <span style="color:#069;font-weight:bold">return</span> <span style="color:#c0f">newSystemErrorWithCause</span>(err, <span style="color:#c30">&#34;shutting down init pipe&#34;</span>)
+    }
+    <span style="color:#555">...</span>
+}</code></pre></div>
+<p><code>initProcess</code>结构的<code>start</code>方法真正完成了容器进程的创建，并通过<code>init</code>管道协助其完成初始化工作。该方法首先调用<code>p.cmd.Start()</code>创建一个独立的进程，执行命令<code>runc init</code>。接着通过<code>init</code>管道将容器配置<code>p.bootstrapData</code>写入管道中。然后再调用<code>parseSync()</code>函数，通过<code>init</code>管道与容器初始化进程进行同步，待其初始化完成之后，执行<code>PreStart Hook</code>等一些回调操作。最后，关闭<code>init</code>管道，容器创建完成。</p>
+
+<p>runC端在创建容器时所做的工作我们已经基本了解了，下面我们来看看<code>runc init</code>，也就是容器初始化进程具体完成了哪些工作。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// runc/libcontainer/factory_linux.go
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">func</span> (l <span style="color:#555">*</span>LinuxFactory) <span style="color:#c0f">StartInitialization</span>() (err <span style="color:#078;font-weight:bold">error</span>) {
+    <span style="color:#069;font-weight:bold">var</span> (
+        pipefd, fifofd <span style="color:#078;font-weight:bold">int</span>
+        consoleSocket  <span style="color:#555">*</span>os.File
+        envInitPipe    = os.<span style="color:#c0f">Getenv</span>(<span style="color:#c30">&#34;_LIBCONTAINER_INITPIPE&#34;</span>)
+        envFifoFd      = os.<span style="color:#c0f">Getenv</span>(<span style="color:#c30">&#34;_LIBCONTAINER_FIFOFD&#34;</span>)
+        envConsole     = os.<span style="color:#c0f">Getenv</span>(<span style="color:#c30">&#34;_LIBCONTAINER_CONSOLE&#34;</span>)
+    )
+
+    <span style="color:#09f;font-style:italic">// Get the INITPIPE.
+</span><span style="color:#09f;font-style:italic"></span>    pipefd, err = strconv.<span style="color:#c0f">Atoi</span>(envInitPipe)
+    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        <span style="color:#069;font-weight:bold">return</span> fmt.<span style="color:#c0f">Errorf</span>(<span style="color:#c30">&#34;unable to convert _LIBCONTAINER_INITPIPE=%s to int: %s&#34;</span>, envInitPipe, err)
+    }
+
+    <span style="color:#069;font-weight:bold">var</span> (
+        pipe = os.<span style="color:#c0f">NewFile</span>(<span style="color:#366">uintptr</span>(pipefd), <span style="color:#c30">&#34;pipe&#34;</span>)
+        <span style="color:#09f;font-style:italic">// 判断是`runc create`还是`runc exec`
+</span><span style="color:#09f;font-style:italic"></span>        it   = <span style="color:#c0f">initType</span>(os.<span style="color:#c0f">Getenv</span>(<span style="color:#c30">&#34;_LIBCONTAINER_INITTYPE&#34;</span>))
+    )
+    <span style="color:#069;font-weight:bold">defer</span> pipe.<span style="color:#c0f">Close</span>()
+
+    <span style="color:#09f;font-style:italic">// Only init processes have FIFOFD.
+</span><span style="color:#09f;font-style:italic"></span>    <span style="color:#09f;font-style:italic">// 只有init进程有FIFOFD
+</span><span style="color:#09f;font-style:italic"></span>    fifofd = <span style="color:#555">-</span><span style="color:#f60">1</span>
+    <span style="color:#069;font-weight:bold">if</span> it <span style="color:#555">==</span> initStandard {
+        <span style="color:#069;font-weight:bold">if</span> fifofd, err = strconv.<span style="color:#c0f">Atoi</span>(envFifoFd); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+            <span style="color:#069;font-weight:bold">return</span> fmt.<span style="color:#c0f">Errorf</span>(<span style="color:#c30">&#34;unable to convert _LIBCONTAINER_FIFOFD=%s to int: %s&#34;</span>, envFifoFd, err)
+        }
+    }
+    <span style="color:#555">...</span>
+    i, err <span style="color:#555">:=</span> <span style="color:#c0f">newContainerInit</span>(it, pipe, consoleSocket, fifofd)
+    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        <span style="color:#069;font-weight:bold">return</span> err
+    }
+    <span style="color:#09f;font-style:italic">// If Init succeeds, syscall.Exec will not return, hence none of the defers will be called.
+</span><span style="color:#09f;font-style:italic"></span>    <span style="color:#069;font-weight:bold">return</span> i.<span style="color:#c0f">Init</span>()
+}</code></pre></div>
+<p>作为容器的初始化进程，必须先通过<code>init</code>管道获取配置才能进行下一步的工作。显然，我们首先要做的就是从环境变量中获取与runC进程进行交互的管道的信息，包括<code>init</code>管道。对于<code>runc create</code>还有管道<code>exec.fifo</code>，即上方代码中的<code>fifofd</code>。紧接着，调用函数<code>newContainerInit</code>，创建用于初始化的接口对象<code>initer</code>，该函数的代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// runc/libcontainer/init_linux.go
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">func</span> <span style="color:#c0f">newContainerInit</span>(t initType, pipe <span style="color:#555">*</span>os.File, consoleSocket <span style="color:#555">*</span>os.File, fifoFd <span style="color:#078;font-weight:bold">int</span>) (initer, <span style="color:#078;font-weight:bold">error</span>) {
+    <span style="color:#069;font-weight:bold">var</span> config <span style="color:#555">*</span>initConfig
+    <span style="color:#09f;font-style:italic">// 从管道中读取config
+</span><span style="color:#09f;font-style:italic"></span>    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> json.<span style="color:#c0f">NewDecoder</span>(pipe).<span style="color:#c0f">Decode</span>(<span style="color:#555">&amp;</span>config); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>, err
+    }
+    <span style="color:#555">...</span>
+    <span style="color:#069;font-weight:bold">switch</span> t {
+    <span style="color:#069;font-weight:bold">case</span> initSetns:
+        <span style="color:#069;font-weight:bold">return</span> <span style="color:#555">&amp;</span>linuxSetnsInit{
+            pipe:          pipe,
+            consoleSocket: consoleSocket,
+            config:        config,
+        }, <span style="color:#069;font-weight:bold">nil</span>
+    <span style="color:#069;font-weight:bold">case</span> initStandard:
+        <span style="color:#069;font-weight:bold">return</span> <span style="color:#555">&amp;</span>linuxStandardInit{
+            pipe:          pipe,
+            consoleSocket: consoleSocket,
+            parentPid:     unix.<span style="color:#c0f">Getppid</span>(),
+            config:        config,
+            fifoFd:        fifoFd,
+        }, <span style="color:#069;font-weight:bold">nil</span>
+    }
+    <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>, fmt.<span style="color:#c0f">Errorf</span>(<span style="color:#c30">&#34;unknown init type %q&#34;</span>, t)
+}</code></pre></div>
+<p>该函数的作用非常明显，从<code>init</code>管道中读取容器配置，解析至<code>initConfig</code>中。对于<code>runc create</code>，创建<code>linuxStandardInit</code>结构，将各种配置信息写入其中。最后，调用该结构的<code>Init</code>方法真正对容器进行初始化。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// runc/libcontainer/standard_init_linux.go
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">func</span> (l <span style="color:#555">*</span>linuxStandardInit) <span style="color:#c0f">Init</span>() <span style="color:#078;font-weight:bold">error</span> {
+    <span style="color:#555">...</span>
+    <span style="color:#09f;font-style:italic">// 配置network, 配置路由等等
+</span><span style="color:#09f;font-style:italic"></span>    <span style="color:#555">...</span>
+    <span style="color:#09f;font-style:italic">// 准备rootfs
+</span><span style="color:#09f;font-style:italic"></span>    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> <span style="color:#c0f">prepareRootfs</span>(l.pipe, l.config); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        <span style="color:#069;font-weight:bold">return</span> err
+    }
+    <span style="color:#09f;font-style:italic">// 配置console, hostname, apparmor, process label, sysctl等等
+</span><span style="color:#09f;font-style:italic"></span>    <span style="color:#555">...</span>
+    <span style="color:#09f;font-style:italic">// 告诉父进程我们已经准备好Exec了
+</span><span style="color:#09f;font-style:italic"></span>    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> <span style="color:#c0f">syncParentReady</span>(l.pipe); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        <span style="color:#069;font-weight:bold">return</span> err
+    }
+    <span style="color:#09f;font-style:italic">// 配置seccomp
+</span><span style="color:#09f;font-style:italic"></span>    <span style="color:#555">...</span>
+    <span style="color:#09f;font-style:italic">// 设置正确的capability，用户以及工作目录
+</span><span style="color:#09f;font-style:italic"></span>    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> <span style="color:#c0f">finalizeNamespace</span>(l.config); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        <span style="color:#069;font-weight:bold">return</span> err
+    }
+    <span style="color:#555">...</span>
+    <span style="color:#09f;font-style:italic">// 确定用户指定的容器进程在容器文件系统中的路径
+</span><span style="color:#09f;font-style:italic"></span>    name, err <span style="color:#555">:=</span> exec.<span style="color:#c0f">LookPath</span>(l.config.Args[<span style="color:#f60">0</span>])
+    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        <span style="color:#069;font-weight:bold">return</span> err
+    }
+    <span style="color:#09f;font-style:italic">// 关闭管道，告诉runC进程，我们已经完成了初始化工作
+</span><span style="color:#09f;font-style:italic"></span>    l.pipe.<span style="color:#c0f">Close</span>()
+    <span style="color:#09f;font-style:italic">// 在exec用户进程之前等待exec.fifo管道在另一端被打开
+</span><span style="color:#09f;font-style:italic"></span>    <span style="color:#09f;font-style:italic">// 我们通过/proc/self/fd/$fd打开它
+</span><span style="color:#09f;font-style:italic"></span>    fd, err <span style="color:#555">:=</span> unix.<span style="color:#c0f">Open</span>(fmt.<span style="color:#c0f">Sprintf</span>(<span style="color:#c30">&#34;/proc/self/fd/%d&#34;</span>, l.fifoFd), unix.O_WRONLY|unix.O_CLOEXEC, <span style="color:#f60">0</span>)
+    <span style="color:#555">...</span>
+    <span style="color:#09f;font-style:italic">// 向exec.fifo管道写数据，阻塞，直到用户调用`runc start`，读取管道中的数据
+</span><span style="color:#09f;font-style:italic"></span>    <span style="color:#069;font-weight:bold">if</span> _, err <span style="color:#555">:=</span> unix.<span style="color:#c0f">Write</span>(fd, []<span style="color:#366">byte</span>(<span style="color:#c30">&#34;0&#34;</span>)); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        <span style="color:#069;font-weight:bold">return</span> <span style="color:#c0f">newSystemErrorWithCause</span>(err, <span style="color:#c30">&#34;write 0 exec fifo&#34;</span>)
+    }
+    <span style="color:#555">...</span>
+    <span style="color:#09f;font-style:italic">// 调用exec命令，执行用户进程
+</span><span style="color:#09f;font-style:italic"></span>    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> syscall.<span style="color:#c0f">Exec</span>(name, l.config.Args[<span style="color:#f60">0</span>:], os.<span style="color:#c0f">Environ</span>()); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        <span style="color:#069;font-weight:bold">return</span> <span style="color:#c0f">newSystemErrorWithCause</span>(err, <span style="color:#c30">&#34;exec user process&#34;</span>)
+    }
+    <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>
+}</code></pre></div>
+<p><code>Init</code>方法真正完成了对容器的初始化工作，它会对容器的网络，路由，hostname等一系列属性进行配置。这些工作一般都是直接通过系统调用设置完成的，因此我们就不再细述了。接下来我们将重点描述容器初始化进程和其父进程，也就是runC进程的同步过程。</p>
+
+<p>我们都知道，每个容器都有自己的根文件系统，到目前为止我们依然还是宿主机文件系统的视角，那么文件系统根目录的切换是在哪里进行的呢？答案是显然的，<code>prepareRootfs</code>。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// runc/libcontainer/rootfs_linux.go
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">func</span> <span style="color:#c0f">prepareRootfs</span>(pipe io.ReadWriter, iConfig <span style="color:#555">*</span>initConfig) (err <span style="color:#078;font-weight:bold">error</span>) {
+    <span style="color:#555">...</span>
+    <span style="color:#09f;font-style:italic">// 配置mounts, dev
+</span><span style="color:#09f;font-style:italic"></span>    <span style="color:#555">...</span>
+    <span style="color:#09f;font-style:italic">// 通知父进程运行pre-start hooks
+</span><span style="color:#09f;font-style:italic"></span>    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> <span style="color:#c0f">syncParentHooks</span>(pipe); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        <span style="color:#069;font-weight:bold">return</span> err
+    }
+    <span style="color:#555">...</span>
+    <span style="color:#069;font-weight:bold">if</span> config.NoPivotRoot {
+        err = <span style="color:#c0f">msMoveRoot</span>(config.Rootfs)
+    } <span style="color:#069;font-weight:bold">else</span> <span style="color:#069;font-weight:bold">if</span> config.Namespaces.<span style="color:#c0f">Contains</span>(configs.NEWNS) {
+        err = <span style="color:#c0f">pivotRoot</span>(config.Rootfs)
+    } <span style="color:#069;font-weight:bold">else</span> {
+        err = <span style="color:#c0f">chroot</span>(config.Rootfs)
+    }
+    <span style="color:#555">...</span>
+    <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span></code></pre></div>
+<p><code>prepareRootfs</code>先对容器的Mounts和Dev等信息进行配置，之后再调用<code>syncParentHooks</code>，通过<code>init</code>管道向runC进程发送<code>procHooks</code>信号。runC进程接收到<code>procHooks</code>信号之后，执行容器的<code>PreStart Hook</code>回调函数，再通过<code>init</code>管道给容器初始化进程发送信号<code>procResume</code>，通知其继续执行。可见容器的<code>PreStart Hook</code>是在根目录尚未切换之前执行完成的。最终，调用<code>chroot</code>函数，切换根目录。至此，容器的文件系统切换完毕。</p>
+
+<p>在文件系统准备完成之后，<code>Init</code>方法还会对Console, hostname等属性进行配置。当一切就绪之后，调用<code>syncParentReady</code>通过<code>init</code>管道通知runC进程，获取响应之后，关闭<code>init</code>管道，同步结束，准备开始执行用户指定的容器进程。</p>
+
+<p>不过在找到了用户指定的容器程序在容器文件系统的执行路径之后，初始化进程又打开了我们之前多次提到的<code>exec.fifo</code>这个管道，并且往里面写入了一个字节，之后才执行<code>Exec</code>系统调用，切换到用户程序。既然<code>exec.fifo</code>是一个管道，那么我们在这一端写入之后，就必须有消费者在另外一端进行读取，否则写进程就会一直处于阻塞状态。</p>
+
+<p>事实上，此处对<code>exec.fifo</code>管道的写阻塞正是<code>runc create</code>和<code>runc start</code>执行流的分界点。容器的创建工作，在容器初始化进程往<code>exec.fifo</code>管道进行写操作的那一刻，就全部结束了。</p>
+
+<h3 id="2-2-容器启动">2.2 容器启动</h3>
+
+<p>相对于容器的创建，容器的启动就非常简单了</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    <span style="color:#09f;font-style:italic">// runc/start.go    
+</span><span style="color:#09f;font-style:italic"></span>    container, err <span style="color:#555">:=</span> <span style="color:#c0f">getContainer</span>(context)
+    <span style="color:#555">...</span>
+    status, err <span style="color:#555">:=</span> container.<span style="color:#c0f">Status</span>()
+    <span style="color:#555">...</span>
+    <span style="color:#069;font-weight:bold">switch</span> status {
+    <span style="color:#069;font-weight:bold">case</span> libcontainer.Created:
+        <span style="color:#069;font-weight:bold">return</span> container.<span style="color:#c0f">Exec</span>()
+    <span style="color:#069;font-weight:bold">case</span> libcontainer.Stopped:
+        <span style="color:#069;font-weight:bold">return</span> errors.<span style="color:#c0f">New</span>(<span style="color:#c30">&#34;cannot start a container that has stopped&#34;</span>)
+    <span style="color:#069;font-weight:bold">case</span> libcontainer.Running:
+        <span style="color:#069;font-weight:bold">return</span> errors.<span style="color:#c0f">New</span>(<span style="color:#c30">&#34;cannot start an already running container&#34;</span>)
+    <span style="color:#069;font-weight:bold">default</span>:
+        <span style="color:#069;font-weight:bold">return</span> fmt.<span style="color:#c0f">Errorf</span>(<span style="color:#c30">&#34;cannot start a container in the %s state\n&#34;</span>, status)
+    }</code></pre></div>
+<p>当我们执行<code>runc start</code>命令时，我们首先会获取相应容器的状态。显然，只有状态为<code>Created</code>的容器才是合法的，此时需要调用容器的<code>Exec</code>方法。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> (c <span style="color:#555">*</span>linuxContainer) <span style="color:#c0f">exec</span>() <span style="color:#078;font-weight:bold">error</span> {
+    <span style="color:#09f;font-style:italic">// 获取exec.fifo的路径
+</span><span style="color:#09f;font-style:italic"></span>    path <span style="color:#555">:=</span> filepath.<span style="color:#c0f">Join</span>(c.root, execFifoFilename)
+
+    fifoOpen <span style="color:#555">:=</span> <span style="color:#366">make</span>(<span style="color:#069;font-weight:bold">chan</span> <span style="color:#069;font-weight:bold">struct</span>{})
+    <span style="color:#069;font-weight:bold">select</span> {
+    <span style="color:#09f;font-style:italic">// 等待fifoOpen发来信号，或者子进程变为僵尸进程
+</span><span style="color:#09f;font-style:italic"></span>    <span style="color:#069;font-weight:bold">case</span> <span style="color:#555">&lt;-</span><span style="color:#c0f">awaitProcessExit</span>(c.initProcess.<span style="color:#c0f">pid</span>(), fifoOpen):
+        <span style="color:#069;font-weight:bold">return</span> errors.<span style="color:#c0f">New</span>(<span style="color:#c30">&#34;container process is already dead&#34;</span>)
+    <span style="color:#069;font-weight:bold">case</span> result <span style="color:#555">:=</span> <span style="color:#555">&lt;-</span><span style="color:#c0f">awaitFifoOpen</span>(path):
+        <span style="color:#366">close</span>(fifoOpen)
+        <span style="color:#069;font-weight:bold">if</span> result.err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+            <span style="color:#069;font-weight:bold">return</span> result.err
+        }
+        f <span style="color:#555">:=</span> result.file
+        <span style="color:#069;font-weight:bold">defer</span> f.<span style="color:#c0f">Close</span>()
+        <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> <span style="color:#c0f">readFromExecFifo</span>(f); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+            <span style="color:#069;font-weight:bold">return</span> err
+        }
+        <span style="color:#069;font-weight:bold">return</span> os.<span style="color:#c0f">Remove</span>(path)
+    }
+}</code></pre></div>
+<p><code>Exec</code>方法仅仅只是对<code>exec</code>的简单封装。而<code>exec</code>方法的工作很简单，找到<code>exec.fifo</code>管道的路径，打开它，并调用<code>readFromExecFifo</code>从管道中将容器初始化进程从另一端写入的字节读出。一旦管道中的数据被读出，容器内的初始化进程将不再被阻塞，紧接着将完成<code>Exec</code>系统调用，容器初始化进程将被切换为用户指定的程序。到此为止，一个容器真正启动成功。</p>
+
+<p>可是这一路分析下来，似乎并没有对容器的namespace进行配置的操作？事实上，子进程<code>runc init</code>的执行流在进入Go语言的运行时之前，会被包<code>/runc/libcontainer/nsenter</code>劫持，先去执行一段C代码。这段C代码同样会从<code>init</code>管道中读取容器的配置，主要是namespace的路径，clone flag等等，并根据这些配置，调用<code>setns</code>系统调用，将容器进程加入到合适的namespace中。之后再进入Go的运行时，完成上文所述的各种初始化操作。</p>
+
+<h2 id="3-总结">3 总结</h2>
+
+<p>简而言之，runC创建容器的过程如下图所示：</p>
+
+<p><center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605616390/sel/runc_ctitki.png" alt="runc" style="zoom:50%;" />
+</center></p>
+
+<ol>
+<li><code>runc create</code>命令加载文件<code>config.json</code>中容器的配置并转化为与<code>libcontainer</code>兼容的模式</li>
+<li><code>libcontainer</code>根据配置创建<code>Container</code>以及<code>ParentProcess</code>对象</li>
+<li><code>Parentproces</code>创建<code>runc init</code>子进程，中间会被<code>/runc/libcontainer/nsenter</code>劫持，使<code>runc init</code>子进程位于容器配置指定的各个namespace内</li>
+<li><code>ParentProcess</code>用<code>init</code>管道将容器配置信息传输给<code>runc init</code>进程，<code>runc init</code>再据此进行容器的初始化操作。初始化完成之后，再向另一个管道<code>exec.fifo</code>进行写操作，进入阻塞状态</li>
+<li>执行<code>runc start</code>命令，从管道<code>exec.fifo</code>中读取上一个步骤写入的字节。<code>runc init</code>进程不再阻塞，执行<code>Exec</code>系统调用，切换至用户指定的容器进程，容器真正创建并启动完成</li>
+</ol>
+
+<h2 id="注">注：</h2>
+
+<ol>
+<li>文中源码对应的runC版本为<code>v1.0.0-rc5</code>，commit：<code>4fc53a81fb7c994640722ac585fa9ca548971871</code></li>
+<li>文中引用的代码因文章效果做了部分删减，详细的源码注释参见<a href="https://github.com/YaoZengzeng/runc/tree/v1.0.0-rc5.comments">我的Github</a></li>
+</ol>
+
+<h2 id="参考文献">参考文献</h2>
+
+<ul>
+<li><p><a href="https://github.com/opencontainers/runc/tree/v1.0.0-rc5">runC源码</a></p></li>
+
+<li><p><a href="http://cizixs.com/2017/11/05/oci-and-runc">OCI和runc:容器标准化和docker</a></p></li>
+</ul>
+                        </div>
+                        
+                        
+                        
+                        
+                        
+                        
+
+                        
+                        <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+                        <script src="https://unpkg.com/gitalk@latest/dist/gitalk.min.js"></script> 
+                        <script type="text/javascript" src="/assets/js/md5.min.js"></script>
+                        <div id="gitalk-container"></div>     
+                        <script type="text/javascript">
+                            var gitalk = new Gitalk({
+                              clientID: '835183d2dcbd1167ac28', 
+                            
+                              clientSecret: 'd873919fac3cc76921ee0800172c2279bc612f8d', 
+                            
+                              repo: 'Sel-Website-talk',
+                              owner: 'Peeknut',
+                              admin: ['Peeknut','Rachel-Shao'],
+                              id: location.href.split("/").pop().substring(0, 49),      
+                              distractionFreeMode: false  
+                            })
+                            gitalk.render('gitalk-container')
+                        </script> 
+                        
+
+                    </div>
+                    
+
+                    
+
+                    
+
+                    <div class="col-md-3">
+
+                        
+
+                        
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+      <h3 class="panel-title">搜索栏</h3>
+      
+    </div>
+
+    <div class="panel-body">
+        
+        <div class="search" id="search">
+            <div class="input-group">
+                <input type="text" name="q" class="form-control" placeholder="请输入文章标题或摘要..." id="search-key">
+                <input type="hidden" name="sitesearch" value="https://Congrool.github.io/">
+                <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main" onclick="search()"><i class="fas fa-search"></i></button>
+                </span>
+            </div>
+            <h1 id="search-tip" style="color: red;text-align: center;display: none;font-size: medium;">搜索中，请稍后 ...</h1>
+        </div>
+        <script type="text/javascript">
+            
+            window.onload = function() {
+                      document.onkeydown = function(ev) {
+                        var event = ev || event
+                        if (event.keyCode == 13) {
+                          search()
+                        }
+                      }
+                    }
+            
+            function search() {
+                    
+                      key = document.getElementById("search-key").value;
+                      if (key === "") {
+                        
+                        return;
+                      }
+                      key = key.toLowerCase();
+                      document.getElementById("search-key").value = "";
+                  
+                      
+                      document.getElementById("search-tip").innerText = "搜索中，请稍后 ...";
+                      document.getElementById("search-tip").style.display = "block";
+                  
+                      
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      var childs = el.childNodes;
+                      for (var i = childs.length - 1; i >= 0; i--) {
+                        el.removeChild(childs[i]);
+                      }
+                  
+                      
+                      xmltext = new XMLHttpRequest;
+                      xmltext.open("GET", "/index.xml", false);
+                      xmltext.send();
+                      resp = xmltext.responseXML;
+                      
+                      items = resp.getElementsByTagName("item");
+                      
+                      var i = 0;
+                      haveResult = false;
+                      while (i < items.length) {
+                        txt = items[i].getElementsByTagName("title")[0].innerHTML + items[i].getElementsByTagName("description")[0].innerHTML
+                        txt = txt.toLowerCase();
+                        if (txt.indexOf(key) > -1) {
+                          haveResult = true;
+                          title = items[i].getElementsByTagName("title")[0].innerHTML;
+                          link = items[i].getElementsByTagName("link")[0].innerHTML;
+                          time = items[i].getElementsByTagName("pubDate")[0].innerHTML;
+                          mark = items[i].getElementsByTagName("description")[0].innerHTML;
+                          time = time.slice(0, -5);
+                          addItem(title, link, time, mark)
+                        }
+                        i++;
+                      }
+                      if (!haveResult) {
+                        document.getElementById("search-tip").innerText = "搜索完毕，未发现结果 ...";
+                        document.getElementById("search-tip").style.display = "block";
+                      }
+
+                      
+                      var el = document.getElementById("blog-head");
+                      el.innerHTML="Blogs"
+                    }
+                  
+                    
+                    function addItem(title, link, time, mark) {
+                      document.getElementById("search-tip").style.display = "none";
+                      tmpl = "<article class=\"post\" style=\"border-bottom: 1px solid #e6e6e6;\" >" +
+                        "<header class=\"post-header\">" +
+                        "<h1 class=\"post-title\"><a class=\"post-link\" href=\"" + link + "\" target=\"_blank\">" + title + "</a></h1>" +
+                        "<div class=\"post-meta\">" +
+                        " <span class=\"post-time\">" + time + "</span>" +
+                        "</div>" +
+                        " </header>" +
+                        "<div class=\"post-content\">" +
+                        "<div class=\"post-summary\">" + mark + "</div>" +
+                        "<div class=\"read-more\">" +
+                        "<a href=" + link + " class=\"read-more-link\" target=\"_blank\">阅读更多</a>" +
+                        "</div>" +
+                        " </div>" +
+                        "</article>"
+                      div = document.createElement("div")
+                      div.innerHTML = tmpl;
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      el.appendChild(div)
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+
+        </script>
+        
+    </div>
+</div>
+
+
+
+
+
+
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">归档栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="nav nav-pills nav-stacked">
+            
+            
+            <li>
+                <a href="/categories/bosh">bosh (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloud_controller_ng">cloud_controller_ng (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloudfoundry">cloudfoundry (15)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/containerd">containerd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/docker">docker (19)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/etcd">etcd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/haproxy">haproxy (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/healthmanager">healthmanager (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/karmada">karmada (4)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubeedge">kubeedge (5)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubernetes">kubernetes (14)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/network">network (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/openyurt">openyurt (2)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/service-mesh">service-mesh (4)</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+<div class="panel sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">标签栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="tag-cloud">
+            
+            
+            <li>
+                <a href="/tags/agent"><i class="fas fa-tags"></i> agent</a>
+            </li>
+            
+            <li>
+                <a href="/tags/apiserver"><i class="fas fa-tags"></i> apiserver</a>
+            </li>
+            
+            <li>
+                <a href="/tags/books"><i class="fas fa-tags"></i> books</a>
+            </li>
+            
+            <li>
+                <a href="/tags/bosh"><i class="fas fa-tags"></i> bosh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/ccng"><i class="fas fa-tags"></i> ccng</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cf-release"><i class="fas fa-tags"></i> cf-release</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cgroups"><i class="fas fa-tags"></i> cgroups</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudfoundry"><i class="fas fa-tags"></i> cloudfoundry</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudnative"><i class="fas fa-tags"></i> cloudnative</a>
+            </li>
+            
+            <li>
+                <a href="/tags/collector"><i class="fas fa-tags"></i> collector</a>
+            </li>
+            
+            <li>
+                <a href="/tags/containerd"><i class="fas fa-tags"></i> containerd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cri"><i class="fas fa-tags"></i> cri</a>
+            </li>
+            
+            <li>
+                <a href="/tags/dea"><i class="fas fa-tags"></i> dea</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker"><i class="fas fa-tags"></i> docker</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker-network"><i class="fas fa-tags"></i> docker-network</a>
+            </li>
+            
+            <li>
+                <a href="/tags/edgecomputing"><i class="fas fa-tags"></i> edgecomputing</a>
+            </li>
+            
+            <li>
+                <a href="/tags/etcd"><i class="fas fa-tags"></i> etcd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/gorouter"><i class="fas fa-tags"></i> gorouter</a>
+            </li>
+            
+            <li>
+                <a href="/tags/haproxy"><i class="fas fa-tags"></i> haproxy</a>
+            </li>
+            
+            <li>
+                <a href="/tags/healthmanager"><i class="fas fa-tags"></i> healthmanager</a>
+            </li>
+            
+            <li>
+                <a href="/tags/istio"><i class="fas fa-tags"></i> istio</a>
+            </li>
+            
+            <li>
+                <a href="/tags/karmada"><i class="fas fa-tags"></i> karmada</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubeedge"><i class="fas fa-tags"></i> kubeedge</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubelet"><i class="fas fa-tags"></i> kubelet</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubernetes"><i class="fas fa-tags"></i> kubernetes</a>
+            </li>
+            
+            <li>
+                <a href="/tags/libcontainer"><i class="fas fa-tags"></i> libcontainer</a>
+            </li>
+            
+            <li>
+                <a href="/tags/micro-service"><i class="fas fa-tags"></i> micro-service</a>
+            </li>
+            
+            <li>
+                <a href="/tags/namespace"><i class="fas fa-tags"></i> namespace</a>
+            </li>
+            
+            <li>
+                <a href="/tags/nats"><i class="fas fa-tags"></i> nats</a>
+            </li>
+            
+            <li>
+                <a href="/tags/news"><i class="fas fa-tags"></i> news</a>
+            </li>
+            
+            <li>
+                <a href="/tags/openyurt"><i class="fas fa-tags"></i> openyurt</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pipework"><i class="fas fa-tags"></i> pipework</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pouch"><i class="fas fa-tags"></i> pouch</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runc"><i class="fas fa-tags"></i> runc</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runtime"><i class="fas fa-tags"></i> runtime</a>
+            </li>
+            
+            <li>
+                <a href="/tags/security"><i class="fas fa-tags"></i> security</a>
+            </li>
+            
+            <li>
+                <a href="/tags/serverless"><i class="fas fa-tags"></i> serverless</a>
+            </li>
+            
+            <li>
+                <a href="/tags/service-mesh"><i class="fas fa-tags"></i> service-mesh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/syslog_aggregator"><i class="fas fa-tags"></i> syslog_aggregator</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+                        
+
+                    </div>
+                    
+
+                    
+
+                </div>
+                
+
+            </div>
+            
+        </div>
+        
+
+        <footer id="footer">
+    <div class="container">
+
+        
+        <div class="col-md-4 col-sm-6">
+            <h4></h4>
+
+            <p><strong>关于我们：<strong> <p>浙大SEL实验室</p><p>地址：杭州市浙大路38号曹光彪西楼405室</p><p><strong></strong>
+            <a href="/contact" class="btn btn-small btn-template-main" >跳转到关于</a>
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+        <div class="col-md-4 col-sm-6">
+
+             
+            <h4>最新博客</h4>
+            
+
+            <div class="blog-entries">
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/27/overview.png" class="img-responsive" alt="基于KubeEdge的边缘节点分组管理设计与实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">基于KubeEdge的边缘节点分组管理设计与实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/20/karmada-scheduler.png" class="img-responsive" alt="多云环境下的资源调度：karmada scheduler的框架和实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">多云环境下的资源调度：karmada scheduler的框架和实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">
+                          
+                            <img src="/img/blogs/19/karmada-arch.jpg" class="img-responsive" alt="多云环境下的成员集群管理，看看开源项目karmada是如何做到的">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">多云环境下的成员集群管理，看看开源项目karmada是如何做到的</a></h5>
+                    </div>
+                </div>
+                
+            </div>
+
+            <hr class="hidden-md hidden-lg">
+             
+
+        </div>
+        
+
+        
+        <div class="col-md-4 col-sm-6">
+
+          <h4></h4>
+
+            <p><strong>联系我们: 
+                                    <p>团队负责人：丁轶群 yiqunding@zju.edu.cn</p>
+                                    <p>网站维护人：刘佳文 839809484@qq.com</p>                
+    </strong>
+
+            
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+    </div>
+    
+</footer>
+
+
+
+
+
+
+
+<div id="copyright">
+    <div class="container">
+        <div class="col-md-12">
+            
+            <p class="pull-left">Copyright ©️ 2020 SEL Laboratory , ZJ University all rights reserved.</p>
+            
+            <p class="pull-right">
+               <a href="https://bootstrapious.com/p/universal-business-e-commerce-template">Bootstrapious</a>.
+              
+
+               <a href="https://github.com/devcows/hugo-universal-theme">DevCows</a>.
+            </p>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+    </div>
+    
+
+    
+
+
+<script src="/js/jquery.min.js"></script>
+<script src="/js/bootstrap.min.js"></script>
+
+
+
+<script src="/js/jquery.cookie.min.js"></script>
+<script src="/js/jquery.waypoints.min.js"></script>
+<script src="/js/jquery.counterup.min.js"></script>
+<script src="/js/jquery-parallax.js"></script>
+
+
+<script src="/js/front.js"></script>
+
+
+<script src="/js/owl.carousel.min.js"></script>
+
+
+
+  </body>
+</html>

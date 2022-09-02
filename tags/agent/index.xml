@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>agent on 浙大SEL实验室</title>
+    <link>https://Congrool.github.io/tags/agent/</link>
+    <description>Recent content in agent on 浙大SEL实验室</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Tue, 23 Jun 2015 11:14:25 +0000</lastBuildDate>
+    
+	<atom:link href="https://Congrool.github.io/tags/agent/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>tutum-agent原理浅析</title>
+      <link>https://Congrool.github.io/blog/2015/06/23/tutum-agent%E5%8E%9F%E7%90%86%E6%B5%85%E6%9E%90/</link>
+      <pubDate>Tue, 23 Jun 2015 11:14:25 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2015/06/23/tutum-agent%E5%8E%9F%E7%90%86%E6%B5%85%E6%9E%90/</guid>
+      <description>tutum-aget是tutum提供的一个开源代理引擎。当你把tutum-agent安装在你本地机器上以后，你就可以把本地的机器节点添加到云端，让tutum来帮你统一进行管理。你随时随地都可以登陆tutum网站获得如下功能。</description>
+    </item>
+    
+  </channel>
+</rss>

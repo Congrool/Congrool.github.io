@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>cgroups on 浙大SEL实验室</title>
+    <link>https://Congrool.github.io/tags/cgroups/</link>
+    <description>Recent content in cgroups on 浙大SEL实验室</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Wed, 22 Apr 2015 10:03:07 +0000</lastBuildDate>
+    
+	<atom:link href="https://Congrool.github.io/tags/cgroups/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>Docker背后的内核知识——cgroups资源限制</title>
+      <link>https://Congrool.github.io/blog/2015/04/22/docker%E8%83%8C%E5%90%8E%E7%9A%84%E5%86%85%E6%A0%B8%E7%9F%A5%E8%AF%86-cgroups%E8%B5%84%E6%BA%90%E9%99%90%E5%88%B6/</link>
+      <pubDate>Wed, 22 Apr 2015 10:03:07 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2015/04/22/docker%E8%83%8C%E5%90%8E%E7%9A%84%E5%86%85%E6%A0%B8%E7%9F%A5%E8%AF%86-cgroups%E8%B5%84%E6%BA%90%E9%99%90%E5%88%B6/</guid>
+      <description>&lt;h2 id=&#34;摘要&#34;&gt;摘要&lt;/h2&gt;
+
+&lt;p&gt;当我们谈论Docker时，我们常常会聊到Docker的实现方式。很多开发者都会知道，Docker的本质实际上是宿主机上的一个进程，通过namespace实现了资源隔离，通过cgroup实现了资源限制，通过UnionFS实现了Copy on Write的文件操作。但是当我们再深入一步的提出，namespace和cgroup实现细节时，知道的人可能就所剩无几了。本文在docker基础研究工作中着重对内核的cgroup技术做了细致的分析和梳理，希望能对读者深入理解Docker有所帮助。&lt;/p&gt;</description>
+    </item>
+    
+  </channel>
+</rss>

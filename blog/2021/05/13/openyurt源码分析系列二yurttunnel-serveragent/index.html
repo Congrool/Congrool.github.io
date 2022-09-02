@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="robots" content="all,follow">
+  <meta name="googlebot" content="index,follow,snippet,archive">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <title>openyurt源码分析系列（二）：yurttunnel server/agent</title>
+  <meta name="author" content="刘佳文" />
+  
+  
+  
+  
+  <meta name="keywords" content="openyurt">
+  
+  
+  <meta name="description" content="本文主要对 OpenYurt 中的 Yurttunnel Server/Agent 模块进行了源码分析，内容包括模块启动流程、各个模块组件的工作流程以及通信。">
+
+  <meta name="generator" content="Hugo 0.68.3" />
+
+  
+  <link href='//fonts.googleapis.com/css?family=Roboto:400,100,100italic,300,300italic,500,700,800' rel='stylesheet' type='text/css'>
+
+  
+  
+  
+  
+  
+
+  <link href="/css/all.css" rel="stylesheet">
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+
+  
+  <link href="/css/animate.css" rel="stylesheet">
+
+  
+  
+    <link href="/css/style.default.css" rel="stylesheet" id="theme-stylesheet">
+  
+
+  
+  <link href="/css/custom.css" rel="stylesheet">
+
+  
+  
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+        <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  
+
+  
+  <link rel="shortcut icon" href="/img/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
+
+  
+  <link href="/css/owl.carousel.css" rel="stylesheet">
+  <link href="/css/owl.theme.css" rel="stylesheet">
+
+  
+  <link rel="alternate" href="https://Congrool.github.io/index.xml" type="application/rss+xml" title="浙大SEL实验室">
+
+  
+  
+  
+  
+  
+  
+  <meta property="og:updated_time" content="2021-05-13T10:00:11Z">
+  
+    
+    
+    <meta property="article:section" content="openyurt">
+    <meta property="article:tag" content="openyurt">
+    
+    
+    <meta property="article:published_time" content="2021-05-13T10:00:11Z">
+    <meta property="article:modified_time" content="2021-05-13T10:00:11Z">
+  
+
+  
+  <meta name="twitter:card" content="summary">
+  
+  <meta name="twitter:title" content="openyurt源码分析系列（二）：yurttunnel server/agent">
+  
+  <meta name="twitter:description" content="本文主要对 OpenYurt 中的 Yurttunnel Server/Agent 模块进行了源码分析，内容包括模块启动流程、各个模块组件的工作流程以及通信。">
+  
+  
+</head>
+
+
+  <body>
+
+    <div id="all">
+
+        <header class="navbar-affixed-top" data-spy="affix" data-offset-top="62">
+    <div class="navbar navbar-default yamm" role="navigation" id="navbar" style="background-color:white;">    
+        <div class="container">
+            <div class="navbar-header">
+                <a class="navbar-brand home" href="/">
+                    <img src="/img/sel.png" alt="openyurt源码分析系列（二）：yurttunnel server/agent" class="hidden-xs hidden-sm img-responsive">
+                    
+                    <span class="sr-only">openyurt源码分析系列（二）：yurttunnel server/agent - </span>
+                </a>
+                <div class="navbar-buttons">
+                    <button type="button" class="navbar-toggle btn-template-main" data-toggle="collapse" data-target="#navigation">
+                      <span class="sr-only"></span>
+                        <i class="fas fa-align-justify"></i>
+                    </button>
+                </div>
+            </div>
+            
+
+            <div class="navbar-collapse collapse" id="navigation">
+                <ul class="nav navbar-nav navbar-right">
+                  
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/">主页</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/blog/">博客</a>
+                    
+                  </li>
+
+                  <li class="dropdown">
+                    
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">社区 <span class="caret"></span></a>
+                  <ul class="dropdown-menu">
+                    
+                      <li><a href="https://www.servicemesher.com/">ServiceMesh社区</a></li>
+                    
+                      <li><a href="">kubeedge社区</a></li>
+
+                      <li><a href="http://www.icsoft.zju.edu.cn/index.php">浙江大学智能计算与软件中心</a></li>
+                    
+                  </ul>
+
+                  <li class="dropdown">
+                    
+                    <a href="/archives/">归档</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/contact/">关于</a>
+                    
+                  </li>
+                  
+                </li>
+
+                
+                
+
+                
+                </ul>
+            </div>
+            
+
+            <div class="collapse clearfix" id="search">    
+                <form class="navbar-form" role="search">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search">
+                        <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main"><i class="fas fa-search"></i></button>
+                </span>
+                    </div>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+
+    
+</header>
+
+
+
+
+        <div id="heading-breadcrumbs">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h1>openyurt源码分析系列（二）：yurttunnel server/agent</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+        <div id="content">
+            <div class="container">
+
+                <div class="row">
+
+                    
+
+                    <div class="col-md-9" id="blog-post">
+
+                        
+                          <p class="text-muted text-uppercase mb-small text-right">
+                             <a href="#">刘佳文</a>
+                             | 
+                            2021-05-13
+                          </p>
+                        
+
+                        <div id="post-content">
+                          <p>本文主要对 OpenYurt 中的 Yurttunnel Server/Agent 模块进行了源码分析，内容包括模块启动流程、各个模块组件的工作流程以及通信。（源码版本：OpenYurt Version: <code>0.3.0</code>  commit: <code>b3fda60af24ed63d84328417e625ad85c453d4af</code>）</p>
+
+<h2 id="yurttunnel-server">Yurttunnel Server</h2>
+
+<h3 id="总览">总览</h3>
+
+<p>在边缘计算场景中，边缘节点可能处于专有网络中，导致节点（kubelet）无法与云端  kube-apiserver 直接通信。</p>
+
+<p>yurttunnel server 与 yurttunnel agent 主要解决云边网络隔离时，云边通信的问题。每个边缘网络域中设置 agent，通过云端 proxy server 的公网 IP 与 agent 建立长连接，云端组件对边缘节点的访问请求通过 proxy server 转发至目的边缘节点。其中，proxy server 与 agent 之间的通信通过上游项目 apiserver-network-proxy(ANP) 实现。</p>
+
+<p>本质上 yurttunnel 是一个反向通道（即边缘节点向 server 建立连接的时候，同时建立 server 与边缘节点的反向通道）。</p>
+
+<h3 id="启动流程">启动流程</h3>
+
+<p>yurttunnel Server 判断是否需要开启 iptables Manager 进行本地 nat 表管理，iptabls Manager 每隔一定时间获取集群中的 configmap 以及 node 信息来更新本地的跳转规则。</p>
+
+<p>创建并启动 certManager，会创建 CSR，将得到证书用于其与 KAS 的安全通信。并维持证书的更新。其中 CSR 的内容为：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// util/certificate/certificate_manager.go
+</span><span style="color:#09f;font-style:italic"></span>
+csr <span style="color:#555">:=</span> <span style="color:#555">&amp;</span>certificates.CertificateSigningRequest{
+		<span style="color:#09f;font-style:italic">// Username, UID, Groups will be injected by API server.
+</span><span style="color:#09f;font-style:italic"></span>		TypeMeta: metav1.TypeMeta{Kind: <span style="color:#c30">&#34;CertificateSigningRequest&#34;</span>},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: <span style="color:#c30">&#34;&#34;</span>,
+      GenerateName: <span style="color:#c30">&#34;csr-&#34;</span>,
+		},
+		Spec: certificates.CertificateSigningRequestSpec{
+			Request: <span style="color:#555">&amp;</span>x509.CertificateRequest{
+        Subject: pkix.Name{
+          CommonName:   commonName,  <span style="color:#09f;font-style:italic">// kube-apiserver-kubelet-client
+</span><span style="color:#09f;font-style:italic"></span>          Organization: organizations,  <span style="color:#09f;font-style:italic">// []string{ &#34;system:masters&#34;, &#34;openyurt:yurttunnel&#34;}
+</span><span style="color:#09f;font-style:italic"></span>        },
+        DNSNames:    dnsNames,
+        IPAddresses: ipAddrs,
+      }
+			Usages:   []certificates.KeyUsage{
+				certificates.UsageAny,  <span style="color:#09f;font-style:italic">// any
+</span><span style="color:#09f;font-style:italic"></span>			}
+		},
+	}</code></pre></div>
+<p>之后创建并启动 CSRApprover，启动多个协程（2个）处理集群中 yurttunnel server 相关的 CSR（csr 中字段 organizations 列表是否包含了 &ldquo;openyurt:yurttunnel&rdquo;）：如果还没有进行批准的，进行人工批准。</p>
+
+<p>根据 kubeconfig 或者 /var/run/secrets/kubernetes.io/serviceaccount/ca.crt 生成 certPool（包含了验证服务器相关证书），通过 certmanager 获取当前证书，再生成  tls 配置文件。</p>
+
+<p>初始化所有的 HandlerWrappers，即如果需要配置 SharedInformerFactory，则配置。其中 HandlerWrappers 的定义如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// pkg/yurttunnel/handlerwrapper/handlerwrapper.go
+</span><span style="color:#09f;font-style:italic"></span>
+<span style="color:#069;font-weight:bold">type</span> HandlerWrappers []Middleware
+
+<span style="color:#069;font-weight:bold">type</span> Middleware <span style="color:#069;font-weight:bold">interface</span> {
+	<span style="color:#c0f">WrapHandler</span>(http.Handler) http.Handler
+	<span style="color:#c0f">Name</span>() <span style="color:#078;font-weight:bold">string</span>
+}</code></pre></div>
+<p>对于需要配置 SharedInformerFactory 的 Middleware，还另外需要实现接口：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// pkg/yurttunnel/handlerwrapper/initializer/initalizer.go
+</span><span style="color:#09f;font-style:italic"></span>
+<span style="color:#09f;font-style:italic">// WantsSharedInformerFactory is an interface for setting SharedInformerFactory
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">type</span> WantsSharedInformerFactory <span style="color:#069;font-weight:bold">interface</span> {
+	<span style="color:#c0f">SetSharedInformerFactory</span>(factory informers.SharedInformerFactory) <span style="color:#078;font-weight:bold">error</span>
+}</code></pre></div>
+<p>完成 sharedInformerFactory 所有配置之后，启动 sharedInformerFactory，并等待 certManager 创建证书完成。</p>
+
+<p>创建 TunnelServer 并运行，监听本地 0.0.0.0:10263（https 消息）和127.0.0.1:10264（http 消息），将消息格式转换为 ANP Proxy Server 处理的格式并转发至本地运行的 ANP Proxy Server，其将请求转发给对应的 agent。</p>
+
+<h3 id="组件成员分析">组件成员分析</h3>
+
+<h4 id="iptable-manager">iptable Manager</h4>
+
+<p>server 所在的节点每隔一定时间更新本地的 iptables 的 nat 表，主要是增加以下两种 chain：</p>
+
+<p><center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1620979780/sel/image-20210402131707694_ktzwsp.png"  style="zoom:40%;" />
+</center></p>
+
+<p><center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1620979780/sel/image-20210331175234630_osnrz7.png"  style="zoom:40%;" />
+</center></p>
+
+<p>其中 port、node IP 通过获取集群中的 configmap 以及 node 信息来更新。</p>
+
+<blockquote>
+<p>比如：</p>
+
+<p>server 节点 S1；server 节点 S2，服务端口为 P1；yurthub-node A，服务端口 P1。</p>
+
+<p>初始化时， iptables 就会建立一个 chain：TUNNEL-PORT-P1，并建立以上形式的规则，在 TUNNEL- PORT 表中建立一条rule：-j TUNNEL-PORT-P1。</p>
+
+<p>如果一个 server 节点需要发送给 yurthub-node A，A 的接收端口为 P1。之后 server 节点发送给A 的消息就会转发给本地 proxy server 监听的端口。</p>
+
+<p>如果一个 server 节点需要发送给 server-node B，B 的接收端口为 P1。之后 server 节点发送给A 的消息就会转发给本地 proxy server 监听的端口。</p>
+
+<p>其中端口（如 P1）、node IP 通过获取集群中的 configmap 以及 node 信息来更新。</p>
+</blockquote>
+
+<h4 id="certmanager">CertManager</h4>
+
+<p>certManager 负责管理 yurttunnel server 与 master 连接的证书。</p>
+
+<p>启动 certManager 之后，certManager 每隔一定时间或者监测到证书 template 发生变化时，certManager 会根据函数 getTemplate 创建 csr（certificate signing request）的 spec.Request 字段：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// pkg/yurttunnel/pki/certmanager/certmanager.go
+</span><span style="color:#09f;font-style:italic"></span>
+getTemplate <span style="color:#555">:=</span> <span style="color:#069;font-weight:bold">func</span>() <span style="color:#555">*</span>x509.CertificateRequest {
+		<span style="color:#069;font-weight:bold">return</span> <span style="color:#555">&amp;</span>x509.CertificateRequest{
+			Subject: pkix.Name{
+				CommonName:   commonName,  <span style="color:#09f;font-style:italic">// signerName：kube-apiserver-kubelet-client
+</span><span style="color:#09f;font-style:italic"></span>				Organization: organizations,  <span style="color:#09f;font-style:italic">// []string{ &#34;system:masters&#34;, &#34;openyurt:yurttunnel&#34;}
+</span><span style="color:#09f;font-style:italic"></span>			},
+			DNSNames:    dnsNames,
+			IPAddresses: ipAddrs,
+		}
+	}</code></pre></div>
+<p>并 watch 等待处理结果，如果 csr 最终状态为 Approved，则通过 <code>status.certificate</code> 字段获取证书，并更新本地证书文件。如果1）出错；2）等待超时；3） csr 的状态为 denied，则继续等待下一次更新。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// util/certificate/certificate_manager.go
+</span><span style="color:#09f;font-style:italic"></span>
+<span style="color:#069;font-weight:bold">func</span> (m <span style="color:#555">*</span>manager) <span style="color:#c0f">rotateCerts</span>() (<span style="color:#078;font-weight:bold">bool</span>, <span style="color:#078;font-weight:bold">error</span>) {
+	klog.<span style="color:#c0f">V</span>(<span style="color:#f60">2</span>).<span style="color:#c0f">Infof</span>(<span style="color:#c30">&#34;Rotating certificates&#34;</span>)
+
+	template, csrPEM, keyPEM, privateKey, err <span style="color:#555">:=</span> m.<span style="color:#c0f">generateCSR</span>()  <span style="color:#09f;font-style:italic">// create csr
+</span><span style="color:#09f;font-style:italic"></span>	<span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+		utilruntime.<span style="color:#c0f">HandleError</span>(fmt.<span style="color:#c0f">Errorf</span>(<span style="color:#c30">&#34;Unable to generate a certificate signing request: %v&#34;</span>, err))
+		<span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">false</span>, <span style="color:#069;font-weight:bold">nil</span>
+	}
+
+	<span style="color:#09f;font-style:italic">// request the client each time
+</span><span style="color:#09f;font-style:italic"></span>	client, err <span style="color:#555">:=</span> m.<span style="color:#c0f">getClient</span>()
+	<span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+		utilruntime.<span style="color:#c0f">HandleError</span>(fmt.<span style="color:#c0f">Errorf</span>(<span style="color:#c30">&#34;Unable to load a client to request certificates: %v&#34;</span>, err))
+		<span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">false</span>, <span style="color:#069;font-weight:bold">nil</span>
+	}
+
+	<span style="color:#09f;font-style:italic">// Call the Certificate Signing Request API to get a certificate for the
+</span><span style="color:#09f;font-style:italic"></span>	<span style="color:#09f;font-style:italic">// new private key.
+</span><span style="color:#09f;font-style:italic"></span>	req, err <span style="color:#555">:=</span> csr.<span style="color:#c0f">RequestCertificate</span>(client, csrPEM, <span style="color:#c30">&#34;&#34;</span>, m.usages, privateKey)  
+	<span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+		utilruntime.<span style="color:#c0f">HandleError</span>(fmt.<span style="color:#c0f">Errorf</span>(<span style="color:#c30">&#34;Failed while requesting a signed certificate from the master: %v&#34;</span>, err))
+		<span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">false</span>, m.<span style="color:#c0f">updateServerError</span>(err)
+	}
+
+	<span style="color:#555">......</span>
+}</code></pre></div>
+<h4 id="csrapprover">CSRApprover</h4>
+
+<p>CSRApprover 用于人工认证（approve）cert Manager 创建的 csr，其数据结构如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// pkg/yurttunnel/pki/certmanager/csrapprover.go
+</span><span style="color:#09f;font-style:italic"></span>
+<span style="color:#09f;font-style:italic">// YurttunnelCSRApprover is the controller that auto approve all
+</span><span style="color:#09f;font-style:italic">// yurttunnel related CSR
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">type</span> YurttunnelCSRApprover <span style="color:#069;font-weight:bold">struct</span> {
+	csrInformer certv1beta1.CertificateSigningRequestInformer  <span style="color:#09f;font-style:italic">// 缓存 csr 相关信息
+</span><span style="color:#09f;font-style:italic"></span>	csrClient   typev1beta1.CertificateSigningRequestInterface
+	<span style="color:#09f;font-style:italic">// RateLimitingInterface is an interface that rate limits items being added to the queue.
+</span><span style="color:#09f;font-style:italic"></span>	workqueue   workqueue.RateLimitingInterface  <span style="color:#09f;font-style:italic">// 存放 csr key（&lt;namespace&gt;/&lt;name&gt; 或者 &lt;name&gt;），对 csr 进行认证处理
+</span><span style="color:#09f;font-style:italic"></span>}</code></pre></div>
+<p>在创建 CSRApprover 时，为 csr informer 添加 Add、Update 处理函数：enqueueObj——即将Add 或者 Update 的 csr 的 key（<code>&lt;namespace&gt;/&lt;name&gt;</code> 或者 <code>&lt;name&gt;</code>） 放入 workqueue 中。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// pkg/yurttunnel/pki/certmanager/csrapprover.go
+</span><span style="color:#09f;font-style:italic"></span>
+<span style="color:#09f;font-style:italic">// NewCSRApprover creates a new YurttunnelCSRApprover
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">func</span> <span style="color:#c0f">NewCSRApprover</span>(clientset kubernetes.Interface,
+                    csrInformer certinformer.CertificateSigningRequestInformer) <span style="color:#555">*</span>YurttunnelCSRApprover {
+	wq <span style="color:#555">:=</span> workqueue.<span style="color:#c0f">NewRateLimitingQueue</span>(workqueue.<span style="color:#c0f">DefaultControllerRateLimiter</span>())
+	csrInformer.<span style="color:#c0f">Informer</span>().<span style="color:#c0f">AddEventHandler</span>(cache.ResourceEventHandlerFuncs{
+		AddFunc: <span style="color:#069;font-weight:bold">func</span>(obj <span style="color:#069;font-weight:bold">interface</span>{}) {
+			<span style="color:#c0f">enqueueObj</span>(wq, obj)
+		},
+		UpdateFunc: <span style="color:#069;font-weight:bold">func</span>(old, new <span style="color:#069;font-weight:bold">interface</span>{}) {
+			<span style="color:#c0f">enqueueObj</span>(wq, new)
+		},
+	})
+	<span style="color:#069;font-weight:bold">return</span> <span style="color:#555">&amp;</span>YurttunnelCSRApprover{
+		csrInformer: csrInformer,
+		csrClient:   clientset.<span style="color:#c0f">CertificatesV1beta1</span>().<span style="color:#c0f">CertificateSigningRequests</span>(),
+		workqueue:   wq,
+	}
+}</code></pre></div>
+<p>启动 CSRApprover，等待本地 csrInformer 进行同步，同步完成之后，启动 threadiness（默认为2）个协程，每个协程每隔一定时间（1s）就去运行函数 runWorker，直到接收到结束信号，就关闭这个协程。</p>
+
+<p>runWorker 中调用了 processNextItem 方法，主要处理 workqueue 中的 key（csr 的 <code>&lt;namespace&gt;/&lt;name&gt;</code> 或者 <code>&lt;name&gt;</code>），如果根据 key 能够从 informer 中拿到 obj，检查 csr 的状态，如果状态既不是 approved，也不是 denied，那么尝试人工批准并且更新，如果成功，则这个 key 处理完成；否则，重新加入队列处理。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// pkg/yurttunnel/pki/certmanager/csrapprover.go
+</span><span style="color:#09f;font-style:italic"></span>
+<span style="color:#069;font-weight:bold">func</span> (yca <span style="color:#555">*</span>YurttunnelCSRApprover) <span style="color:#c0f">runWorker</span>() {
+	<span style="color:#069;font-weight:bold">for</span> yca.<span style="color:#c0f">processNextItem</span>() {
+	}
+}
+
+<span style="color:#069;font-weight:bold">func</span> (yca <span style="color:#555">*</span>YurttunnelCSRApprover) <span style="color:#c0f">processNextItem</span>() <span style="color:#078;font-weight:bold">bool</span> {
+	<span style="color:#09f;font-style:italic">// Get blocks until it can return an item to be processed. If shutdown = true,
+</span><span style="color:#09f;font-style:italic"></span>	<span style="color:#09f;font-style:italic">// the caller should end their goroutine. You must call Done with item when you
+</span><span style="color:#09f;font-style:italic"></span>	<span style="color:#09f;font-style:italic">// have finished processing it.
+</span><span style="color:#09f;font-style:italic"></span>	key, quit <span style="color:#555">:=</span> yca.workqueue.<span style="color:#c0f">Get</span>()
+	<span style="color:#069;font-weight:bold">if</span> quit {
+		<span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">false</span>
+	}
+	csrName, ok <span style="color:#555">:=</span> key.(<span style="color:#078;font-weight:bold">string</span>)
+	<span style="color:#069;font-weight:bold">if</span> !ok {
+		yca.workqueue.<span style="color:#c0f">Forget</span>(key)
+		runtime.<span style="color:#c0f">HandleError</span>(
+			fmt.<span style="color:#c0f">Errorf</span>(<span style="color:#c30">&#34;expected string in workqueue but got %#v&#34;</span>, key))
+		<span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">true</span>
+	}
+
+	<span style="color:#069;font-weight:bold">defer</span> yca.workqueue.<span style="color:#c0f">Done</span>(key)
+
+	csr, err <span style="color:#555">:=</span> yca.csrInformer.<span style="color:#c0f">Lister</span>().<span style="color:#c0f">Get</span>(csrName) 
+	<span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> { 
+		runtime.<span style="color:#c0f">HandleError</span>(err)
+		<span style="color:#069;font-weight:bold">if</span> !apierrors.<span style="color:#c0f">IsNotFound</span>(err) { 
+			yca.workqueue.<span style="color:#c0f">AddRateLimited</span>(key)
+		}
+		<span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">true</span>
+	}
+
+	<span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> <span style="color:#c0f">approveYurttunnelCSR</span>(csr, yca.csrClient); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {  <span style="color:#09f;font-style:italic">// 检查 csr 的状态，尝试人工批准它
+</span><span style="color:#09f;font-style:italic"></span>		runtime.<span style="color:#c0f">HandleError</span>(err)
+		<span style="color:#c0f">enqueueObj</span>(yca.workqueue, csr)
+		<span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">true</span>
+	}
+	<span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">true</span>
+}</code></pre></div>
+<p>csrApprover 和 certManager 的合作流程为：</p>
+
+<p><center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1620979780/sel/image-20210402112715032_ocnw4d.png"  style="zoom:30%;" />
+</center></p>
+
+<h4 id="anptunnelserver">anpTunnelServer</h4>
+
+<p>1）创建  http.Server，监听地址为 udsSockFile（/tmp/interceptor-proxier.sock），handler 为 anpserver.Tunnel，其结构为：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// pkg/server/tunnel.go
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">type</span> Tunnel <span style="color:#069;font-weight:bold">struct</span> {
+	Server <span style="color:#555">*</span>ProxyServer
+}
+
+<span style="color:#069;font-weight:bold">func</span> (t <span style="color:#555">*</span>Tunnel) <span style="color:#c0f">ServeHTTP</span>(w http.ResponseWriter, r <span style="color:#555">*</span>http.Request) {
+<span style="color:#555">...</span>
+}</code></pre></div>
+<p>其中成员 ProxyServer 为 ANP Proxy Server，负责管理与 yurttunnel Agent 之间的长连接，并将请求转发给对应的 agent。</p>
+
+<p>2）创建 http.Server，监听地址为0.0.0.0:10263（负责监听 master 发来的 https 消息），TLSConfig 为之前生成的 tls 配置文件，handler 为 wrappedHandler，其作用为将监听到的消息封装成 anp proxy server 需要的格式，并将其转发至 anpserver.Tunnel。其核心 handler 为 RequestInterceptor，并且包装了之前已经初始化的 HandlerWrappers。其中 RequestInterceptor 结构为：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// pkg/yurttunnel/server/interceptor.go
+</span><span style="color:#09f;font-style:italic"></span>
+<span style="color:#09f;font-style:italic">// ReqRequestInterceptor intercepts http/https requests sent from the master,
+</span><span style="color:#09f;font-style:italic">// prometheus and metric server, setup proxy tunnel to kubelet, sends requests
+</span><span style="color:#09f;font-style:italic">// through the tunnel and sends responses back to the master
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">type</span> RequestInterceptor <span style="color:#069;font-weight:bold">struct</span> {
+	contextDialer <span style="color:#069;font-weight:bold">func</span>(addr <span style="color:#078;font-weight:bold">string</span>, header http.Header, isTLS <span style="color:#078;font-weight:bold">bool</span>) (net.Conn, <span style="color:#078;font-weight:bold">error</span>)  <span style="color:#09f;font-style:italic">// 与本地&#34;/tmp/interceptor-proxier.sock&#34; 建立连接
+</span><span style="color:#09f;font-style:italic"></span>}
+
+<span style="color:#09f;font-style:italic">// ServeHTTP will proxy the request to the tunnel and return response from tunnel back
+</span><span style="color:#09f;font-style:italic">// to the client
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">func</span> (ri <span style="color:#555">*</span>RequestInterceptor) <span style="color:#c0f">ServeHTTP</span>(w http.ResponseWriter, r <span style="color:#555">*</span>http.Request) {
+	<span style="color:#09f;font-style:italic">// 1. setup the tunnel
+</span><span style="color:#09f;font-style:italic"></span>	tunnelConn, err <span style="color:#555">:=</span> ri.<span style="color:#c0f">contextDialer</span>(r.Host, r.Header, r.TLS <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span>)
+	<span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+		<span style="color:#c0f">klogAndHttpError</span>(w, http.StatusServiceUnavailable,
+			<span style="color:#c30">&#34;fail to setup the tunnel: %s&#34;</span>, err)
+		<span style="color:#069;font-weight:bold">return</span>
+	}
+	<span style="color:#069;font-weight:bold">defer</span> tunnelConn.<span style="color:#c0f">Close</span>()
+
+	<span style="color:#09f;font-style:italic">// 2. proxy the request to tunnel
+</span><span style="color:#09f;font-style:italic"></span>	<span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> r.<span style="color:#c0f">Write</span>(tunnelConn); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+		<span style="color:#c0f">klogAndHttpError</span>(w, http.StatusServiceUnavailable,
+			<span style="color:#c30">&#34;fail to write request to tls connection: %s&#34;</span>, err)
+		<span style="color:#069;font-weight:bold">return</span>
+	}
+
+	<span style="color:#09f;font-style:italic">// 3.1 handling the upgrade request
+</span><span style="color:#09f;font-style:italic"></span>	<span style="color:#069;font-weight:bold">if</span> httpstream.<span style="color:#c0f">IsUpgradeRequest</span>(r) {
+		<span style="color:#c0f">serveUpgradeRequest</span>(tunnelConn, w, r)
+		<span style="color:#069;font-weight:bold">return</span>
+	}
+
+	<span style="color:#09f;font-style:italic">// 3.2 handling the request
+</span><span style="color:#09f;font-style:italic"></span>	<span style="color:#c0f">serveRequest</span>(tunnelConn, w, r)
+}</code></pre></div>
+<p>3）创建 http.Server，监听地址为127.0.0.1:10264（负责监听 master 发来的 http 消息），handler 为 wrappedHandler。</p>
+
+<p>消息传递路径如下：</p>
+
+<p><center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1620965218/sel/image-20210402132602123_x6gelt.png"  style="zoom:30%;" />
+</center></p>
+
+<h2 id="yurttunnel-agent">Yurttunnel Agent</h2>
+
+<h3 id="启动流程-1">启动流程：</h3>
+
+<p>通过unnel server 相关的 service、ep、cloud nodes，获取集群中一个可用的 yurttunnel server 的连接地址（host:port）。</p>
+
+<p>创建并启动 certManager，会创建 CSR，将得到证书用于其与 yurttunnel server 的安全通信。并维持证书的更新。</p>
+
+<p>根据  /var/run/secrets/kubernetes.io/serviceaccount/ca.crt 生成 certPool（包含了验证服务器相关证书），通过 certmanager 获取当前证书，再生成  tls 配置文件。</p>
+
+<p>创建 TunnelAgent 并运行，其本质是一个 anpagent。</p>
+
+<h2 id="通信流程">通信流程</h2>
+
+<p><center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1620965036/sel/image-20210402114614715_shmtdg.png"  style="zoom:30%;" />
+</center></p>
+
+<h2 id="参考资料">参考资料</h2>
+
+<p><a href="https://mp.weixin.qq.com/s?__biz=MzUzNzYxNjAzMg==&amp;mid=2247495998&amp;idx=1&amp;sn=0fce8d2e736f911cecf1a35d83c5bd26&amp;chksm=fae6faf1cd9173e787c8cb1e5f704083c24497ecd64451e0eb39855164d155f6f70b05089e88&amp;cur_album_id=1410601643242307586&amp;scene=190#rd">OpenYurt 深度解读：如何构建 Kubernetes 原生云边高效协同网络？</a></p>
+                        </div>
+                        
+                        
+                        
+                        
+                        
+                        
+
+                        
+                        <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+                        <script src="https://unpkg.com/gitalk@latest/dist/gitalk.min.js"></script> 
+                        <script type="text/javascript" src="/assets/js/md5.min.js"></script>
+                        <div id="gitalk-container"></div>     
+                        <script type="text/javascript">
+                            var gitalk = new Gitalk({
+                              clientID: '835183d2dcbd1167ac28', 
+                            
+                              clientSecret: 'd873919fac3cc76921ee0800172c2279bc612f8d', 
+                            
+                              repo: 'Sel-Website-talk',
+                              owner: 'Peeknut',
+                              admin: ['Peeknut','Rachel-Shao'],
+                              id: location.href.split("/").pop().substring(0, 49),      
+                              distractionFreeMode: false  
+                            })
+                            gitalk.render('gitalk-container')
+                        </script> 
+                        
+
+                    </div>
+                    
+
+                    
+
+                    
+
+                    <div class="col-md-3">
+
+                        
+
+                        
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+      <h3 class="panel-title">搜索栏</h3>
+      
+    </div>
+
+    <div class="panel-body">
+        
+        <div class="search" id="search">
+            <div class="input-group">
+                <input type="text" name="q" class="form-control" placeholder="请输入文章标题或摘要..." id="search-key">
+                <input type="hidden" name="sitesearch" value="https://Congrool.github.io/">
+                <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main" onclick="search()"><i class="fas fa-search"></i></button>
+                </span>
+            </div>
+            <h1 id="search-tip" style="color: red;text-align: center;display: none;font-size: medium;">搜索中，请稍后 ...</h1>
+        </div>
+        <script type="text/javascript">
+            
+            window.onload = function() {
+                      document.onkeydown = function(ev) {
+                        var event = ev || event
+                        if (event.keyCode == 13) {
+                          search()
+                        }
+                      }
+                    }
+            
+            function search() {
+                    
+                      key = document.getElementById("search-key").value;
+                      if (key === "") {
+                        
+                        return;
+                      }
+                      key = key.toLowerCase();
+                      document.getElementById("search-key").value = "";
+                  
+                      
+                      document.getElementById("search-tip").innerText = "搜索中，请稍后 ...";
+                      document.getElementById("search-tip").style.display = "block";
+                  
+                      
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      var childs = el.childNodes;
+                      for (var i = childs.length - 1; i >= 0; i--) {
+                        el.removeChild(childs[i]);
+                      }
+                  
+                      
+                      xmltext = new XMLHttpRequest;
+                      xmltext.open("GET", "/index.xml", false);
+                      xmltext.send();
+                      resp = xmltext.responseXML;
+                      
+                      items = resp.getElementsByTagName("item");
+                      
+                      var i = 0;
+                      haveResult = false;
+                      while (i < items.length) {
+                        txt = items[i].getElementsByTagName("title")[0].innerHTML + items[i].getElementsByTagName("description")[0].innerHTML
+                        txt = txt.toLowerCase();
+                        if (txt.indexOf(key) > -1) {
+                          haveResult = true;
+                          title = items[i].getElementsByTagName("title")[0].innerHTML;
+                          link = items[i].getElementsByTagName("link")[0].innerHTML;
+                          time = items[i].getElementsByTagName("pubDate")[0].innerHTML;
+                          mark = items[i].getElementsByTagName("description")[0].innerHTML;
+                          time = time.slice(0, -5);
+                          addItem(title, link, time, mark)
+                        }
+                        i++;
+                      }
+                      if (!haveResult) {
+                        document.getElementById("search-tip").innerText = "搜索完毕，未发现结果 ...";
+                        document.getElementById("search-tip").style.display = "block";
+                      }
+
+                      
+                      var el = document.getElementById("blog-head");
+                      el.innerHTML="Blogs"
+                    }
+                  
+                    
+                    function addItem(title, link, time, mark) {
+                      document.getElementById("search-tip").style.display = "none";
+                      tmpl = "<article class=\"post\" style=\"border-bottom: 1px solid #e6e6e6;\" >" +
+                        "<header class=\"post-header\">" +
+                        "<h1 class=\"post-title\"><a class=\"post-link\" href=\"" + link + "\" target=\"_blank\">" + title + "</a></h1>" +
+                        "<div class=\"post-meta\">" +
+                        " <span class=\"post-time\">" + time + "</span>" +
+                        "</div>" +
+                        " </header>" +
+                        "<div class=\"post-content\">" +
+                        "<div class=\"post-summary\">" + mark + "</div>" +
+                        "<div class=\"read-more\">" +
+                        "<a href=" + link + " class=\"read-more-link\" target=\"_blank\">阅读更多</a>" +
+                        "</div>" +
+                        " </div>" +
+                        "</article>"
+                      div = document.createElement("div")
+                      div.innerHTML = tmpl;
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      el.appendChild(div)
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+
+        </script>
+        
+    </div>
+</div>
+
+
+
+
+
+
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">归档栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="nav nav-pills nav-stacked">
+            
+            
+            <li>
+                <a href="/categories/bosh">bosh (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloud_controller_ng">cloud_controller_ng (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloudfoundry">cloudfoundry (15)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/containerd">containerd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/docker">docker (19)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/etcd">etcd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/haproxy">haproxy (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/healthmanager">healthmanager (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/karmada">karmada (4)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubeedge">kubeedge (5)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubernetes">kubernetes (14)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/network">network (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/openyurt">openyurt (2)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/service-mesh">service-mesh (4)</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+<div class="panel sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">标签栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="tag-cloud">
+            
+            
+            <li>
+                <a href="/tags/agent"><i class="fas fa-tags"></i> agent</a>
+            </li>
+            
+            <li>
+                <a href="/tags/apiserver"><i class="fas fa-tags"></i> apiserver</a>
+            </li>
+            
+            <li>
+                <a href="/tags/books"><i class="fas fa-tags"></i> books</a>
+            </li>
+            
+            <li>
+                <a href="/tags/bosh"><i class="fas fa-tags"></i> bosh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/ccng"><i class="fas fa-tags"></i> ccng</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cf-release"><i class="fas fa-tags"></i> cf-release</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cgroups"><i class="fas fa-tags"></i> cgroups</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudfoundry"><i class="fas fa-tags"></i> cloudfoundry</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudnative"><i class="fas fa-tags"></i> cloudnative</a>
+            </li>
+            
+            <li>
+                <a href="/tags/collector"><i class="fas fa-tags"></i> collector</a>
+            </li>
+            
+            <li>
+                <a href="/tags/containerd"><i class="fas fa-tags"></i> containerd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cri"><i class="fas fa-tags"></i> cri</a>
+            </li>
+            
+            <li>
+                <a href="/tags/dea"><i class="fas fa-tags"></i> dea</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker"><i class="fas fa-tags"></i> docker</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker-network"><i class="fas fa-tags"></i> docker-network</a>
+            </li>
+            
+            <li>
+                <a href="/tags/edgecomputing"><i class="fas fa-tags"></i> edgecomputing</a>
+            </li>
+            
+            <li>
+                <a href="/tags/etcd"><i class="fas fa-tags"></i> etcd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/gorouter"><i class="fas fa-tags"></i> gorouter</a>
+            </li>
+            
+            <li>
+                <a href="/tags/haproxy"><i class="fas fa-tags"></i> haproxy</a>
+            </li>
+            
+            <li>
+                <a href="/tags/healthmanager"><i class="fas fa-tags"></i> healthmanager</a>
+            </li>
+            
+            <li>
+                <a href="/tags/istio"><i class="fas fa-tags"></i> istio</a>
+            </li>
+            
+            <li>
+                <a href="/tags/karmada"><i class="fas fa-tags"></i> karmada</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubeedge"><i class="fas fa-tags"></i> kubeedge</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubelet"><i class="fas fa-tags"></i> kubelet</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubernetes"><i class="fas fa-tags"></i> kubernetes</a>
+            </li>
+            
+            <li>
+                <a href="/tags/libcontainer"><i class="fas fa-tags"></i> libcontainer</a>
+            </li>
+            
+            <li>
+                <a href="/tags/micro-service"><i class="fas fa-tags"></i> micro-service</a>
+            </li>
+            
+            <li>
+                <a href="/tags/namespace"><i class="fas fa-tags"></i> namespace</a>
+            </li>
+            
+            <li>
+                <a href="/tags/nats"><i class="fas fa-tags"></i> nats</a>
+            </li>
+            
+            <li>
+                <a href="/tags/news"><i class="fas fa-tags"></i> news</a>
+            </li>
+            
+            <li>
+                <a href="/tags/openyurt"><i class="fas fa-tags"></i> openyurt</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pipework"><i class="fas fa-tags"></i> pipework</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pouch"><i class="fas fa-tags"></i> pouch</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runc"><i class="fas fa-tags"></i> runc</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runtime"><i class="fas fa-tags"></i> runtime</a>
+            </li>
+            
+            <li>
+                <a href="/tags/security"><i class="fas fa-tags"></i> security</a>
+            </li>
+            
+            <li>
+                <a href="/tags/serverless"><i class="fas fa-tags"></i> serverless</a>
+            </li>
+            
+            <li>
+                <a href="/tags/service-mesh"><i class="fas fa-tags"></i> service-mesh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/syslog_aggregator"><i class="fas fa-tags"></i> syslog_aggregator</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+                        
+
+                    </div>
+                    
+
+                    
+
+                </div>
+                
+
+            </div>
+            
+        </div>
+        
+
+        <footer id="footer">
+    <div class="container">
+
+        
+        <div class="col-md-4 col-sm-6">
+            <h4></h4>
+
+            <p><strong>关于我们：<strong> <p>浙大SEL实验室</p><p>地址：杭州市浙大路38号曹光彪西楼405室</p><p><strong></strong>
+            <a href="/contact" class="btn btn-small btn-template-main" >跳转到关于</a>
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+        <div class="col-md-4 col-sm-6">
+
+             
+            <h4>最新博客</h4>
+            
+
+            <div class="blog-entries">
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/27/overview.png" class="img-responsive" alt="基于KubeEdge的边缘节点分组管理设计与实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">基于KubeEdge的边缘节点分组管理设计与实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/20/karmada-scheduler.png" class="img-responsive" alt="多云环境下的资源调度：karmada scheduler的框架和实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">多云环境下的资源调度：karmada scheduler的框架和实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">
+                          
+                            <img src="/img/blogs/19/karmada-arch.jpg" class="img-responsive" alt="多云环境下的成员集群管理，看看开源项目karmada是如何做到的">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">多云环境下的成员集群管理，看看开源项目karmada是如何做到的</a></h5>
+                    </div>
+                </div>
+                
+            </div>
+
+            <hr class="hidden-md hidden-lg">
+             
+
+        </div>
+        
+
+        
+        <div class="col-md-4 col-sm-6">
+
+          <h4></h4>
+
+            <p><strong>联系我们: 
+                                    <p>团队负责人：丁轶群 yiqunding@zju.edu.cn</p>
+                                    <p>网站维护人：刘佳文 839809484@qq.com</p>                
+    </strong>
+
+            
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+    </div>
+    
+</footer>
+
+
+
+
+
+
+
+<div id="copyright">
+    <div class="container">
+        <div class="col-md-12">
+            
+            <p class="pull-left">Copyright ©️ 2020 SEL Laboratory , ZJ University all rights reserved.</p>
+            
+            <p class="pull-right">
+               <a href="https://bootstrapious.com/p/universal-business-e-commerce-template">Bootstrapious</a>.
+              
+
+               <a href="https://github.com/devcows/hugo-universal-theme">DevCows</a>.
+            </p>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+    </div>
+    
+
+    
+
+
+<script src="/js/jquery.min.js"></script>
+<script src="/js/bootstrap.min.js"></script>
+
+
+
+<script src="/js/jquery.cookie.min.js"></script>
+<script src="/js/jquery.waypoints.min.js"></script>
+<script src="/js/jquery.counterup.min.js"></script>
+<script src="/js/jquery-parallax.js"></script>
+
+
+<script src="/js/front.js"></script>
+
+
+<script src="/js/owl.carousel.min.js"></script>
+
+
+
+  </body>
+</html>

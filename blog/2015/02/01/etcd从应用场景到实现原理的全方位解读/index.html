@@ -1,0 +1,1491 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="robots" content="all,follow">
+  <meta name="googlebot" content="index,follow,snippet,archive">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <title>etcd：从应用场景到实现原理的全方位解读</title>
+  <meta name="author" content="孙健波" />
+  
+  
+  
+  
+  <meta name="keywords" content="etcd">
+  
+  
+  <meta name="description" content="随着CoreOS和Kubernetes等项目在开源社区日益火热，它们项目中都用到的etcd组件作为一个高可用、强一致性的服务发现存储仓库，渐渐为开发人员所关注。在云计算时代，如何让服务快速透明地接入到计算集群中，如何让共享配置信息快速被集群中的所有机器发现，更为重要的是，如何构建这样一套高可用、安全、易于部署以及响应快速的服务集群，已经成为了迫切需要解决的问题。etcd为解决这类问题带来了福音，本章将从etcd的应用场景开始，深入解读etcd的实现方式，以供开发者们更为充分地享用etcd所带来的便利。">
+
+  <meta name="generator" content="Hugo 0.68.3" />
+
+  
+  <link href='//fonts.googleapis.com/css?family=Roboto:400,100,100italic,300,300italic,500,700,800' rel='stylesheet' type='text/css'>
+
+  
+  
+  
+  
+  
+
+  <link href="/css/all.css" rel="stylesheet">
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+
+  
+  <link href="/css/animate.css" rel="stylesheet">
+
+  
+  
+    <link href="/css/style.default.css" rel="stylesheet" id="theme-stylesheet">
+  
+
+  
+  <link href="/css/custom.css" rel="stylesheet">
+
+  
+  
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+        <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  
+
+  
+  <link rel="shortcut icon" href="/img/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
+
+  
+  <link href="/css/owl.carousel.css" rel="stylesheet">
+  <link href="/css/owl.theme.css" rel="stylesheet">
+
+  
+  <link rel="alternate" href="https://Congrool.github.io/index.xml" type="application/rss+xml" title="浙大SEL实验室">
+
+  
+  
+  
+  
+  
+  
+  <meta property="og:updated_time" content="2015-02-01T15:27:24Z">
+  
+    
+    
+    <meta property="article:section" content="etcd">
+    <meta property="article:tag" content="etcd">
+    
+    
+    <meta property="article:published_time" content="2015-02-01T15:27:24Z">
+    <meta property="article:modified_time" content="2015-02-01T15:27:24Z">
+  
+
+  
+  <meta name="twitter:card" content="summary">
+  
+  <meta name="twitter:title" content="etcd：从应用场景到实现原理的全方位解读">
+  
+  <meta name="twitter:description" content="随着CoreOS和Kubernetes等项目在开源社区日益火热，它们项目中都用到的etcd组件作为一个高可用、强一致性的服务发现存储仓库，渐渐为开发人员所关注。在云计算时代，如何让服务快速透明地接入到计算集群中，如何让共享配置信息快速被集群中的所有机器发现，更为重要的是，如何构建这样一套高可用、安全、易于部署以及响应快速的服务集群，已经成为了迫切需要解决的问题。etcd为解决这类问题带来了福音，本 …">
+  
+  
+</head>
+
+
+  <body>
+
+    <div id="all">
+
+        <header class="navbar-affixed-top" data-spy="affix" data-offset-top="62">
+    <div class="navbar navbar-default yamm" role="navigation" id="navbar" style="background-color:white;">    
+        <div class="container">
+            <div class="navbar-header">
+                <a class="navbar-brand home" href="/">
+                    <img src="/img/sel.png" alt="etcd：从应用场景到实现原理的全方位解读" class="hidden-xs hidden-sm img-responsive">
+                    
+                    <span class="sr-only">etcd：从应用场景到实现原理的全方位解读 - </span>
+                </a>
+                <div class="navbar-buttons">
+                    <button type="button" class="navbar-toggle btn-template-main" data-toggle="collapse" data-target="#navigation">
+                      <span class="sr-only"></span>
+                        <i class="fas fa-align-justify"></i>
+                    </button>
+                </div>
+            </div>
+            
+
+            <div class="navbar-collapse collapse" id="navigation">
+                <ul class="nav navbar-nav navbar-right">
+                  
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/">主页</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/blog/">博客</a>
+                    
+                  </li>
+
+                  <li class="dropdown">
+                    
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">社区 <span class="caret"></span></a>
+                  <ul class="dropdown-menu">
+                    
+                      <li><a href="https://www.servicemesher.com/">ServiceMesh社区</a></li>
+                    
+                      <li><a href="">kubeedge社区</a></li>
+
+                      <li><a href="http://www.icsoft.zju.edu.cn/index.php">浙江大学智能计算与软件中心</a></li>
+                    
+                  </ul>
+
+                  <li class="dropdown">
+                    
+                    <a href="/archives/">归档</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/contact/">关于</a>
+                    
+                  </li>
+                  
+                </li>
+
+                
+                
+
+                
+                </ul>
+            </div>
+            
+
+            <div class="collapse clearfix" id="search">    
+                <form class="navbar-form" role="search">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search">
+                        <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main"><i class="fas fa-search"></i></button>
+                </span>
+                    </div>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+
+    
+</header>
+
+
+
+
+        <div id="heading-breadcrumbs">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h1>etcd：从应用场景到实现原理的全方位解读</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+        <div id="content">
+            <div class="container">
+
+                <div class="row">
+
+                    
+
+                    <div class="col-md-9" id="blog-post">
+
+                        
+                          <p class="text-muted text-uppercase mb-small text-right">
+                             <a href="#">孙健波</a>
+                             | 
+                            2015-02-01
+                          </p>
+                        
+
+                        <div id="post-content">
+                          <p>随着CoreOS和Kubernetes等项目在开源社区日益火热，它们项目中都用到的etcd组件作为一个高可用、强一致性的服务发现存储仓库，渐渐为开发人员所关注。在云计算时代，如何让服务快速透明地接入到计算集群中，如何让共享配置信息快速被集群中的所有机器发现，更为重要的是，如何构建这样一套高可用、安全、易于部署以及响应快速的服务集群，已经成为了迫切需要解决的问题。etcd为解决这类问题带来了福音，本章将从etcd的应用场景开始，深入解读etcd的实现方式，以供开发者们更为充分地享用etcd所带来的便利。</p>
+
+<h2 id="1-etcd经典应用场景">1 etcd经典应用场景</h2>
+
+<p>etcd是什么？很多人对这个问题的第一反应可能是，它是一个键值存储仓库，却没有重视官方定义的后半句，用于配置共享和服务发现。</p>
+
+<blockquote>
+<p><strong>A highly-available key value store for shared configuration and service discovery.</strong></p>
+</blockquote>
+
+<p>实际上，etcd作为一个受到Zookeeper与doozer启发而催生的项目，除了拥有与之类似的功能外，更具有以下4个特点{![引自Docker官方文档]}。</p>
+
+<ul>
+<li>简单：基于HTTP+JSON的API让你用curl命令就可以轻松使用。</li>
+<li>安全：可选SSL客户认证机制。</li>
+<li>快速：每个实例每秒支持一千次写操作。</li>
+<li>可信：使用Raft算法充分实现了分布式。</li>
+</ul>
+
+<p>随着云计算的不断发展，分布式系统中涉及的问题越来越受到人们重视。受阿里中间件团队对<a href="http://jm-blog.aliapp.com/?p=1232">ZooKeeper典型应用场景一览</a>一文的启发{![部分案例引自此文。]}，我根据自己的理解也总结了一些etcd的经典使用场景。值得注意的是，分布式系统中的数据分为控制数据和应用数据。使用etcd的场景处理的数据默认为控制数据，对于应用数据，只推荐处理数据量很小，但是更新访问频繁的情况。</p>
+
+<h3 id="1-1-场景一-服务发现">1.1 场景一：服务发现</h3>
+
+<p>服务发现（Service Discovery）要解决的是分布式系统中最常见的问题之一，即在同一个分布式集群中的进程或服务如何才能找到对方并建立连接。从本质上说，服务发现就是想要了解集群中是否有进程在监听udp或tcp端口，并且通过名字就可以进行查找和连接。要解决服务发现的问题，需要有下面三大支柱，缺一不可。</p>
+
+<ul>
+<li><p><strong>一个强一致性、高可用的服务存储目录</strong>。基于Raft算法的etcd天生就是这样一个强一致性高可用的服务存储目录。</p></li>
+
+<li><p><strong>一种注册服务和监控服务健康状态的机制</strong>。用户可以在etcd中注册服务，并且对注册的服务设置<code>key TTL</code>，定时保持服务的心跳以达到监控健康状态的效果。</p></li>
+
+<li><p><strong>一种查找和连接服务的机制</strong>。通过在etcd指定的主题下注册的服务也能在对应的主题下查找到。为了确保连接，我们可以在每个服务机器上都部署一个proxy模式的etcd，这样就可以确保能访问etcd集群的服务都能互相连接。</p></li>
+</ul>
+
+<p>图1所示为服务发现示意图。</p>
+
+<p><center>
+   <img src="https://res.cloudinary.com/rachel725/image/upload/v1605766404/sel/0129014_ijbuz3.jpg" alt="enter image description here" style="zoom:25%;" />
+   </center>
+<center>图1 服务发现示意图 </center></p>
+
+<p>下面我们来看一下服务发现对应的具体应用场景。</p>
+
+<ul>
+<li><strong>微服务协同工作架构中，服务动态添加</strong>。随着Docker容器的流行，多种微服务共同协作，构成一个功能相对强大的架构的案例越来越多。透明化的动态添加这些服务的需求也日益强烈。通过服务发现机制，在etcd中注册某个服务名字的目录，在该目录下存储可用的服务节点的IP。在使用服务的过程中，只要从服务目录下查找可用的服务节点进行使用即可。 微服务协同工作如图2所示。</li>
+</ul>
+
+<p><center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605766428/sel/0129002_iaxzn8.jpg" alt="enter image description here" style="zoom:30%;" />
+   </center>
+<center>图2 微服务协同工作</center></p>
+
+<ul>
+<li><strong>PaaS平台中应用多实例与实例故障重启透明化</strong>。PaaS平台中的应用一般都有多个实例，通过域名，不仅可以透明地对多个实例进行访问，而且还可以实现负载均衡。但是应用的某个实例随时都有可能故障重启，这时就需要动态地配置域名解析（路由）中的信息。通过etcd的服务发现功能就可以轻松解决这个动态配置的问题，如图33所示。</li>
+</ul>
+
+<p><center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605766455/sel/0129003_cfshkm.jpg" alt="enter image description here" style="zoom:25%;" />
+</center>
+<center>图3 云平台多实例透明化</center></p>
+
+<h3 id="1-2-场景二-消息发布与订阅">1.2 场景二：消息发布与订阅</h3>
+
+<p>在分布式系统中，最为适用的组件间通信方式是消息发布与订阅机制。具体而言，即构建一个配置共享中心，数据提供者在这个配置中心发布消息，而消息使用者则订阅他们关心的主题，一旦相关主题有消息发布，就会实时通知订阅者。通过这种方式可以实现分布式系统配置的集中式管理与实时动态更新。</p>
+
+<ul>
+<li><strong>应用中用到的一些配置信息存放在etcd上进行集中管理</strong>。这类场景的使用方式通常是这样的：应用在启动的时候主动从etcd获取一次配置信息，同时，在etcd节点上注册一个Watcher并等待，以后每次配置有更新的时候，etcd都会实时通知订阅者，以此达到获取最新配置信息的目的。</li>
+<li><strong>分布式搜索服务中，索引的元信息和服务器集群机器的节点状态信息存放在etcd中</strong>，供各个客户端订阅使用。使用etcd的<code>key TTL</code>功能可以确保机器状态是实时更新的。</li>
+<li><strong>分布式日志收集系统</strong>。这个系统的核心工作是收集分布在不同机器上的日志。收集器通常按照应用（或主题）来分配收集任务单元，因此可以在etcd上创建一个以应用（或主题）命名的目录P，并将这个应用（或主题）相关的所有机器ip，以子目录的形式存储在目录P下，然后设置一个递归的etcd Watcher，递归式地监控应用（或主题）目录下所有信息的变动。这样就实现了在机器IP（消息）发生变动时，能够实时通知收集器调整任务分配。</li>
+<li><strong>系统中信息需要动态自动获取与人工干预修改信息请求内容的情况。</strong>通常的解决方案是对外暴露接口，例如JMX接口，来获取一些运行时的信息或提交修改的请求。而引入etcd之后，只需要将这些信息存放到指定的etcd目录中，即可通过HTTP接口直接被外部访问。
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605766494/sel/0129004_qahqud.jpg" alt="enter image description here" style="zoom:40%;" />
+</center>
+<center>图4 消息发布与订阅</center></li>
+</ul>
+
+<h3 id="1-3-场景三-负载均衡">1.3 场景三：负载均衡</h3>
+
+<p>在<code>场景一</code>中也提到了负载均衡，本文提及的负载均衡均指软负载均衡。在分布式系统中，为了保证服务的高可用以及数据的一致性，通常都会把数据和服务部署多份，以此达到对等服务，即使其中的某一个服务失效了，也不影响使用。这样的实现虽然会导致一定程度上数据写入性能的下降，但是却能实现数据访问时的负载均衡。因为每个对等服务节点上都存有完整的数据，所以用户的访问流量就可以分流到不同的机器上。</p>
+
+<ul>
+<li><strong>etcd本身分布式架构存储的信息访问支持负载均衡</strong>。etcd集群化以后，每个etcd的核心节点都可以处理用户的请求。所以，把数据量小但是访问频繁的消息数据直接存储到etcd中也是个不错的选择，如业务系统中常用的<strong>二级代码表</strong>。二级代码表的工作过程一般是这样，在表中存储代码，在etcd中存储代码所代表的具体含义，业务系统调用查表的过程，就需要查找表中代码的含义。所以如果把二级代码表中的小量数据存储到etcd中，不仅方便修改，也易于大量访问。</li>
+<li><strong>利用etcd维护一个负载均衡节点表</strong>。etcd可以监控一个集群中多个节点的状态，当有一个请求发过来后，可以轮询式地把请求转发给存活着的多个节点。类似KafkaMQ，通过Zookeeper来维护生产者和消费者的负载均衡。同样也可以用etcd来做Zookeeper的工作。
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605766515/sel/0129005_dxd0yu.jpg" alt="fuz" style="zoom:40%;" />
+</center>
+<center>图5 负载均衡</center></li>
+</ul>
+
+<h3 id="1-4-场景四-分布式通知与协调">1.4 场景四：分布式通知与协调</h3>
+
+<p>这里讨论的分布式通知与协调，与消息发布和订阅有些相似。两者都使用了etcd中的Watcher机制，通过注册与异步通知机制，实现分布式环境下不同系统之间的通知与协调，从而对数据变更进行实时处理。实现方式通常为：不同系统都在etcd上对同一个目录进行注册，同时设置Watcher监控该目录的变化（如果对子目录的变化也有需要，可以设置成递归模式），当某个系统更新了etcd的目录，那么设置了Watcher的系统就会收到通知，并作出相应处理。</p>
+
+<ul>
+<li><strong>通过etcd进行低耦合的心跳检测</strong>。检测系统和被检测系统通过etcd上某个目录关联而非直接关联起来，这样可以大大减少系统的耦合性。</li>
+<li><strong>通过etcd完成系统调度</strong>。某系统有控制台和推送系统两部分组成，控制台的职责是控制推送系统进行相应的推送工作。管理人员在控制台做的一些操作，实际上只需要修改etcd上某些目录节点的状态，而etcd就会自动把这些变化通知给注册了Watcher的推送系统客户端，推送系统再做出相应的推送任务。</li>
+<li><strong>通过etcd完成工作汇报</strong>。大部分类似的任务分发系统，子任务启动后，到etcd来注册一个临时工作目录，并且定时将自己的进度进行汇报（将进度写入到这个临时目录），这样任务管理者就能够实时知道任务进度。
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605766547/sel/0129006_gvqgjj.jpg" alt="fuz" style="zoom:30%;" />
+</center>
+<center>图6 分布式协同工作</center></li>
+</ul>
+
+<h3 id="1-5-场景五-分布式锁">1.5 场景五：分布式锁</h3>
+
+<p>因为etcd使用Raft算法保持了数据的强一致性，某次操作存储到集群中的值必然是全局一致的，所以很容易实现分布式锁。锁服务有两种使用方式，一是保持独占，二是控制时序。</p>
+
+<ul>
+<li><strong>保持独占</strong>，即所有试图获取锁的用户最终只有一个可以得到。etcd为此提供了一套实现分布式锁原子操作CAS（<code>CompareAndSwap</code>）的API。通过设置<code>prevExist</code>值，可以保证在多个节点同时创建某个目录时，只有一个成功，而该用户即可认为是获得了锁。</li>
+<li><strong>控制时序</strong>，即所有试图获取锁的用户都会进入等待队列，获得锁的顺序是全局唯一的，同时决定了队列执行顺序。etcd为此也提供了一套API（自动创建有序键），对一个目录建值时指定为<code>POST</code>动作，这样etcd会自动在目录下生成一个当前最大的值为键，存储这个新的值（客户端编号）。同时还可以使用API按顺序列出所有当前目录下的键值。此时这些键的值就是客户端的时序，而这些键中存储的值可以是代表客户端的编号。
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605766575/sel/0130000_unjatl.jpg" alt="fuz" style="zoom:30%;" />
+</center>
+<center>图7 分布式锁</center></li>
+</ul>
+
+<h3 id="1-6-场景六-分布式队列">1.6 场景六：分布式队列</h3>
+
+<p>分布式队列的常规用法与场景五中所描述的分布式锁的控制时序用法类似，即创建一个先进先出的队列，保证顺序。 另一种比较有意思的实现是<strong>在保证队列达到某个条件时再统一按顺序执行</strong>。这种方法的实现可以在/queue这个目录中另外建立一个/queue/condition节点。</p>
+
+<ul>
+<li>condition可以<strong>表示队列大小</strong>。比如一个大的任务需要很多小任务就绪的情况下才能执行，每次有一个小任务就绪，就给这个condition数字加1，直到达到大任务规定的数字，再开始执行队列里的一系列小任务，最终执行大任务。</li>
+<li>condition可以<strong>表示某个任务在不在队列</strong>。这个任务可以是所有排序任务的首个执行程序，也可以是拓扑结构中没有依赖的点。通常，必须执行这些任务后才能执行队列中的其他任务。</li>
+<li>condition还可以<strong>表示其它的一类开始执行任务的通知</strong>。可以由控制程序指定，当condition出现变化时，开始执行队列任务。
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605766608/sel/0129008_zdfnum.jpg" alt="fuz" style="zoom:30%;" />
+</center>
+<center>图8 分布式队列</center></li>
+</ul>
+
+<h3 id="1-7-场景七-集群监控与leader竞选">1.7 场景七：集群监控与Leader竞选</h3>
+
+<p>通过etcd来进行监控实现起来非常简单并且实时性强，用到了以下两点特性。</p>
+
+<ol>
+<li>前面几个场景已经提到Watcher机制，当某个节点消失或有变动时，Watcher会第一时间发现并告知用户。</li>
+<li>节点可以设置<code>TTL key</code>，比如每隔30s向etcd发送一次心跳使代表该节点仍然存活，否则说明节点消失。</li>
+</ol>
+
+<p>这样就可以第一时间检测到各节点的健康状态，以完成集群的监控要求。</p>
+
+<p>另外，使用分布式锁，可以完成Leader竞选。对于一些长时间CPU计算或者使用IO操作，只需要由竞选出的Leader计算或处理一次，再把结果复制给其他Follower即可，从而避免重复劳动，节省计算资源。</p>
+
+<p>Leader应用的经典场景是<strong>在搜索系统中建立全量索引</strong>。如果每个机器分别进行索引的建立，不但耗时，而且不能保证索引的一致性。通过在etcd的CAS机制竞选Leader，由Leader进行索引计算，再将计算结果分发到其它节点。</p>
+
+<p><center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605766637/sel/0129009_lv9cth.jpg" alt="fuz" style="zoom:30%;" /><br />
+</center>
+<center>图9 Leader竞选</center></p>
+
+<h3 id="1-8-场景八-为什么用etcd而不用zookeeper">1.8 场景八：为什么用etcd而不用Zookeeper？</h3>
+
+<p>阅读了<a href="http://jm-blog.aliapp.com/?p=1232">“ZooKeeper典型应用场景一览”</a>一文的读者可能会发现，etcd实现的这些功能，Zookeeper都能实现。那么为什么要用etcd而非直接使用Zookeeper呢？4 相较之下，Zookeeper有如下缺点。</p>
+
+<ol>
+<li>复杂。Zookeeper的<strong>部署维护复杂</strong>，管理员需要掌握一系列的知识和技能；而Paxos强一致性<strong>算法也是素来以复杂</strong>难懂而闻名于世；另外，Zookeeper的<strong>使用也比较复杂</strong>，需要安装客户端，官方只提供了java和C两种语言的接口。</li>
+<li>Java编写。这里不是对Java有偏见，而是Java本身就偏向于<strong>重型应用</strong>，它会引入大量的依赖。而运维人员则普遍希望机器集群尽可能简单，维护起来也不易出错。</li>
+<li><strong>发展缓慢</strong>。Apache基金会项目特有的<a href="http://www.infoworld.com/article/2612082/open-source-software/has-apache-lost-its-way-.html">“Apache Way”</a>在开源界饱受争议，其中一大原因就是由于基金会庞大的结构以及松散的管理导致项目发展缓慢。</li>
+</ol>
+
+<p>而etcd作为一个后起之秀，其优点也很明显。</p>
+
+<ol>
+<li><strong>简单</strong>。使用Go语言编写<strong>部署简单</strong>；使用HTTP作为接口<strong>使用简单</strong>；使用Raft算法保证强一致性让用户<strong>易于理解</strong>。</li>
+<li><strong>数据持久化</strong>。etcd默认数据一更新就进行持久化。</li>
+<li><strong>安全</strong>。etcd支持SSL客户端安全认证。</li>
+</ol>
+
+<p>最后，etcd作为一个年轻的项目，正在高速迭代和开发中，这既是一个优点，也是一个缺点。优点在于它的未来具有无限的可能性，缺点是版本的迭代导致其使用的可靠性无法保证，无法得到大项目长时间使用的检验。然而，目前CoreOS、Kubernetes和Cloudfoundry等知名项目均在生产环境中使用了etcd，所以总的来说，etcd值得你去尝试。</p>
+
+<p>1：<a href="https://github.com/coreos/etcd">https://github.com/coreos/etcd</a></p>
+
+<p>2：<a href="http://jm-blog.aliapp.com/?p=1232">http://jm-blog.aliapp.com/?p=1232</a></p>
+
+<p>3：<a href="http://progrium.com/blog/2014/07/29/understanding-modern-service-discovery-with-docker/">http://progrium.com/blog/2014/07/29/understanding-modern-service-discovery-with-docker/</a></p>
+
+<p>4：<a href="http://devo.ps/blog/zookeeper-vs-doozer-vs-etcd">http://devo.ps/blog/zookeeper-vs-doozer-vs-etcd</a></p>
+
+<h2 id="2-深度解析etcd">2 深度解析etcd</h2>
+
+<p>上一节中，我们概括了许多etcd的经典场景，这一节，我们将从etcd的架构开始，深入到源码中解析etcd。</p>
+
+<h3 id="2-1-etcd架构">2.1 etcd架构</h3>
+
+<p><center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605766675/sel/0129010_terix6.jpg" alt="fuz" style="zoom:30%;" /><br />
+</center>
+<center>图10 etcd架构图 </center></p>
+
+<p>从etcd的架构图中我们可以看到，etcd主要分为四个部分。</p>
+
+<ul>
+<li>HTTP Server： 用于处理用户发送的API请求以及其它etcd节点的同步与心跳信息请求。</li>
+<li>Store：用于处理etcd支持的各类功能的事务，包括数据索引、节点状态变更、监控与反馈、事件处理与执行等等，是etcd对用户提供的大多数API功能的具体实现。</li>
+<li>Raft：Raft强一致性算法的具体实现，是etcd的核心。</li>
+<li>WAL：Write Ahead Log（预写式日志），是etcd的数据存储方式。除了在内存中存有所有数据的状态以及节点的索引以外，etcd还通过WAL进行持久化存储。WAL中，所有的数据提交前都会事先记录日志。Snapshot是为了防止数据过多而进行的状态快照；Entry则表示存储的具体日志内容。</li>
+</ul>
+
+<p>通常，一个用户的请求发送过来，会经由HTTP Server转发给Store进行具体的事务处理，如果涉及到节点的修改，则交给Raft模块进行状态的变更、日志的记录，然后再同步给别的etcd节点以确认数据提交，最后进行数据的提交，再次同步。</p>
+
+<h3 id="2-2-etcd2-0-0区别于0-4-6的重要变更列表">2.2 etcd2.0.0区别于0.4.6的重要变更列表</h3>
+
+<ul>
+<li>获得了IANA认证的端口，2379用于客户端通信，2380用于节点通信，与原先的（4001 peers/7001 clients）共用。</li>
+<li>每个节点可监听多个广播地址。监听的地址由原来的一个扩展到多个，用户可以根据需求实现更加复杂的集群环境，如一个是公网IP，一个是虚拟机（容器）之类的私有IP。</li>
+<li>etcd任意节点均可代理访问Leader节点的请求，所以如果你可以访问任何一个etcd节点，那么就可以对整个集群进行读写操作，而不需要刻意关注网络的拓扑结构。</li>
+<li>etcd集群和集群中的节点都有了自己独特的ID。这样就防止出现配置混淆，不是本集群的其他etcd节点发来的请求将被屏蔽。</li>
+<li>etcd配置信息在集群启动时就完全固定，这样有助于用户确认集群大小，正确地配置和启动集群。</li>
+<li>运行时节点变更 (Runtime Reconfiguration)。用户不需要重启 etcd 服务即可实现对 etcd 集群结构进行变更，可以动态操作。</li>
+<li>重新设计和实现了Raft算法，使得运行速度更快，更容易理解，包含更多测试代码。</li>
+<li>Raft日志现在是严格的只能向后追加、预写式日志系统，并且在每条记录中都加入了CRC校验码。</li>
+<li>启动时使用的_etcd/* 关键字不再暴露给用户</li>
+<li>废弃使用集群自动调整功能的standby模式，standby模式会使得用户维护集群更困难。</li>
+<li>新增Proxy模式，不加入到etcd一致性集群中，纯粹进行代理转发。</li>
+<li>ETCD_NAME（-name）参数目前是可选的，不再用于唯一标识一个节点。</li>
+<li>摒弃通过配置文件配置 etcd 属性的方式，你可以通过设置环境变量的方式代替。</li>
+<li>通过自发现方式启动集群时要求用户提供集群大小，这样有助于确定集群实际启动的节点数量。</li>
+</ul>
+
+<h3 id="2-3-etcd概念词汇表">2.3 etcd概念词汇表</h3>
+
+<ul>
+<li>Raft：etcd所采用的保证分布式系统强一致性的算法。</li>
+<li>Node：一个Raft状态机实例。</li>
+<li>Member： 一个etcd实例。它管理着一个Node，并且可以为客户端请求提供服务。</li>
+<li>Cluster：由多个Member构成可以协同工作的etcd集群。</li>
+<li>Peer：对同一个etcd集群中另外一个Member的称呼。</li>
+<li>Client： 向etcd集群发送HTTP请求的客户端。</li>
+<li>WAL：预写式日志，etcd用于持久化存储的日志格式。</li>
+<li>snapshot：etcd防止WAL文件过多而设置的快照，存储etcd数据状态。</li>
+<li>Proxy：etcd的一种模式，为etcd集群提供反向代理服务。</li>
+<li>Leader：Raft算法中通过竞选而产生的处理所有数据提交的节点。</li>
+<li>Follower：竞选失败的节点作为Raft中的从属节点，为算法提供强一致性保证。</li>
+<li>Candidate：当Follower超过一定时间接收不到Leader的心跳时转变为Candidate开始Leader竞选。</li>
+<li>Term：某个节点成为Leader到下一次竞选开始的时间周期，称为一个Term。</li>
+<li>Index：数据项编号。Raft中通过Term和Index来定位数据。</li>
+</ul>
+
+<h3 id="2-4-集群化应用实践">2.4 集群化应用实践</h3>
+
+<p>etcd作为一个高可用键值存储系统，天生就是为集群化而设计的。由于Raft算法在做决策时需要多数节点的投票，所以etcd一般部署集群推荐奇数个节点，推荐的数量为3、5或者7个节点构成一个集群。</p>
+
+<h4 id="2-4-1-集群启动">2.4.1 集群启动</h4>
+
+<p>etcd有三种集群化启动的配置方案，分别为静态配置启动、etcd自身服务发现、通过DNS进行服务发现。</p>
+
+<p><strong>根据启动环境，你可以选择不同的配置方式。值得一提的是，这也是新版etcd区别于旧版的一大特性，它摒弃了使用配置文件进行参数配置的做法，转而使用命令行参数或者环境变量来配置参数。</strong></p>
+
+<h5 id="1-静态配置">(1). 静态配置</h5>
+
+<p>这种方式比较适用于离线环境。在启动整个集群之前，你如果已经预先清楚所要配置的集群大小，以及集群上各节点的地址和端口信息，那么启动时，你就可以通过配置<code>initial-cluster</code>参数进行etcd集群的启动。</p>
+
+<p>在每个etcd机器启动时，配置环境变量或者添加启动参数的方式如下。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">ETCD_INITIAL_CLUSTER=<span style="color:#c30">&#34;infra0=http://10.0.1.10:2380,infra1=http://10.0.1.11:2380,infra2=http://10.0.1.12:2380&#34;</span>
+ETCD_INITIAL_CLUSTER_STATE=new</code></pre></div>
+<p>参数方法：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#555">-</span>initial<span style="color:#555">-</span>cluster 
+infra0=http:<span style="color:#09f;font-style:italic">//10.0.1.10:2380,http://10.0.1.11:2380,infra2=http://10.0.1.12:2380 \
+</span><span style="color:#09f;font-style:italic"></span> <span style="color:#555">-</span>initial<span style="color:#555">-</span>cluster<span style="color:#555">-</span>state new</code></pre></div>
+<p><strong>值得注意的是</strong>，<code>-initial-cluster</code>参数中配置的url地址必须与各个节点启动时设置的<code>initial-advertise-peer-urls</code>参数相同。</p>
+
+<p>（<code>initial-advertise-peer-urls</code>参数表示节点监听其他节点同步信号的地址）</p>
+
+<p>如果你所在的网络环境配置了多个etcd集群，为了避免意外发生，最好使用<code>-initial-cluster-token</code>参数为每个集群单独配置一个token认证。这样就可以确保每个集群和集群的成员都拥有独特的ID。</p>
+
+<p>综上所述，如果你要配置包含3个etcd节点的集群，那么你在三个机器上的启动命令分别如下所示。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">$ etcd -name infra0 -initial-advertise-peer-urls http://10.0.1.10:2380 <span style="color:#c30;font-weight:bold">\
+</span><span style="color:#c30;font-weight:bold"></span>  -listen-peer-urls http://10.0.1.10:2380 <span style="color:#c30;font-weight:bold">\
+</span><span style="color:#c30;font-weight:bold"></span>  -initial-cluster-token etcd-cluster-1 <span style="color:#c30;font-weight:bold">\
+</span><span style="color:#c30;font-weight:bold"></span>  -initial-cluster <span style="color:#033">infra0</span><span style="color:#555">=</span>http://10.0.1.10:2380,infra1<span style="color:#555">=</span>http://10.0.1.11:2380,infra2<span style="color:#555">=</span>http://10.0.1.12:2380 <span style="color:#c30;font-weight:bold">\
+</span><span style="color:#c30;font-weight:bold"></span>  -initial-cluster-state new
+
+$ etcd -name infra1 -initial-advertise-peer-urls http://10.0.1.11:2380 <span style="color:#c30;font-weight:bold">\
+</span><span style="color:#c30;font-weight:bold"></span>  -listen-peer-urls http://10.0.1.11:2380 <span style="color:#c30;font-weight:bold">\
+</span><span style="color:#c30;font-weight:bold"></span>  -initial-cluster-token etcd-cluster-1 <span style="color:#c30;font-weight:bold">\
+</span><span style="color:#c30;font-weight:bold"></span>  -initial-cluster <span style="color:#033">infra0</span><span style="color:#555">=</span>http://10.0.1.10:2380,infra1<span style="color:#555">=</span>http://10.0.1.11:2380,infra2<span style="color:#555">=</span>http://10.0.1.12:2380 <span style="color:#c30;font-weight:bold">\
+</span><span style="color:#c30;font-weight:bold"></span>  -initial-cluster-state new
+
+$ etcd -name infra2 -initial-advertise-peer-urls http://10.0.1.12:2380 <span style="color:#c30;font-weight:bold">\
+</span><span style="color:#c30;font-weight:bold"></span>  -listen-peer-urls http://10.0.1.12:2380 <span style="color:#c30;font-weight:bold">\
+</span><span style="color:#c30;font-weight:bold"></span>  -initial-cluster-token etcd-cluster-1 <span style="color:#c30;font-weight:bold">\
+</span><span style="color:#c30;font-weight:bold"></span>  -initial-cluster <span style="color:#033">infra0</span><span style="color:#555">=</span>http://10.0.1.10:2380,infra1<span style="color:#555">=</span>http://10.0.1.11:2380,infra2<span style="color:#555">=</span>http://10.0.1.12:2380 <span style="color:#c30;font-weight:bold">\
+</span><span style="color:#c30;font-weight:bold"></span>  -initial-cluster-state new</code></pre></div>
+<p>在初始化完成后，etcd还提供动态增、删、改etcd集群节点的功能，这个需要用到<code>etcdctl</code>命令进行操作。</p>
+
+<h5 id="2-etcd自发现模式">(2). etcd自发现模式</h5>
+
+<p>通过自发现的方式启动etcd集群需要事先准备一个etcd集群。如果你已经有一个etcd集群，首先你可以执行如下命令设定集群的大小，假设为3.</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">$ curl -X PUT https://myetcd.local/v2/keys/discovery/6c007a14875d53d9bf0ef5a6fc0257c817f0fb83/_config/size -d <span style="color:#033">value</span><span style="color:#555">=</span><span style="color:#f60">3</span></code></pre></div>
+<p>然后你要把这个url地址<code>https://myetcd.local/v2/keys/discovery/6c007a14875d53d9bf0ef5a6fc0257c817f0fb83</code>作为<code>-discovery</code>参数来启动etcd。节点会自动使用<code>https://myetcd.local/v2/keys/discovery/6c007a14875d53d9bf0ef5a6fc0257c817f0fb83</code>目录进行etcd的注册和发现服务。 所以最终你在某个机器上启动etcd的命令如下。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">$ etcd -name infra0 -initial-advertise-peer-urls http://10.0.1.10:2380 <span style="color:#c30;font-weight:bold">\
+</span><span style="color:#c30;font-weight:bold"></span>  -listen-peer-urls http://10.0.1.10:2380 <span style="color:#c30;font-weight:bold">\
+</span><span style="color:#c30;font-weight:bold"></span>  -discovery https://myetcd.local/v2/keys/discovery/6c007a14875d53d9bf0ef5a6fc0257c817f0fb83</code></pre></div>
+<p>如果你在本地没有可用的etcd集群，etcd官网提供了一个可以用公网访问的etcd存储地址。 你可以通过如下命令得到etcd服务的目录，并把它作为<code>-discovery</code>参数使用。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">$ curl https://discovery.etcd.io/new?size<span style="color:#555">=</span><span style="color:#f60">3</span>
+https://discovery.etcd.io/3e86b59982e49066c5d813af1c2e2579cbf573de</code></pre></div>
+<p>同样的，当你完成了集群的初始化后，这些信息就失去了作用。当你需要增加节点时，需要使用<code>etcdctl</code>来进行操作。</p>
+
+<p>为了安全，在每次启动新的etcd集群时，请务必使用新的discovery token进行注册。 另外，如果你初始化时启动的节点超过了指定的数量，多余的节点会自动转化为proxy模式的etcd。</p>
+
+<h5 id="3-dns自发现模式">(3). DNS自发现模式</h5>
+
+<p>etcd还支持使用DNS SRV记录进行启动。关于DNS SRV记录如何进行服务发现，可以参阅<a href="http://tools.ietf.org/html/rfc2782">RFC2782</a>，所以，你要在DNS服务器上进行相应的配置。</p>
+
+<ul>
+<li><p>开启DNS服务器上SRV记录查询，并添加相应的域名记录，使得查询到的结果类似如下。 $ dig +noall +answer SRV _etcd-server._tcp.example.com _etcd-server._tcp.example.com. 300 IN SRV 0 0 2380 infra0.example.com. _etcd-server._tcp.example.com. 300 IN SRV 0 0 2380 infra1.example.com. _etcd-server._tcp.example.com. 300 IN SRV 0 0 2380 infra2.example.com.</p></li>
+
+<li><p>分别为各个域名配置相关的A记录指向etcd核心节点对应的机器IP，使得查询结果类似如下。 $ dig +noall +answer infra0.example.com infra1.example.com infra2.example.com infra0.example.com. 300 IN A 10.0.1.10 infra1.example.com. 300 IN A 10.0.1.11 infra2.example.com. 300 IN A 10.0.1.12</p>
+
+<p>做好了上述两步DNS的配置，就可以使用DNS启动etcd集群了。配置DNS解析的url参数为<code>-discovery-srv</code>，其中某一个节点地启动命令如下。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">$ etcd -name infra0 <span style="color:#c30;font-weight:bold">\
+</span><span style="color:#c30;font-weight:bold"></span>-discovery-srv example.com <span style="color:#c30;font-weight:bold">\
+</span><span style="color:#c30;font-weight:bold"></span>-initial-advertise-peer-urls http://infra0.example.com:2380 <span style="color:#c30;font-weight:bold">\
+</span><span style="color:#c30;font-weight:bold"></span>-initial-cluster-token etcd-cluster-1 <span style="color:#c30;font-weight:bold">\
+</span><span style="color:#c30;font-weight:bold"></span>-initial-cluster-state new <span style="color:#c30;font-weight:bold">\
+</span><span style="color:#c30;font-weight:bold"></span>-advertise-client-urls http://infra0.example.com:2379 <span style="color:#c30;font-weight:bold">\
+</span><span style="color:#c30;font-weight:bold"></span>-listen-client-urls http://infra0.example.com:2379 <span style="color:#c30;font-weight:bold">\
+</span><span style="color:#c30;font-weight:bold"></span>-listen-peer-urls http://infra0.example.com:2380</code></pre></div></li>
+</ul>
+
+<p>当然，你也可以直接把节点的域名改成IP来启动。</p>
+
+<h4 id="2-4-2-关键部分源码解析">2.4.2 关键部分源码解析</h4>
+
+<p>etcd的启动是从主目录下的<code>main.go</code>开始的，然后进入<code>etcdmain/etcd.go</code>，载入配置参数。如果被配置为proxy模式，则进入startProxy函数，否则进入startEtcd，开启etcd服务模块和http请求处理模块。</p>
+
+<p>在启动http监听时，为了与集群其他etcd机器（peers）保持连接，均采用了<code>transport.NewTimeoutListener</code>启动方式，在超过指定时间没有获得响应时就会出现超时错误。而在监听client请求时，采用的是<code>transport.NewKeepAliveListener</code>，有助于连接的稳定。</p>
+
+<p>在<code>etcdmain/etcd.go</code>中的setupCluster函数可以看到，对于不同的etcd参数，启动集群的方法略有不同，但是最终需要的就是一个IP与端口构成的字符串。</p>
+
+<p>在静态配置的启动方式中，集群的所有信息都已经给出，所以直接解析用逗号隔开的集群url信息就好了。</p>
+
+<p>DNS发现的方式与静态配置启动类似，会预先发送一个tcp的SRV请求，先查看<code>etcd-server-ssl._tcp.example.com</code>下是否有集群的域名信息，如果没有找到，则去查看<code>etcd-server._tcp.example.com</code>。根据找到的域名，解析出对应的IP和端口，即集群的url信息。</p>
+
+<p>较为复杂是etcd式的自发现启动。首先用自身单个的url构成一个集群，然后在启动的过程中根据参数进入<code>discovery/discovery.go</code>源码的<code>JoinCluster</code>函数。在启动时使用的etcd的token地址中，包含了集群大小（size）信息，所以集群的启动本质上是一个不断监测与等待的过程。启动的第一步就是在这个借用的etcd的token目录下注册自身的信息，然后再监测token目录下所有节点的数量，如果数量没有达到指定值，则循环等待。否则结束等待，进入后续启动过程。</p>
+
+<p>配置etcd过程中通常要用到两种url地址容易混淆，一种用于etcd集群同步信息并保持连接，通常称为peer-urls；另外一种用于接收用户端发来的HTTP请求，通常称为client-urls。</p>
+
+<ul>
+<li><code>peer-urls</code>：通常监听的端口为<code>2380</code>（老版本使用的端口为<code>7001</code>），包括所有已经在集群中正常工作的所有节点的地址。</li>
+<li><code>client-urls</code>：通常监听的端口为<code>2379</code>（老版本使用的端口为<code>4001</code>），为适应复杂的网络环境，新版etcd监听客户端请求的url从原来的1个变为现在可配置的多个。这样etcd就可以配合多块网卡同时监听不同网络下的请求。</li>
+</ul>
+
+<h4 id="2-4-3-运行时节点变更">2.4.3 运行时节点变更</h4>
+
+<p>etcd集群启动完毕后，可以在运行的过程中对集群进行重构，包括核心节点的增加、删除、迁移、替换等。<strong>运行时重构使得etcd集群无须重启即可改变集群的配置，这也是新版etcd区别于旧版包含的新特性。</strong></p>
+
+<p>只有当集群中多数节点正常的情况下，你才可以进行运行时的配置管理。因为配置更改的信息也会被etcd当成一个信息存储和同步，如果集群多数节点损坏，集群就失去了写入数据的能力。所以在配置etcd集群数量时，强烈推荐至少配置3个核心节点，配置数目越多，可用性越强。</p>
+
+<h5 id="1-节点迁移-替换">(1). 节点迁移、替换</h5>
+
+<p>当你节点所在的机器出现硬件故障，或者节点出现如数据目录损坏等问题，导致节点永久性的不可恢复时，就需要对节点进行迁移或者替换。当一个节点失效以后，必须尽快修复，因为etcd集群正常运行的必要条件是集群中多数节点都正常工作。</p>
+
+<p>迁移一个节点需要进行四步操作：</p>
+
+<ul>
+<li>暂停正在运行着的节点程序进程</li>
+<li>把数据目录从现有机器拷贝到新机器</li>
+<li>使用api更新etcd中对应节点指向机器的url记录更新为新机器的ip</li>
+<li>使用同样的配置项和数据目录，在新的机器上启动etcd。</li>
+</ul>
+
+<h5 id="2-节点增加">(2). 节点增加</h5>
+
+<p>增加节点可以让etcd的高可用性更强。举例来说，如果你有3个节点，那么最多允许1个节点失效；当你有5个节点时，就可以允许有2个节点失效。同时，增加节点还可以让etcd集群具有更好的读性能。因为etcd的节点都是实时同步的，每个节点上都存储了所有的信息，所以增加节点可以从整体上提升读的吞吐量。</p>
+
+<p>增加一个节点需要进行两步操作：</p>
+
+<ul>
+<li>在集群中添加这个节点的url记录，同时获得集群的信息。</li>
+<li>使用获得的集群信息启动新etcd节点。</li>
+</ul>
+
+<h5 id="3-节点移除">(3). 节点移除</h5>
+
+<p>有时你不得不在提高etcd的写性能和增加集群高可用性上进行权衡。Leader节点在提交一个写记录时，会把这个消息同步到每个节点上，当得到多数节点的同意反馈后，才会真正写入数据。所以节点越多，写入性能越差。在节点过多时，你可能需要移除其中的一个或多个。 移除节点非常简单，只需要一步操作，就是把集群中这个节点的记录删除，则对应机器上的该节点就会自动停止。</p>
+
+<h5 id="4-强制性重启集群">(4). 强制性重启集群</h5>
+
+<p>当集群超过半数的节点都失效时，就需要通过手动的方式，强制性让某个节点以自己为Leader，利用原有数据启动一个新集群。</p>
+
+<p>此时你需要进行两步操作。</p>
+
+<ul>
+<li>备份原有数据到新机器。</li>
+<li>使用<code>-force-new-cluster</code>和备份的数据重新启动节点</li>
+</ul>
+
+<p><strong>注意：强制性重启是一个迫不得已的选择，它会破坏一致性协议保证的安全性（如果操作时集群中尚有其它节点在正常工作，就会出错），所以在操作前请务必要保存好数据。</strong></p>
+
+<h3 id="2-5-proxy模式">2.5 Proxy模式</h3>
+
+<p><strong>Proxy模式也是新版etcd的一个重要变更</strong>，etcd作为一个反向代理把客户的请求转发给可用的etcd集群。这样，你就可以在每一台机器都部署一个Proxy模式的etcd作为本地服务，如果这些etcd Proxy都能正常运行，那么你的服务发现必然是稳定可靠的。</p>
+
+<p><center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605766710/sel/0129011_tbwya2.jpg" alt="fuz" style="zoom:30%;" /><br />
+</center>
+<center>图11 Proxy模式示意图 </center></p>
+
+<p>所以Proxy并不是直接加入到符合强一致性的etcd集群中，也同样的，Proxy并没有增加集群的可靠性，当然也没有降低集群的写入性能。</p>
+
+<p>那么，为什么要有Proxy模式而不是直接增加etcd核心节点呢？实际上，etcd每增加一个核心节点（peer），都会给Leader节点增加一定程度的负担（包括网络、CPU和磁盘负载），因为每次信息的变化都需要进行同步备份。增加etcd的核心节点固然可以让整个集群具有更高的可靠性，但是当其数量达到一定程度以后，增强可靠性带来的好处就变得不那么明显，反倒是降低了集群写入同步的性能。因此，增加一个轻量级的Proxy模式etcd节点是对直接增加etcd核心节点的一个有效代替。</p>
+
+<p>熟悉0.4.6这个旧版本etcd的用户会发现，Proxy模式实际上取代了原先的Standby模式。Standby模式具备转发代理的功能。此外，在核心节点因为故障导致数量不足时，还会从Standby模式转为核心节点。而当故障节点恢复时，若etcd的核心节点数量已经达到预设值，则前述节点会再次转为Standby模式。</p>
+
+<p>但是在新版etcd中，只在最初启动etcd集群的过程中，若核心节点的数量已经满足要求，自动启用Proxy模式，反之则并未实现。主要原因如下。</p>
+
+<ul>
+<li>etcd是用来保证高可用的组件，因此它所需要的系统资源（包括内存、硬盘和CPU等）都应该得到充分保障。任由集群的自动变换随意地改变核心节点，无法让机器保证性能。所以etcd官方鼓励大家在大型集群中为运行etcd准备专有机器集群。</li>
+<li>因为etcd集群是支持高可用的，部分机器故障并不会导致功能失效。所以在机器发生故障时，管理员有充分的时间对机器进行检查和修复。</li>
+<li>自动转换使得etcd集群变得更为复杂，尤其是在如今etcd支持多种网络环境的监听和交互的情况下。在不同网络间进行转换，更容易发生错误，导致集群不稳定。</li>
+</ul>
+
+<p>基于上述原因，目前Proxy模式有转发代理功能，而不会进行角色转换。</p>
+
+<h4 id="关键部分源码解析">关键部分源码解析</h4>
+
+<p>从代码中可以看到，Proxy模式的本质就是起一个http代理服务器，把客户发到这个服务器的请求转发给别的etcd节点。</p>
+
+<p>etcd目前支持读写皆可和只读两种模式。默认情况下是读写皆可，就是把读、写两种请求都进行转发。而只读模式只转发读的请求，对所有其他请求返回501错误。</p>
+
+<p>值得注意的是，在etcd集群化启动时，除了因为设置<code>proxy</code>参数作为Proxy模式启动之外，如果节点注册自身信息的时候监测到集群的实际节点数量已经符合要求，那么也会退化为Proxy模式。</p>
+
+<h3 id="2-6-数据存储">2.6 数据存储</h3>
+
+<p>etcd的存储分为内存存储和持久化（硬盘）存储两部分，内存中的存储除了顺序化地记录下所有用户对节点数据变更的记录外，还会对用户数据进行索引、建堆等方便查询的操作。而持久化则使用预写式日志（WAL：Write Ahead Log）进行记录存储。</p>
+
+<p>在WAL的体系中，所有的数据在提交之前都会进行日志记录。在etcd的持久化存储目录中，有两个子目录。一个是WAL，存储着所有事务的变化记录；另一个则是snapshot，用于存储某一个时刻etcd所有目录的数据。通过WAL和snapshot相结合的方式，etcd可以有效地进行数据存储和节点故障恢复等操作。</p>
+
+<p>也许你会有这样的疑问，既然已经在WAL实时存储了所有的变更，为什么还需要snapshot呢？原因是这样的，随着使用量的增加，WAL存储的数据会急剧增加，为了防止磁盘空间不足，etcd默认每10000条记录做一次snapshot，经过snapshot以后的WAL文件就可以删除。通过API可以查询的历史etcd操作默认为1000条。</p>
+
+<p>首次启动时，etcd会把启动的配置信息存储到<code>data-dir</code>参数指定的数据目录中。配置信息包括本地节点ID、集群ID和初始时集群信息。用户需要避免etcd从一个过期的数据目录中重新启动，因为使用过期的数据目录启动的节点会与集群中的其他节点产生不一致（如：之前已经记录并同意Leader节点存储某个信息，重启后又向Leader节点申请这个信息）。所以，为了最大化集群的安全性，一旦有任何数据损坏或丢失的可能性，你就应该把这个节点从集群中移除，然后加入一个不带数据目录的新节点。</p>
+
+<h4 id="1-预写式日志-wal">（1）预写式日志（WAL）</h4>
+
+<p>WAL最大的作用是记录了整个数据变化的全部历程。在etcd中，所有数据的修改在提交前，都要先写入到WAL中。使用WAL进行数据的存储使得etcd拥有两个重要功能。</p>
+
+<ul>
+<li><strong>故障快速恢复</strong>： 当你的数据遭到破坏时，就可以通过执行所有WAL中记录的修改操作，快速从最原始的数据恢复到数据损坏前的状态。</li>
+<li><strong>数据回滚（undo）/重做（redo）</strong>：因为所有的修改操作都被记录在WAL中，在需要回滚或重做时，只需要反向或正向执行日志中的操作即可。</li>
+</ul>
+
+<h5 id="wal与snapshot在etcd中的命名规则">WAL与snapshot在etcd中的命名规则</h5>
+
+<p>在etcd的数据目录中，WAL文件以<code>$seq-$index.wal</code>的格式存储。最初始的WAL文件是<code>0000000000000000-0000000000000000.wal</code>，表示是所有WAL文件中的第0个，初始的Raft状态编号为0。运行一段时间后可能需要进行日志切分，把新的条目放到一个新的WAL文件中。</p>
+
+<p>假设，当集群运行到Raft状态为20，需要进行WAL文件的切分时，则下一份WAL文件就会变为<code>0000000000000001-0000000000000021.wal</code>。如果在10次操作后又进行了一次日志切分，那么后一次的WAL文件名会变为<code>0000000000000002-0000000000000031.wal</code>。可以看到<code>-</code>符号前面的数字是每次切分后自增1，而<code>-</code>符号后面的数字则是根据实际存储的Raft起始状态来定。</p>
+
+<p>snapshot的存储命名则比较容易理解，以<code>$term-$index.wal</code>格式进行命名存储。term和index就表示存储snapshot时数据所在的Raft节点状态，当前的任期编号以及数据项位置信息。</p>
+
+<h4 id="2-关键部分源码解析">（2） 关键部分源码解析</h4>
+
+<p>从代码逻辑中可以看到，WAL有两种模式，读（read）模式和数据添加（append）模式，两者是互斥的。一个新创建的WAL文件处于append模式，并且不会进入到read模式。一个本来存在的WAL文件被打开的时候必然是read模式，只有在所有记录都被读完的时候，才能进入append模式，进入append模式后也不会再进入read模式。这样做有助于保证数据的完整与准确。</p>
+
+<p>集群在进入到<code>etcdserver/server.go</code>的<code>NewServer</code>函数准备启动一个etcd节点时，会检测是否存在以前的遗留WAL数据。</p>
+
+<p>etcd从v0.4.6升级到v2.0.0，它数据格式存储的格式也变化了。检测的第一步是查看snapshot文件夹下是否有符合规范的文件，若检测到snapshot格式是v0.4的，则调用函数升级到v0.5。从snapshot中获得集群的配置信息，包括token、其他节点的信息等等，然后载入WAL目录的内容，从小到大进行排序。根据snapshot中得到的term和index，找到WAL紧接着snapshot下一条的记录，然后向后更新，直到所有WAL包的entry都已经遍历完毕，Entry记录到ents变量中存储在内存里。此时WAL就进入append模式，为数据项添加进行准备。</p>
+
+<p>当WAL文件中数据项内容过大达到设定值（默认为10000）时，会进行WAL的切分，同时进行snapshot操作。这个过程可以在<code>etcdserver/server.go</code>的<code>snapshot</code>函数中看到。所以，实际上数据目录中有用的snapshot和WAL文件各只有一个，默认情况下etcd会各保留5个历史文件。</p>
+
+<h3 id="2-7-raft">2.7 Raft</h3>
+
+<p>新版Etcd中，Raft包就是对Raft一致性算法的具体实现。关于Raft算法的讲解，网上已经有很多文章，有兴趣的读者可以去阅读一下<a href="https://ramcloud.stanford.edu/raft.pdf">Raft算法论文</a>，非常精彩。本文不再对Raft算法进行详细描述，而是结合etcd，针对算法中一些关键内容以问答的形式进行讲解。Raft算法的相关术语参见概念词汇表一节。</p>
+
+<h4 id="1-raft常见问答一览">（1） Raft常见问答一览</h4>
+
+<ul>
+<li><strong>Raft中一个Term（任期）是什么意思？</strong> 在Raft算法中，从时间上讲，一个任期即从某一次竞选开始到下一次竞选开始。从功能上讲，如果Follower接收不到Leader节点的心跳信息，就会结束当前任期，变为Candidate发起竞选，有助于Leader节点故障时集群的恢复。 发起竞选投票时，任期值小的节点不会竞选成功。如果集群不出现故障，那么一个任期将无限延续下去。而投票出现冲突则有可能直接进入下一任再次竞选。</li>
+</ul>
+
+<p><center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605766741/sel/0129012_nfavbv.jpg" alt="fuz" style="zoom:30%;" /><br />
+</center>
+<center>图12 Term示意图 </center></p>
+
+<ul>
+<li><p><strong>Raft状态机是怎样切换的？</strong> Raft刚开始运行时，节点默认进入Follower状态，等待Leader发来心跳信息。若等待超时，则状态由Follower切换到Candidate进入下一轮Term发起竞选，等到收到集群多数节点的投票时，该节点转变为Leader。Leader节点有可能出现网络等故障，导致别的节点发起投票成为新Term的Leader，此时原先的老Leader节点会切换为Follower。Candidate在等待其它节点投票的过程中如果发现别的节点已经竞选成功成为Leader了，也会切换为Follower节点。
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605766780/sel/0129013_cleffq.jpg" alt="fuz" style="zoom:30%;" /><br />
+</center>
+<center>图13 Raft状态机 </center></p></li>
+
+<li><p><strong>如何保证最短时间内竞选出Leader，防止竞选冲突？</strong> 在Raft状态机一图中可以看到，在Candidate状态下， 有一个times out，这里的times out时间是个随机值，也就是说，每个机器成为Candidate以后，超时发起新一轮竞选的时间是各不相同的，这就会出现一个时间差。在时间差内，如果Candidate1收到的竞选信息比自己发起的竞选信息Term值大（即对方为新一轮Term），并且新一轮想要成为Leader的Candidate2包含了所有提交的数据，那么Candidate1就会投票给Candidate2。这样就保证了只有很小的概率会出现竞选冲突。</p></li>
+
+<li><p><strong>如何防止别的Candidate在遗漏部分数据的情况下发起投票成为Leader？</strong> Raft竞选的机制中，使用随机值决定超时时间，第一个超时的节点就会提升Term编号发起新一轮投票，一般情况下别的节点收到竞选通知就会投票。但是，如果发起竞选的节点在上一个Term中保存的已提交数据不完整，节点就会拒绝投票给它。通过这种机制就可以防止遗漏数据的节点成为Leader。</p></li>
+
+<li><p><strong>Raft某个节点宕机后会如何？</strong> 通常情况下，如果是Follower节点宕机，且剩余可用节点数量超过总节点数的一半，集群可以几乎不受影响地正常工作。如果是Leader节点宕机，那么Follower节点会因为收不到心跳而超时，发起竞选获得投票，成为新一轮Term的Leader，继续为集群提供服务。<strong>需要注意的是；etcd目前没有任何机制会自动去变化整个集群的总节点数量</strong>，即如果没有人为地调用API，etcd宕机后的节点仍然被计算在总节点数中，任何请求被确认需要获得的投票数都是这个总数的一半以上。
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605766404/sel/0129014_ijbuz3.jpg" alt="fuz" style="zoom:30%;" /><br />
+</center>
+<center>图14 节点宕机 </center></p></li>
+
+<li><p><strong>为什么Raft算法在确定可用节点数量时不需要考虑拜占庭将军问题？</strong> 拜占庭将军问题中提出，允许n个节点宕机还能提供正常服务的分布式架构，需要的总节点数量为3n+1，而Raft只需要2n+1就可以了。其主要原因在于，拜占庭将军问题中存在数据欺骗的现象，而etcd中假设所有的节点都是诚实的。etcd在竞选前需要告诉别的节点自身的Term编号以及前一轮Term最终结束时的index值，这些数据都是准确的，其他节点可以根据这些值决定是否投票。另外，etcd严格限制Leader到Follower这样的数据流向保证数据一致不会出错。</p></li>
+
+<li><p><strong>用户从集群中哪个节点读写数据？</strong> Raft为了保证数据的强一致性，所有的数据流向都是一个方向，从Leader流向Follower，即所有Follower的数据必须与Leader保持一致，如果不一致则会被覆盖。也就是说，所有用户更新数据的请求都最先由Leader获得并保存下来，然后通知其他节点将其保存，等到大多数节点反馈时再把数据提交。一个已提交的数据项才是Raft真正稳定存储下来的数据项，不再被修改，最后再把提交的数据同步给其他Follower。因为每个节点都有Raft已提交数据准确的备份（最坏的情况也只是已提交数据还未完全同步），所以任何一个节点都可以处理读请求。</p></li>
+
+<li><p><strong>etcd实现的Raft算法性能如何？</strong> 单实例节点支持每秒1000次数据写入。随着节点数目的增加，数据同步会因为网络延迟越来越慢；而读性能则会随之提升，因为每个节点都能处理用户的读请求。</p></li>
+</ul>
+
+<h4 id="2-关键部分源码解析-1">（2） 关键部分源码解析</h4>
+
+<p>在etcd代码中，Node作为Raft状态机的具体实现，是整个算法的关键，也是了解算法的入口。</p>
+
+<p>在etcd中，对Raft算法的调用如下，你可以在<code>etcdserver/raft.go</code>中的<code>startNode</code>找到：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">storage <span style="color:#555">:=</span> raft.<span style="color:#c0f">NewMemoryStorage</span>()
+n <span style="color:#555">:=</span> raft.<span style="color:#c0f">StartNode</span>(<span style="color:#f60">0x01</span>, []<span style="color:#078;font-weight:bold">int64</span>{<span style="color:#f60">0x02</span>, <span style="color:#f60">0x03</span>}, <span style="color:#f60">3</span>, <span style="color:#f60">1</span>, storage)</code></pre></div>
+<p>通过这段代码可以了解到，Raft在运行过程记录数据和状态都是保存在内存中，而代码中<code>raft.StartNode</code>启动的Node就是Raft状态机Node。启动了一个Node节点后，Raft会做如下事项。</p>
+
+<p>首先，你需要把从集群的其他机器上收到的信息推送到Node节点，你可以在<code>etcdserver/server.go</code>中的<code>Process</code>函数看到。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> (s <span style="color:#555">*</span>EtcdServer) <span style="color:#c0f">Process</span>(ctx context.Context, m raftpb.Message) <span style="color:#078;font-weight:bold">error</span> {
+    <span style="color:#069;font-weight:bold">if</span> m.Type <span style="color:#555">==</span> raftpb.MsgApp {
+        s.stats.<span style="color:#c0f">RecvAppendReq</span>(types.<span style="color:#c0f">ID</span>(m.From).<span style="color:#c0f">String</span>(), m.<span style="color:#c0f">Size</span>())
+    }
+    <span style="color:#069;font-weight:bold">return</span> s.node.<span style="color:#c0f">Step</span>(ctx, m)
+}</code></pre></div>
+<p>检测发来请求的机器是否是集群中的节点，自身节点是否是Follower，把发来请求的机器作为Leader，具体对Node节点信息的推送和处理则通过<code>node.Step()</code>函数实现。</p>
+
+<p>其次，你需要把日志项存储起来，在你的应用中执行提交的日志项，然后把完成信号发送给集群中的其它节点，再通过<code>node.Ready()</code>监听等待下一次任务执行。有一点非常重要，你必须确保在你发送完成消息给其他节点之前，你的日志项内容已经确切稳定地存储下来了。</p>
+
+<p>最后，你需要保持一个心跳信号<code>Tick()</code>。Raft有两个很重要的地方用到超时机制：心跳保持和Leader竞选。需要用户在其Raft的Node节点上周期性地调用Tick()函数，以便为超时机制服务。</p>
+
+<p>综上所述，整个Raft节点的状态机循环类似如下所示：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">for</span> {
+    <span style="color:#069;font-weight:bold">select</span> {
+    <span style="color:#069;font-weight:bold">case</span> <span style="color:#555">&lt;-</span>s.Ticker:
+        n.<span style="color:#c0f">Tick</span>()
+    <span style="color:#069;font-weight:bold">case</span> rd <span style="color:#555">:=</span> <span style="color:#555">&lt;-</span>s.Node.<span style="color:#c0f">Ready</span>():
+        <span style="color:#c0f">saveToStorage</span>(rd.State, rd.Entries)
+        <span style="color:#c0f">send</span>(rd.Messages)
+        <span style="color:#c0f">process</span>(rd.CommittedEntries)
+        s.Node.<span style="color:#c0f">Advance</span>()
+    <span style="color:#069;font-weight:bold">case</span> <span style="color:#555">&lt;-</span>s.done:
+        <span style="color:#069;font-weight:bold">return</span>
+    }
+}</code></pre></div>
+<p>而这个状态机真实存在的代码位置为<code>etcdserver/server.go</code>中的<code>run</code>函数。</p>
+
+<p>对状态机进行状态变更（如用户数据更新等）时将调用<code>n.Propose(ctx, data)</code>函数，在存储数据时，会先进行序列化操作。获得大多数其他节点的确认后，数据会被提交，保存为已提交状态。</p>
+
+<p>之前提到etcd集群的启动如果使用自发现方式，需要借助别的etcd集群或者DNS，而启动完毕后这些<code>外力</code>就不需要了。etcd会把自身集群的信息作为状态存储起来。所以要变更自身集群节点数量实际上也需要像用户数据变更那样添加数据条目到Raft状态机中。上述功能由<code>n.ProposeConfChange(ctx, cc)</code>实现。当集群配置信息变更的请求同样得到大多数节点的确认反馈后，再进行配置变更的正式操作，代码如下。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">var</span> cc raftpb.ConfChange
+cc.<span style="color:#c0f">Unmarshal</span>(data)
+n.<span style="color:#c0f">ApplyConfChange</span>(cc)</code></pre></div>
+<p>注意：为了避免不同etcd集群消息混乱，ID需要确保唯一性，不能重复使用旧的token数据作为ID。</p>
+
+<h3 id="2-8-store">2.8 Store</h3>
+
+<p>顾名思义，Store这个模块就像一个商店一样把etcd已经准备好的各项底层支持加工起来，为用户提供五花八门的API支持，处理用户的各项请求。要理解Store，就要从etcd的API入手。打开<a href="https://github.com/coreos/etcd/blob/master/Documentation/api.md">etcd的API列表</a>，我们可以看到如下API，均系对etcd存储的键值进行的操作，亦即Store提供的内容。API中提到的目录（Directory）和键（Key），上文中也可能称为etcd节点（Node）。</p>
+
+<ul>
+<li><p>为etcd存储的键赋值</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">curl http:<span style="color:#09f;font-style:italic">//127.0.0.1:2379/v2/keys/message -XPUT -d value=&#34;Hello world&#34;
+</span><span style="color:#09f;font-style:italic"></span>{
+    <span style="color:#c30">&#34;action&#34;</span>: <span style="color:#c30">&#34;set&#34;</span>,
+    <span style="color:#c30">&#34;node&#34;</span>: {
+        <span style="color:#c30">&#34;createdIndex&#34;</span>: <span style="color:#f60">2</span>,
+        <span style="color:#c30">&#34;key&#34;</span>: <span style="color:#c30">&#34;/message&#34;</span>,
+        <span style="color:#c30">&#34;modifiedIndex&#34;</span>: <span style="color:#f60">2</span>,
+        <span style="color:#c30">&#34;value&#34;</span>: <span style="color:#c30">&#34;Hello world&#34;</span>
+    }
+}</code></pre></div>
+<p>反馈的内容含义如下：</p>
+
+<ul>
+<li>action: 刚刚进行的动作名称。</li>
+<li>node.key: 请求的HTTP路径。etcd使用一个类似文件系统的方式来反映键值存储的内容。</li>
+<li>node.value: 刚刚请求的键所存储的内容。</li>
+<li>node.createdIndex: etcd节点每次发生变化时，该值会自动增加。除了用户请求外，etcd内部运行（如启动、集群信息变化等）也可能会因为对节点有变动而引起该值的变化。</li>
+<li>node.modifiedIndex: 类似node.createdIndex，能引起modifiedIndex变化的操作包括set, delete, update, create, compareAndSwap and compareAndDelete。</li>
+</ul></li>
+
+<li><p>查询etcd某个键存储的值</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">curl http://127.0.0.1:2379/v2/keys/message</code></pre></div></li>
+
+<li><p>修改键值：与创建新值几乎相同，但是反馈时会有一个<code>prevNode</code>值反应了修改前存储的内容。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">curl http://127.0.0.1:2379/v2/keys/message -XPUT -d <span style="color:#033">value</span><span style="color:#555">=</span><span style="color:#c30">&#34;Hello etcd&#34;</span></code></pre></div></li>
+
+<li><p>删除一个值</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">curl http://127.0.0.1:2379/v2/keys/message -XDELETE</code></pre></div></li>
+
+<li><p>对一个键进行定时删除：etcd中对键进行定时删除，设定一个ttl值，当这个值到期时键就会被删除。反馈的内容会给出expiration项告知超时时间，ttl项告知设定的时长。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">curl http://127.0.0.1:2379/v2/keys/foo -XPUT -d <span style="color:#033">value</span><span style="color:#555">=</span>bar -d <span style="color:#033">ttl</span><span style="color:#555">=</span><span style="color:#f60">5</span></code></pre></div></li>
+
+<li><p>取消定时删除任务</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">curl http://127.0.0.1:2379/v2/keys/foo -XPUT -d <span style="color:#033">value</span><span style="color:#555">=</span>bar -d <span style="color:#033">ttl</span><span style="color:#555">=</span> -d <span style="color:#033">prevExist</span><span style="color:#555">=</span>true</code></pre></div></li>
+
+<li><p>对键值修改进行监控：etcd提供的这个API让用户可以监控一个值或者递归式地监控一个目录及其子目录的值，当目录或值发生变化时，etcd会主动通知。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">curl http://127.0.0.1:2379/v2/keys/foo?wait<span style="color:#555">=</span>true</code></pre></div></li>
+
+<li><p>对过去的键值操作进行查询：类似上面提到的监控，在其基础上指定过去某次修改的索引编号，就可以查询历史操作。默认可查询的历史记录为1000条。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">curl <span style="color:#c30">&#39;http://127.0.0.1:2379/v2/keys/foo?wait=true&amp;waitIndex=7&#39;</span></code></pre></div></li>
+
+<li><p>自动在目录下创建有序键。在对创建的目录使用<code>POST</code>参数，会自动在该目录下创建一个以createdIndex值为键的值，这样就相当于根据创建时间的先后进行了严格排序。该API对分布式队列这类场景非常有用。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">curl http://127.0.0.1:2379/v2/keys/queue -XPOST -d <span style="color:#033">value</span><span style="color:#555">=</span>Job1
+<span style="color:#555">{</span>
+    <span style="color:#c30">&#34;action&#34;</span>: <span style="color:#c30">&#34;create&#34;</span>,
+    <span style="color:#c30">&#34;node&#34;</span>: <span style="color:#555">{</span>
+        <span style="color:#c30">&#34;createdIndex&#34;</span>: 6,
+        <span style="color:#c30">&#34;key&#34;</span>: <span style="color:#c30">&#34;/queue/6&#34;</span>,
+        <span style="color:#c30">&#34;modifiedIndex&#34;</span>: 6,
+        <span style="color:#c30">&#34;value&#34;</span>: <span style="color:#c30">&#34;Job1&#34;</span>
+    <span style="color:#555">}</span>
+<span style="color:#555">}</span></code></pre></div></li>
+
+<li><p>按顺序列出所有创建的有序键。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">curl -s <span style="color:#c30">&#39;http://127.0.0.1:2379/v2/keys/queue?recursive=true&amp;sorted=true&#39;</span></code></pre></div></li>
+
+<li><p>创建定时删除的目录：就跟定时删除某个键类似。如果目录因为超时被删除了，其下的所有内容也自动超时删除。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">curl http://127.0.0.1:2379/v2/keys/dir -XPUT -d <span style="color:#033">ttl</span><span style="color:#555">=</span><span style="color:#f60">30</span> -d <span style="color:#033">dir</span><span style="color:#555">=</span>true</code></pre></div></li>
+
+<li><p>刷新超时时间。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">curl http://127.0.0.1:2379/v2/keys/dir -XPUT -d <span style="color:#033">ttl</span><span style="color:#555">=</span><span style="color:#f60">30</span> -d <span style="color:#033">dir</span><span style="color:#555">=</span><span style="color:#366">true</span> -d <span style="color:#033">prevExist</span><span style="color:#555">=</span>true</code></pre></div></li>
+
+<li><p>自动化CAS（Compare-and-Swap）操作：etcd强一致性最直观的表现就是这个API，通过设定条件，阻止节点二次创建或修改。即用户的指令被执行当且仅当CAS的条件成立。条件有以下几个。</p>
+
+<ul>
+<li>prevValue 先前节点的值，如果值与提供的值相同才允许操作。</li>
+<li>prevIndex 先前节点的编号，编号与提供的校验编号相同才允许操作。</li>
+<li>prevExist 先前节点是否存在。如果存在则不允许操作。这个常常被用于分布式锁的唯一获取。
+<br /></li>
+</ul>
+
+<p>假设先进行了如下操作：设定了foo的值。 <code>curl http://127.0.0.1:2379/v2/keys/foo -XPUT -d value=one</code>然后再进行操作：<code>curl http://127.0.0.1:2379/v2/keys/foo?prevExist=false -XPUT -d value=three</code>就会返回创建失败的错误。</p></li>
+
+<li><p>条件删除（Compare-and-Delete）：与CAS类似，条件成立后才能删除。</p></li>
+
+<li><p>创建目录</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">curl http://127.0.0.1:2379/v2/keys/dir -XPUT -d <span style="color:#033">dir</span><span style="color:#555">=</span>true</code></pre></div></li>
+
+<li><p>列出目录下所有的节点信息，最后以<code>/</code>结尾。还可以通过recursive参数递归列出所有子目录信息。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">curl http://127.0.0.1:2379/v2/keys/</code></pre></div></li>
+
+<li><p>删除目录：默认情况下只允许删除空目录，如果要删除有内容的目录需要加上<code>recursive=true</code>参数。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">curl <span style="color:#c30">&#39;http://127.0.0.1:2379/v2/keys/foo_dir?dir=true&#39;</span> -XDELETE</code></pre></div></li>
+
+<li><p>创建一个隐藏节点：命名时名字以下划线<code>_</code>开头默认就是隐藏键。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">curl http://127.0.0.1:2379/v2/keys/_message -XPUT -d <span style="color:#033">value</span><span style="color:#555">=</span><span style="color:#c30">&#34;Hello hidden world&#34;</span></code></pre></div></li>
+</ul>
+
+<p>相信看完这么多API，相信读者已经对Store的工作内容有了基本的了解。它对etcd下存储的数据进行加工，创建出如文件系统般的树状结构供用户快速查询。它有一个<code>Watcher</code>用于节点变更的实时反馈，还需要维护一个<code>WatcherHub</code>对所有<code>Watcher</code>订阅者进行通知的推送。同时，它还维护了一个由定时键构成的小顶堆，快速返回下一个要超时的键。最后，所有这些API的请求都以事件的形式存储在事件队列中等待处理。</p>
+
+<h2 id="3-总结">3 总结</h2>
+
+<p>通过从应用场景到源码分析的一系列回顾，我们了解到etcd并不是一个简单的分布式键值存储系统。它解决了分布式场景中最为常见的一致性问题，为服务发现提供了一个稳定高可用的消息注册仓库，为以微服务协同工作的架构提供了无限的可能。相信在不久的将来，通过etcd构建起来的大型系统会越来越多。</p>
+
+<h2 id="4-参考文献">4 参考文献</h2>
+
+<ul>
+<li><a href="https://github.com/coreos/etcd">https://github.com/coreos/etcd</a></li>
+<li><a href="https://groups.google.com/forum/#!topic/etcd-dev/wmndjzBNdZo">https://groups.google.com/forum/#!topic/etcd-dev/wmndjzBNdZo</a></li>
+<li><a href="http://jm-blog.aliapp.com/?p=1232">http://jm-blog.aliapp.com/?p=1232</a></li>
+<li><a href="http://progrium.com/blog/2014/07/29/understanding-modern-service-discovery-with-docker/">http://progrium.com/blog/2014/07/29/understanding-modern-service-discovery-with-docker/</a></li>
+<li><a href="http://devo.ps/blog/zookeeper-vs-doozer-vs-etcd/">http://devo.ps/blog/zookeeper-vs-doozer-vs-etcd/</a></li>
+<li><a href="http://jasonwilder.com/blog/2014/02/04/service-discovery-in-the-cloud/">http://jasonwilder.com/blog/2014/02/04/service-discovery-in-the-cloud/</a></li>
+<li><a href="http://www.infoworld.com/article/2612082/open-source-software/has-apache-lost-its-way-.html">http://www.infoworld.com/article/2612082/open-source-software/has-apache-lost-its-way-.html</a></li>
+<li><a href="http://en.wikipedia.org/wiki/WAL">http://en.wikipedia.org/wiki/WAL</a></li>
+<li><a href="http://www.infoq.com/cn/articles/coreos-analyse-etcd">http://www.infoq.com/cn/articles/coreos-analyse-etcd</a></li>
+<li><a href="http://www.activestate.com/blog/2014/05/service-discovery-solutions">http://www.activestate.com/blog/2014/05/service-discovery-solutions</a></li>
+<li><a href="https://ramcloud.stanford.edu/raft.pdf">https://ramcloud.stanford.edu/raft.pdf</a></li>
+</ul>
+                        </div>
+                        
+                        
+                        
+                        
+                        
+                        
+
+                        
+                        <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+                        <script src="https://unpkg.com/gitalk@latest/dist/gitalk.min.js"></script> 
+                        <script type="text/javascript" src="/assets/js/md5.min.js"></script>
+                        <div id="gitalk-container"></div>     
+                        <script type="text/javascript">
+                            var gitalk = new Gitalk({
+                              clientID: '835183d2dcbd1167ac28', 
+                            
+                              clientSecret: 'd873919fac3cc76921ee0800172c2279bc612f8d', 
+                            
+                              repo: 'Sel-Website-talk',
+                              owner: 'Peeknut',
+                              admin: ['Peeknut','Rachel-Shao'],
+                              id: location.href.split("/").pop().substring(0, 49),      
+                              distractionFreeMode: false  
+                            })
+                            gitalk.render('gitalk-container')
+                        </script> 
+                        
+
+                    </div>
+                    
+
+                    
+
+                    
+
+                    <div class="col-md-3">
+
+                        
+
+                        
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+      <h3 class="panel-title">搜索栏</h3>
+      
+    </div>
+
+    <div class="panel-body">
+        
+        <div class="search" id="search">
+            <div class="input-group">
+                <input type="text" name="q" class="form-control" placeholder="请输入文章标题或摘要..." id="search-key">
+                <input type="hidden" name="sitesearch" value="https://Congrool.github.io/">
+                <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main" onclick="search()"><i class="fas fa-search"></i></button>
+                </span>
+            </div>
+            <h1 id="search-tip" style="color: red;text-align: center;display: none;font-size: medium;">搜索中，请稍后 ...</h1>
+        </div>
+        <script type="text/javascript">
+            
+            window.onload = function() {
+                      document.onkeydown = function(ev) {
+                        var event = ev || event
+                        if (event.keyCode == 13) {
+                          search()
+                        }
+                      }
+                    }
+            
+            function search() {
+                    
+                      key = document.getElementById("search-key").value;
+                      if (key === "") {
+                        
+                        return;
+                      }
+                      key = key.toLowerCase();
+                      document.getElementById("search-key").value = "";
+                  
+                      
+                      document.getElementById("search-tip").innerText = "搜索中，请稍后 ...";
+                      document.getElementById("search-tip").style.display = "block";
+                  
+                      
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      var childs = el.childNodes;
+                      for (var i = childs.length - 1; i >= 0; i--) {
+                        el.removeChild(childs[i]);
+                      }
+                  
+                      
+                      xmltext = new XMLHttpRequest;
+                      xmltext.open("GET", "/index.xml", false);
+                      xmltext.send();
+                      resp = xmltext.responseXML;
+                      
+                      items = resp.getElementsByTagName("item");
+                      
+                      var i = 0;
+                      haveResult = false;
+                      while (i < items.length) {
+                        txt = items[i].getElementsByTagName("title")[0].innerHTML + items[i].getElementsByTagName("description")[0].innerHTML
+                        txt = txt.toLowerCase();
+                        if (txt.indexOf(key) > -1) {
+                          haveResult = true;
+                          title = items[i].getElementsByTagName("title")[0].innerHTML;
+                          link = items[i].getElementsByTagName("link")[0].innerHTML;
+                          time = items[i].getElementsByTagName("pubDate")[0].innerHTML;
+                          mark = items[i].getElementsByTagName("description")[0].innerHTML;
+                          time = time.slice(0, -5);
+                          addItem(title, link, time, mark)
+                        }
+                        i++;
+                      }
+                      if (!haveResult) {
+                        document.getElementById("search-tip").innerText = "搜索完毕，未发现结果 ...";
+                        document.getElementById("search-tip").style.display = "block";
+                      }
+
+                      
+                      var el = document.getElementById("blog-head");
+                      el.innerHTML="Blogs"
+                    }
+                  
+                    
+                    function addItem(title, link, time, mark) {
+                      document.getElementById("search-tip").style.display = "none";
+                      tmpl = "<article class=\"post\" style=\"border-bottom: 1px solid #e6e6e6;\" >" +
+                        "<header class=\"post-header\">" +
+                        "<h1 class=\"post-title\"><a class=\"post-link\" href=\"" + link + "\" target=\"_blank\">" + title + "</a></h1>" +
+                        "<div class=\"post-meta\">" +
+                        " <span class=\"post-time\">" + time + "</span>" +
+                        "</div>" +
+                        " </header>" +
+                        "<div class=\"post-content\">" +
+                        "<div class=\"post-summary\">" + mark + "</div>" +
+                        "<div class=\"read-more\">" +
+                        "<a href=" + link + " class=\"read-more-link\" target=\"_blank\">阅读更多</a>" +
+                        "</div>" +
+                        " </div>" +
+                        "</article>"
+                      div = document.createElement("div")
+                      div.innerHTML = tmpl;
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      el.appendChild(div)
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+
+        </script>
+        
+    </div>
+</div>
+
+
+
+
+
+
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">归档栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="nav nav-pills nav-stacked">
+            
+            
+            <li>
+                <a href="/categories/bosh">bosh (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloud_controller_ng">cloud_controller_ng (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloudfoundry">cloudfoundry (15)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/containerd">containerd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/docker">docker (19)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/etcd">etcd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/haproxy">haproxy (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/healthmanager">healthmanager (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/karmada">karmada (4)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubeedge">kubeedge (5)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubernetes">kubernetes (14)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/network">network (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/openyurt">openyurt (2)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/service-mesh">service-mesh (4)</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+<div class="panel sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">标签栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="tag-cloud">
+            
+            
+            <li>
+                <a href="/tags/agent"><i class="fas fa-tags"></i> agent</a>
+            </li>
+            
+            <li>
+                <a href="/tags/apiserver"><i class="fas fa-tags"></i> apiserver</a>
+            </li>
+            
+            <li>
+                <a href="/tags/books"><i class="fas fa-tags"></i> books</a>
+            </li>
+            
+            <li>
+                <a href="/tags/bosh"><i class="fas fa-tags"></i> bosh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/ccng"><i class="fas fa-tags"></i> ccng</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cf-release"><i class="fas fa-tags"></i> cf-release</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cgroups"><i class="fas fa-tags"></i> cgroups</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudfoundry"><i class="fas fa-tags"></i> cloudfoundry</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudnative"><i class="fas fa-tags"></i> cloudnative</a>
+            </li>
+            
+            <li>
+                <a href="/tags/collector"><i class="fas fa-tags"></i> collector</a>
+            </li>
+            
+            <li>
+                <a href="/tags/containerd"><i class="fas fa-tags"></i> containerd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cri"><i class="fas fa-tags"></i> cri</a>
+            </li>
+            
+            <li>
+                <a href="/tags/dea"><i class="fas fa-tags"></i> dea</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker"><i class="fas fa-tags"></i> docker</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker-network"><i class="fas fa-tags"></i> docker-network</a>
+            </li>
+            
+            <li>
+                <a href="/tags/edgecomputing"><i class="fas fa-tags"></i> edgecomputing</a>
+            </li>
+            
+            <li>
+                <a href="/tags/etcd"><i class="fas fa-tags"></i> etcd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/gorouter"><i class="fas fa-tags"></i> gorouter</a>
+            </li>
+            
+            <li>
+                <a href="/tags/haproxy"><i class="fas fa-tags"></i> haproxy</a>
+            </li>
+            
+            <li>
+                <a href="/tags/healthmanager"><i class="fas fa-tags"></i> healthmanager</a>
+            </li>
+            
+            <li>
+                <a href="/tags/istio"><i class="fas fa-tags"></i> istio</a>
+            </li>
+            
+            <li>
+                <a href="/tags/karmada"><i class="fas fa-tags"></i> karmada</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubeedge"><i class="fas fa-tags"></i> kubeedge</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubelet"><i class="fas fa-tags"></i> kubelet</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubernetes"><i class="fas fa-tags"></i> kubernetes</a>
+            </li>
+            
+            <li>
+                <a href="/tags/libcontainer"><i class="fas fa-tags"></i> libcontainer</a>
+            </li>
+            
+            <li>
+                <a href="/tags/micro-service"><i class="fas fa-tags"></i> micro-service</a>
+            </li>
+            
+            <li>
+                <a href="/tags/namespace"><i class="fas fa-tags"></i> namespace</a>
+            </li>
+            
+            <li>
+                <a href="/tags/nats"><i class="fas fa-tags"></i> nats</a>
+            </li>
+            
+            <li>
+                <a href="/tags/news"><i class="fas fa-tags"></i> news</a>
+            </li>
+            
+            <li>
+                <a href="/tags/openyurt"><i class="fas fa-tags"></i> openyurt</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pipework"><i class="fas fa-tags"></i> pipework</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pouch"><i class="fas fa-tags"></i> pouch</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runc"><i class="fas fa-tags"></i> runc</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runtime"><i class="fas fa-tags"></i> runtime</a>
+            </li>
+            
+            <li>
+                <a href="/tags/security"><i class="fas fa-tags"></i> security</a>
+            </li>
+            
+            <li>
+                <a href="/tags/serverless"><i class="fas fa-tags"></i> serverless</a>
+            </li>
+            
+            <li>
+                <a href="/tags/service-mesh"><i class="fas fa-tags"></i> service-mesh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/syslog_aggregator"><i class="fas fa-tags"></i> syslog_aggregator</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+                        
+
+                    </div>
+                    
+
+                    
+
+                </div>
+                
+
+            </div>
+            
+        </div>
+        
+
+        <footer id="footer">
+    <div class="container">
+
+        
+        <div class="col-md-4 col-sm-6">
+            <h4></h4>
+
+            <p><strong>关于我们：<strong> <p>浙大SEL实验室</p><p>地址：杭州市浙大路38号曹光彪西楼405室</p><p><strong></strong>
+            <a href="/contact" class="btn btn-small btn-template-main" >跳转到关于</a>
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+        <div class="col-md-4 col-sm-6">
+
+             
+            <h4>最新博客</h4>
+            
+
+            <div class="blog-entries">
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/27/overview.png" class="img-responsive" alt="基于KubeEdge的边缘节点分组管理设计与实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">基于KubeEdge的边缘节点分组管理设计与实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/20/karmada-scheduler.png" class="img-responsive" alt="多云环境下的资源调度：karmada scheduler的框架和实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">多云环境下的资源调度：karmada scheduler的框架和实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">
+                          
+                            <img src="/img/blogs/19/karmada-arch.jpg" class="img-responsive" alt="多云环境下的成员集群管理，看看开源项目karmada是如何做到的">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">多云环境下的成员集群管理，看看开源项目karmada是如何做到的</a></h5>
+                    </div>
+                </div>
+                
+            </div>
+
+            <hr class="hidden-md hidden-lg">
+             
+
+        </div>
+        
+
+        
+        <div class="col-md-4 col-sm-6">
+
+          <h4></h4>
+
+            <p><strong>联系我们: 
+                                    <p>团队负责人：丁轶群 yiqunding@zju.edu.cn</p>
+                                    <p>网站维护人：刘佳文 839809484@qq.com</p>                
+    </strong>
+
+            
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+    </div>
+    
+</footer>
+
+
+
+
+
+
+
+<div id="copyright">
+    <div class="container">
+        <div class="col-md-12">
+            
+            <p class="pull-left">Copyright ©️ 2020 SEL Laboratory , ZJ University all rights reserved.</p>
+            
+            <p class="pull-right">
+               <a href="https://bootstrapious.com/p/universal-business-e-commerce-template">Bootstrapious</a>.
+              
+
+               <a href="https://github.com/devcows/hugo-universal-theme">DevCows</a>.
+            </p>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+    </div>
+    
+
+    
+
+
+<script src="/js/jquery.min.js"></script>
+<script src="/js/bootstrap.min.js"></script>
+
+
+
+<script src="/js/jquery.cookie.min.js"></script>
+<script src="/js/jquery.waypoints.min.js"></script>
+<script src="/js/jquery.counterup.min.js"></script>
+<script src="/js/jquery-parallax.js"></script>
+
+
+<script src="/js/front.js"></script>
+
+
+<script src="/js/owl.carousel.min.js"></script>
+
+
+
+  </body>
+</html>

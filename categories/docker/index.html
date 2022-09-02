@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="robots" content="all,follow">
+  <meta name="googlebot" content="index,follow,snippet,archive">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <title>Docker</title>
+  <meta name="author" content="浙大SEL实验室" />
+  
+  
+  
+  
+  
+  <meta name="description" content="">
+
+  <meta name="generator" content="Hugo 0.68.3" />
+
+  
+  <link href='//fonts.googleapis.com/css?family=Roboto:400,100,100italic,300,300italic,500,700,800' rel='stylesheet' type='text/css'>
+
+  
+  
+  
+  
+  
+
+  <link href="/css/all.css" rel="stylesheet">
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+
+  
+  <link href="/css/animate.css" rel="stylesheet">
+
+  
+  
+    <link href="/css/style.default.css" rel="stylesheet" id="theme-stylesheet">
+  
+
+  
+  <link href="/css/custom.css" rel="stylesheet">
+
+  
+  
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+        <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  
+
+  
+  <link rel="shortcut icon" href="/img/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
+
+  
+  <link href="/css/owl.carousel.css" rel="stylesheet">
+  <link href="/css/owl.theme.css" rel="stylesheet">
+
+  
+  <link rel="alternate" href="https://Congrool.github.io/index.xml" type="application/rss+xml" title="浙大SEL实验室">
+
+  
+  
+  
+  
+  
+  
+  <meta property="og:updated_time" content="2018-05-10T10:16:40Z">
+  
+
+  
+  <meta name="twitter:card" content="summary">
+  
+  <meta name="twitter:title" content="Docker">
+  
+  <meta name="twitter:description" content="">
+  
+  
+</head>
+
+
+  <body>
+
+    <div id="all">
+
+        <header class="navbar-affixed-top" data-spy="affix" data-offset-top="62">
+    <div class="navbar navbar-default yamm" role="navigation" id="navbar" style="background-color:white;">    
+        <div class="container">
+            <div class="navbar-header">
+                <a class="navbar-brand home" href="/">
+                    <img src="/img/sel.png" alt="Docker" class="hidden-xs hidden-sm img-responsive">
+                    
+                    <span class="sr-only">Docker - </span>
+                </a>
+                <div class="navbar-buttons">
+                    <button type="button" class="navbar-toggle btn-template-main" data-toggle="collapse" data-target="#navigation">
+                      <span class="sr-only"></span>
+                        <i class="fas fa-align-justify"></i>
+                    </button>
+                </div>
+            </div>
+            
+
+            <div class="navbar-collapse collapse" id="navigation">
+                <ul class="nav navbar-nav navbar-right">
+                  
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/">主页</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/blog/">博客</a>
+                    
+                  </li>
+
+                  <li class="dropdown">
+                    
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">社区 <span class="caret"></span></a>
+                  <ul class="dropdown-menu">
+                    
+                      <li><a href="https://www.servicemesher.com/">ServiceMesh社区</a></li>
+                    
+                      <li><a href="">kubeedge社区</a></li>
+
+                      <li><a href="http://www.icsoft.zju.edu.cn/index.php">浙江大学智能计算与软件中心</a></li>
+                    
+                  </ul>
+
+                  <li class="dropdown">
+                    
+                    <a href="/archives/">归档</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/contact/">关于</a>
+                    
+                  </li>
+                  
+                </li>
+
+                
+                
+
+                
+                </ul>
+            </div>
+            
+
+            <div class="collapse clearfix" id="search">    
+                <form class="navbar-form" role="search">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search">
+                        <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main"><i class="fas fa-search"></i></button>
+                </span>
+                    </div>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+
+    
+</header>
+
+
+
+
+        <div id="heading-breadcrumbs">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h1>Docker</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+        <div id="content">
+            <div class="container">
+                <div class="row">
+                    
+
+                    <div class="col-md-9" id="blog-listing-medium">
+
+                        
+                        
+                        <section class="post">
+                            <div class="row">
+                                <div class="col-md-3">
+                                  <div class="image">
+                                      <a href="https://Congrool.github.io/blog/2018/05/10/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3docker%E5%AE%B9%E5%99%A8%E5%BC%95%E6%93%8Erunc%E6%89%A7%E8%A1%8C%E6%A1%86%E6%9E%B6/">
+                                          
+                                          <img src="/img/blogs/840/containerdrunc.png" class="img-responsive" alt="">
+                                          
+                                      </a>
+                                  </div>
+                                </div>
+                                <div class="col-md-9">
+                                    <h2><a href="https://Congrool.github.io/blog/2018/05/10/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3docker%E5%AE%B9%E5%99%A8%E5%BC%95%E6%93%8Erunc%E6%89%A7%E8%A1%8C%E6%A1%86%E6%9E%B6/">深入理解Docker容器引擎runC执行框架</a></h2>
+                                    <div class="clearfix">
+                                        <p class="author-category">
+                                          
+                                           作者：<a href="#">姚增增</a>
+                                          
+                                          
+                                          
+                                          | 归档于 <a href="/categories/docker/">Docker</a>
+                                          
+                                          
+
+                                        </p>
+                                        
+                                        <p class="date-comments">
+                                            <a href="https://Congrool.github.io/blog/2018/05/10/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3docker%E5%AE%B9%E5%99%A8%E5%BC%95%E6%93%8Erunc%E6%89%A7%E8%A1%8C%E6%A1%86%E6%9E%B6/"><i class="far fa-calendar"></i> 2018-05-10</a>
+                                        </p>
+                                        
+                                    </div>
+                                    
+                                    <p class="intro">根据官方的定义：runC是一个根据OCI标准创建并运行容器的CLI tool。 Docker就是基于runC创建的，简单地说，runC是Docker中最为核心的部分，容器的创建，运行，销毁等等操作最终都将通过调用runC完成。本文以代码走读的形式帮助读者理解runC创建并运行一个容器内部机制。 </p>
+                                    <p class="read-more"><a href="https://Congrool.github.io/blog/2018/05/10/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3docker%E5%AE%B9%E5%99%A8%E5%BC%95%E6%93%8Erunc%E6%89%A7%E8%A1%8C%E6%A1%86%E6%9E%B6/" class="btn btn-template-main">继续阅读</a>
+                                        
+                                    </p>
+                                </div>
+                            </div>
+                        </section>
+                        
+                        <section class="post">
+                            <div class="row">
+                                <div class="col-md-3">
+                                  <div class="image">
+                                      <a href="https://Congrool.github.io/blog/2016/11/30/docker%E5%AE%B9%E5%99%A8%E4%B8%8E%E5%AE%B9%E5%99%A8%E4%BA%91%E7%AC%AC2%E7%89%88%E6%8E%A8%E8%8D%90/">
+                                          
+                                          <img src="/img/blogs/123/docker2.png" class="img-responsive" alt="">
+                                          
+                                      </a>
+                                  </div>
+                                </div>
+                                <div class="col-md-9">
+                                    <h2><a href="https://Congrool.github.io/blog/2016/11/30/docker%E5%AE%B9%E5%99%A8%E4%B8%8E%E5%AE%B9%E5%99%A8%E4%BA%91%E7%AC%AC2%E7%89%88%E6%8E%A8%E8%8D%90/">《Docker容器与容器云》第2版推荐</a></h2>
+                                    <div class="clearfix">
+                                        <p class="author-category">
+                                          
+                                           作者：<a href="#">丁轶群</a>
+                                          
+                                          
+                                          
+                                          | 归档于 <a href="/categories/docker/">Docker</a>
+                                          
+                                          
+
+                                        </p>
+                                        
+                                        <p class="date-comments">
+                                            <a href="https://Congrool.github.io/blog/2016/11/30/docker%E5%AE%B9%E5%99%A8%E4%B8%8E%E5%AE%B9%E5%99%A8%E4%BA%91%E7%AC%AC2%E7%89%88%E6%8E%A8%E8%8D%90/"><i class="far fa-calendar"></i> 2016-11-30</a>
+                                        </p>
+                                        
+                                    </div>
+                                    
+                                    <p class="intro">自Docker容器与容器云第1版出版以来，销量达到10000多本，得到了广大技术人员的认可，并且翻译成繁体，进入台湾市场。本书对Docker和Kubernetes的源码解析深入细致，是国内Docker界的良心之作。 经过作者们多年的实践经验积累及近一年的精心准备，浙江大学SEL实验室出版的《Docker容器与容器云》第2版，终于与我们见面了。</p>
+                                    <p class="read-more"><a href="https://Congrool.github.io/blog/2016/11/30/docker%E5%AE%B9%E5%99%A8%E4%B8%8E%E5%AE%B9%E5%99%A8%E4%BA%91%E7%AC%AC2%E7%89%88%E6%8E%A8%E8%8D%90/" class="btn btn-template-main">继续阅读</a>
+                                        
+                                    </p>
+                                </div>
+                            </div>
+                        </section>
+                        
+                        <section class="post">
+                            <div class="row">
+                                <div class="col-md-3">
+                                  <div class="image">
+                                      <a href="https://Congrool.github.io/blog/2015/10/21/docker%E5%AE%B9%E5%99%A8%E4%B8%8E%E5%AE%B9%E5%99%A8%E4%BA%91%E6%8E%A8%E8%8D%90/">
+                                          
+                                          <img src="/img/blogs/635/docker.png" class="img-responsive" alt="">
+                                          
+                                      </a>
+                                  </div>
+                                </div>
+                                <div class="col-md-9">
+                                    <h2><a href="https://Congrool.github.io/blog/2015/10/21/docker%E5%AE%B9%E5%99%A8%E4%B8%8E%E5%AE%B9%E5%99%A8%E4%BA%91%E6%8E%A8%E8%8D%90/">《Docker容器与容器云》推荐</a></h2>
+                                    <div class="clearfix">
+                                        <p class="author-category">
+                                          
+                                           作者：<a href="#">丁轶群</a>
+                                          
+                                          
+                                          
+                                          | 归档于 <a href="/categories/docker/">Docker</a>
+                                          
+                                          
+
+                                        </p>
+                                        
+                                        <p class="date-comments">
+                                            <a href="https://Congrool.github.io/blog/2015/10/21/docker%E5%AE%B9%E5%99%A8%E4%B8%8E%E5%AE%B9%E5%99%A8%E4%BA%91%E6%8E%A8%E8%8D%90/"><i class="far fa-calendar"></i> 2015-10-21</a>
+                                        </p>
+                                        
+                                    </div>
+                                    
+                                    <p class="intro">《Docker容器与容器云》是Kubernetes社区核心开发者张磊博士及其技术团队近年来PaaS方面积累，全书不仅描述了容器与容器云技术，还融入了实验室四年来对云计算各个层面的理解。该书是国内第一本对Docker原理进行深度解析的书籍，也是第一本结合PaaS对各类容器云进行深度剖析，并着重深入分析Kubernetes原理的书籍。</p>
+                                    <p class="read-more"><a href="https://Congrool.github.io/blog/2015/10/21/docker%E5%AE%B9%E5%99%A8%E4%B8%8E%E5%AE%B9%E5%99%A8%E4%BA%91%E6%8E%A8%E8%8D%90/" class="btn btn-template-main">继续阅读</a>
+                                        
+                                    </p>
+                                </div>
+                            </div>
+                        </section>
+                        
+                        <section class="post">
+                            <div class="row">
+                                <div class="col-md-3">
+                                  <div class="image">
+                                      <a href="https://Congrool.github.io/blog/2015/10/21/docker%E8%83%8C%E5%90%8E%E7%9A%84%E6%A0%87%E5%87%86%E5%8C%96%E5%AE%B9%E5%99%A8%E6%89%A7%E8%A1%8C%E5%BC%95%E6%93%8E-runc/">
+                                          
+                                          <img src="/img/blogs/633/logo_oci.png" class="img-responsive" alt="">
+                                          
+                                      </a>
+                                  </div>
+                                </div>
+                                <div class="col-md-9">
+                                    <h2><a href="https://Congrool.github.io/blog/2015/10/21/docker%E8%83%8C%E5%90%8E%E7%9A%84%E6%A0%87%E5%87%86%E5%8C%96%E5%AE%B9%E5%99%A8%E6%89%A7%E8%A1%8C%E5%BC%95%E6%93%8E-runc/">Docker背后的标准化容器执行引擎——runC</a></h2>
+                                    <div class="clearfix">
+                                        <p class="author-category">
+                                          
+                                           作者：<a href="#">孙健波</a>
+                                          
+                                          
+                                          
+                                          | 归档于 <a href="/categories/docker/">Docker</a>
+                                          
+                                          
+
+                                        </p>
+                                        
+                                        <p class="date-comments">
+                                            <a href="https://Congrool.github.io/blog/2015/10/21/docker%E8%83%8C%E5%90%8E%E7%9A%84%E6%A0%87%E5%87%86%E5%8C%96%E5%AE%B9%E5%99%A8%E6%89%A7%E8%A1%8C%E5%BC%95%E6%93%8E-runc/"><i class="far fa-calendar"></i> 2015-10-21</a>
+                                        </p>
+                                        
+                                    </div>
+                                    
+                                    <p class="intro">本文从OCI组织的成立开始讲起，描述了开放容器格式的标准及其宗旨，这其实就是runC的由来。继而针对具体的runC特性及其启动进行了详细介绍。OCI的成立表明了社区及各大厂商对容器技术的肯定以及加快容器技术发展进步的强烈决心，相信在不久的将来，符合OCI标准的开放容器项目会越来越多，容器技术将更加欣欣向荣地不断前进。</p>
+                                    <p class="read-more"><a href="https://Congrool.github.io/blog/2015/10/21/docker%E8%83%8C%E5%90%8E%E7%9A%84%E6%A0%87%E5%87%86%E5%8C%96%E5%AE%B9%E5%99%A8%E6%89%A7%E8%A1%8C%E5%BC%95%E6%93%8E-runc/" class="btn btn-template-main">继续阅读</a>
+                                        
+                                    </p>
+                                </div>
+                            </div>
+                        </section>
+                        
+                        <section class="post">
+                            <div class="row">
+                                <div class="col-md-3">
+                                  <div class="image">
+                                      <a href="https://Congrool.github.io/blog/2015/06/23/tutum-agent%E5%8E%9F%E7%90%86%E6%B5%85%E6%9E%90/">
+                                          
+                                          <img src="/img/blogs/583/tutum.jpg" class="img-responsive" alt="">
+                                          
+                                      </a>
+                                  </div>
+                                </div>
+                                <div class="col-md-9">
+                                    <h2><a href="https://Congrool.github.io/blog/2015/06/23/tutum-agent%E5%8E%9F%E7%90%86%E6%B5%85%E6%9E%90/">tutum-agent原理浅析</a></h2>
+                                    <div class="clearfix">
+                                        <p class="author-category">
+                                          
+                                           作者：<a href="#">孙健波</a>
+                                          
+                                          
+                                          
+                                          | 归档于 <a href="/categories/docker/">Docker</a>
+                                          
+                                          
+
+                                        </p>
+                                        
+                                        <p class="date-comments">
+                                            <a href="https://Congrool.github.io/blog/2015/06/23/tutum-agent%E5%8E%9F%E7%90%86%E6%B5%85%E6%9E%90/"><i class="far fa-calendar"></i> 2015-06-23</a>
+                                        </p>
+                                        
+                                    </div>
+                                    
+                                    <p class="intro">tutum-aget是tutum提供的一个开源代理引擎。当你把tutum-agent安装在你本地机器上以后，你就可以把本地的机器节点添加到云端，让tutum来帮你统一进行管理。你随时随地都可以登陆tutum网站获得如下功能。1.启停Docker容器。2.动态伸缩容器实例数量。3.监控容器状态、容器CPU/Memory/Disk/Bandwidth使用量。4.查看容器日志、操作记录。5.与tutum其他服务结合的衍生功能（部署应用、绑定服务等）。</p>
+                                    <p class="read-more"><a href="https://Congrool.github.io/blog/2015/06/23/tutum-agent%E5%8E%9F%E7%90%86%E6%B5%85%E6%9E%90/" class="btn btn-template-main">继续阅读</a>
+                                        
+                                    </p>
+                                </div>
+                            </div>
+                        </section>
+                        
+                        <section class="post">
+                            <div class="row">
+                                <div class="col-md-3">
+                                  <div class="image">
+                                      <a href="https://Congrool.github.io/blog/2015/06/03/docker%E8%83%8C%E5%90%8E%E7%9A%84%E5%AE%B9%E5%99%A8%E7%AE%A1%E7%90%86-libcontainer%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90/">
+                                          
+                                          <img src="/img/blogs/577/libcontainer1.png" class="img-responsive" alt="">
+                                          
+                                      </a>
+                                  </div>
+                                </div>
+                                <div class="col-md-9">
+                                    <h2><a href="https://Congrool.github.io/blog/2015/06/03/docker%E8%83%8C%E5%90%8E%E7%9A%84%E5%AE%B9%E5%99%A8%E7%AE%A1%E7%90%86-libcontainer%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90/">Docker背后的容器管理——libcontainer深度解析</a></h2>
+                                    <div class="clearfix">
+                                        <p class="author-category">
+                                          
+                                           作者：<a href="#">孙健波</a>
+                                          
+                                          
+                                          
+                                          | 归档于 <a href="/categories/docker/">Docker</a>
+                                          
+                                          
+
+                                        </p>
+                                        
+                                        <p class="date-comments">
+                                            <a href="https://Congrool.github.io/blog/2015/06/03/docker%E8%83%8C%E5%90%8E%E7%9A%84%E5%AE%B9%E5%99%A8%E7%AE%A1%E7%90%86-libcontainer%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90/"><i class="far fa-calendar"></i> 2015-06-03</a>
+                                        </p>
+                                        
+                                    </div>
+                                    
+                                    <p class="intro">本文主要介绍了Docker容器管理的方式libcontainer，从libcontainer的使用到源码实现方式。我们深入到容器进程内部，感受到了libcontainer较为全面的设计。总体而言，libcontainer本身主要分为三大块工作内容，一是容器的创建及初始化，二是容器生命周期管理，三则是进程管理，调用方为Docker的execdriver。容器的监控主要通过cgroups的状态统计信息，未来会加入进程追踪等更丰富的功能。另一方面，libcontainer在安全支持方面也为用户尽可能多的提供了支持和选择。遗憾的是，容器安全的配置需要用户对系统安全本身有足够高的理解，user namespace也尚未支持，可见libcontainer依旧有很多工作要完善。但是Docker社区的火热也自然带动了大家对libcontainer的关注，相信在不久的将来，libcontainer就会变得更安全、更易用。</p>
+                                    <p class="read-more"><a href="https://Congrool.github.io/blog/2015/06/03/docker%E8%83%8C%E5%90%8E%E7%9A%84%E5%AE%B9%E5%99%A8%E7%AE%A1%E7%90%86-libcontainer%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90/" class="btn btn-template-main">继续阅读</a>
+                                        
+                                    </p>
+                                </div>
+                            </div>
+                        </section>
+                        
+                        <section class="post">
+                            <div class="row">
+                                <div class="col-md-3">
+                                  <div class="image">
+                                      <a href="https://Congrool.github.io/blog/2015/04/22/docker%E8%83%8C%E5%90%8E%E7%9A%84%E5%86%85%E6%A0%B8%E7%9F%A5%E8%AF%86-cgroups%E8%B5%84%E6%BA%90%E9%99%90%E5%88%B6/">
+                                          
+                                          <img src="/img/blogs/574/namespacecgroups.jpg" class="img-responsive" alt="">
+                                          
+                                      </a>
+                                  </div>
+                                </div>
+                                <div class="col-md-9">
+                                    <h2><a href="https://Congrool.github.io/blog/2015/04/22/docker%E8%83%8C%E5%90%8E%E7%9A%84%E5%86%85%E6%A0%B8%E7%9F%A5%E8%AF%86-cgroups%E8%B5%84%E6%BA%90%E9%99%90%E5%88%B6/">Docker背后的内核知识——cgroups资源限制</a></h2>
+                                    <div class="clearfix">
+                                        <p class="author-category">
+                                          
+                                           作者：<a href="#">孙健波</a>
+                                          
+                                          
+                                          
+                                          | 归档于 <a href="/categories/docker/">Docker</a>
+                                          
+                                          
+
+                                        </p>
+                                        
+                                        <p class="date-comments">
+                                            <a href="https://Congrool.github.io/blog/2015/04/22/docker%E8%83%8C%E5%90%8E%E7%9A%84%E5%86%85%E6%A0%B8%E7%9F%A5%E8%AF%86-cgroups%E8%B5%84%E6%BA%90%E9%99%90%E5%88%B6/"><i class="far fa-calendar"></i> 2015-04-22</a>
+                                        </p>
+                                        
+                                    </div>
+                                    
+                                    <p class="intro">当我们谈论Docker时，我们常常会聊到Docker的实现方式。很多开发者都会知道，Docker的本质实际上是宿主机上的一个进程，通过namespace实现了资源隔离，通过cgroup实现了资源限制，通过UnionFS实现了Copy on Write的文件操作。但是当我们再深入一步的提出，namespace和cgroup实现细节时，知道的人可能就所剩无几了。本文在docker基础研究工作中着重对内核的cgroup技术做了细致的分析和梳理，希望能对读者深入理解Docker有所帮助。</p>
+                                    <p class="read-more"><a href="https://Congrool.github.io/blog/2015/04/22/docker%E8%83%8C%E5%90%8E%E7%9A%84%E5%86%85%E6%A0%B8%E7%9F%A5%E8%AF%86-cgroups%E8%B5%84%E6%BA%90%E9%99%90%E5%88%B6/" class="btn btn-template-main">继续阅读</a>
+                                        
+                                    </p>
+                                </div>
+                            </div>
+                        </section>
+                        
+                        <section class="post">
+                            <div class="row">
+                                <div class="col-md-3">
+                                  <div class="image">
+                                      <a href="https://Congrool.github.io/blog/2015/03/13/docker%E8%83%8C%E5%90%8E%E7%9A%84%E5%86%85%E6%A0%B8%E7%9F%A5%E8%AF%86-namespace%E8%B5%84%E6%BA%90%E9%9A%94%E7%A6%BB/">
+                                          
+                                          <img src="/img/blogs/556/namespace.png" class="img-responsive" alt="">
+                                          
+                                      </a>
+                                  </div>
+                                </div>
+                                <div class="col-md-9">
+                                    <h2><a href="https://Congrool.github.io/blog/2015/03/13/docker%E8%83%8C%E5%90%8E%E7%9A%84%E5%86%85%E6%A0%B8%E7%9F%A5%E8%AF%86-namespace%E8%B5%84%E6%BA%90%E9%9A%94%E7%A6%BB/">Docker背后的内核知识——Namespace资源隔离</a></h2>
+                                    <div class="clearfix">
+                                        <p class="author-category">
+                                          
+                                           作者：<a href="#">孙健波</a>
+                                          
+                                          
+                                          
+                                          | 归档于 <a href="/categories/docker/">Docker</a>
+                                          
+                                          
+
+                                        </p>
+                                        
+                                        <p class="date-comments">
+                                            <a href="https://Congrool.github.io/blog/2015/03/13/docker%E8%83%8C%E5%90%8E%E7%9A%84%E5%86%85%E6%A0%B8%E7%9F%A5%E8%AF%86-namespace%E8%B5%84%E6%BA%90%E9%9A%94%E7%A6%BB/"><i class="far fa-calendar"></i> 2015-03-13</a>
+                                        </p>
+                                        
+                                    </div>
+                                    
+                                    <p class="intro">本文从namespace使用的API开始，结合Docker逐步对六个namespace进行讲解。相信把讲解过程中所有的代码整合起来，你也能实现一个属于自己的“shell”容器了。虽然namespace技术使用起来非常简单，但是要真正把容器做到安全易用却并非易事。PID namespace中，我们要实现一个完善的init进程来维护好所有进程；network namespace中，我们还有复杂的路由表和iptables规则没有配置；user namespace中还有很多权限上的问题需要考虑等等。其中有些方面Docker已经做的很好，有些方面也才刚刚开始。希望通过本文，能为大家更好的理解Docker背后运行的原理提供帮助。 </p>
+                                    <p class="read-more"><a href="https://Congrool.github.io/blog/2015/03/13/docker%E8%83%8C%E5%90%8E%E7%9A%84%E5%86%85%E6%A0%B8%E7%9F%A5%E8%AF%86-namespace%E8%B5%84%E6%BA%90%E9%9A%94%E7%A6%BB/" class="btn btn-template-main">继续阅读</a>
+                                        
+                                    </p>
+                                </div>
+                            </div>
+                        </section>
+                        
+                        <section class="post">
+                            <div class="row">
+                                <div class="col-md-3">
+                                  <div class="image">
+                                      <a href="https://Congrool.github.io/blog/2015/03/12/docker%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90%E4%B9%9Ddocker%E9%95%9C%E5%83%8F/">
+                                          
+                                          <img src="/img/blogs/549/image1.jpg" class="img-responsive" alt="">
+                                          
+                                      </a>
+                                  </div>
+                                </div>
+                                <div class="col-md-9">
+                                    <h2><a href="https://Congrool.github.io/blog/2015/03/12/docker%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90%E4%B9%9Ddocker%E9%95%9C%E5%83%8F/">Docker源码分析（九）：Docker镜像</a></h2>
+                                    <div class="clearfix">
+                                        <p class="author-category">
+                                          
+                                           作者：<a href="#">孙宏亮</a>
+                                          
+                                          
+                                          
+                                          | 归档于 <a href="/categories/docker/">Docker</a>
+                                          
+                                          
+
+                                        </p>
+                                        
+                                        <p class="date-comments">
+                                            <a href="https://Congrool.github.io/blog/2015/03/12/docker%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90%E4%B9%9Ddocker%E9%95%9C%E5%83%8F/"><i class="far fa-calendar"></i> 2015-03-12</a>
+                                        </p>
+                                        
+                                    </div>
+                                    
+                                    <p class="intro">Docker风暴席卷全球，并非偶然。如今的云计算时代下，轻量级容器技术与灵活的镜像技术相结合，似乎颠覆了以往的软件交付模式，为持续集成（Continuous Integration, CI）与持续交付（Continuous Delivery, CD）的发展带来了全新的契机。 </p>
+                                    <p class="read-more"><a href="https://Congrool.github.io/blog/2015/03/12/docker%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90%E4%B9%9Ddocker%E9%95%9C%E5%83%8F/" class="btn btn-template-main">继续阅读</a>
+                                        
+                                    </p>
+                                </div>
+                            </div>
+                        </section>
+                        
+                        <section class="post">
+                            <div class="row">
+                                <div class="col-md-3">
+                                  <div class="image">
+                                      <a href="https://Congrool.github.io/blog/2015/03/12/docker%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90%E5%85%ABdocker-container%E7%BD%91%E7%BB%9C%E4%B8%8B/">
+                                          
+                                          <img src="/img/blogs/537/docker.jpg" class="img-responsive" alt="">
+                                          
+                                      </a>
+                                  </div>
+                                </div>
+                                <div class="col-md-9">
+                                    <h2><a href="https://Congrool.github.io/blog/2015/03/12/docker%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90%E5%85%ABdocker-container%E7%BD%91%E7%BB%9C%E4%B8%8B/">Docker源码分析（八）：Docker Container网络（下）</a></h2>
+                                    <div class="clearfix">
+                                        <p class="author-category">
+                                          
+                                           作者：<a href="#">孙宏亮</a>
+                                          
+                                          
+                                          
+                                          | 归档于 <a href="/categories/docker/">Docker</a>
+                                          
+                                          
+
+                                        </p>
+                                        
+                                        <p class="date-comments">
+                                            <a href="https://Congrool.github.io/blog/2015/03/12/docker%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90%E5%85%ABdocker-container%E7%BD%91%E7%BB%9C%E4%B8%8B/"><i class="far fa-calendar"></i> 2015-03-12</a>
+                                        </p>
+                                        
+                                    </div>
+                                    
+                                    <p class="intro">如何使用Docker Container的网络，一直是工业界倍加关心的问题。本文将从Linux内核原理的角度阐述了什么是Docker Container，并对Docker Container 4种不同的网络模式进行了初步的介绍，最终贯穿Docker 架构中的多个模块，如Docker Client、Docker Daemon、execdriver以及libcontainer，深入分析Docker Container网络的实现步骤。</p>
+                                    <p class="read-more"><a href="https://Congrool.github.io/blog/2015/03/12/docker%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90%E5%85%ABdocker-container%E7%BD%91%E7%BB%9C%E4%B8%8B/" class="btn btn-template-main">继续阅读</a>
+                                        
+                                    </p>
+                                </div>
+                            </div>
+                        </section>
+                        
+
+                        <ul class="pager">
+                            
+                            <li class="previous disabled"><a href="#">&larr; 往前</a></li>
+                            
+                            
+
+                            
+                            
+                            <li class="next"><a href="/categories/docker/page/2/">往后 &rarr;</a></li>
+                            
+                            
+                        </ul>
+                    </div>
+                    
+
+                    
+
+                    
+
+                    <div class="col-md-3">
+
+                        
+
+                        
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+      <h3 class="panel-title">搜索栏</h3>
+      
+    </div>
+
+    <div class="panel-body">
+        
+        <div class="search" id="search">
+            <div class="input-group">
+                <input type="text" name="q" class="form-control" placeholder="请输入文章标题或摘要..." id="search-key">
+                <input type="hidden" name="sitesearch" value="https://Congrool.github.io/">
+                <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main" onclick="search()"><i class="fas fa-search"></i></button>
+                </span>
+            </div>
+            <h1 id="search-tip" style="color: red;text-align: center;display: none;font-size: medium;">搜索中，请稍后 ...</h1>
+        </div>
+        <script type="text/javascript">
+            
+            window.onload = function() {
+                      document.onkeydown = function(ev) {
+                        var event = ev || event
+                        if (event.keyCode == 13) {
+                          search()
+                        }
+                      }
+                    }
+            
+            function search() {
+                    
+                      key = document.getElementById("search-key").value;
+                      if (key === "") {
+                        
+                        return;
+                      }
+                      key = key.toLowerCase();
+                      document.getElementById("search-key").value = "";
+                  
+                      
+                      document.getElementById("search-tip").innerText = "搜索中，请稍后 ...";
+                      document.getElementById("search-tip").style.display = "block";
+                  
+                      
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      var childs = el.childNodes;
+                      for (var i = childs.length - 1; i >= 0; i--) {
+                        el.removeChild(childs[i]);
+                      }
+                  
+                      
+                      xmltext = new XMLHttpRequest;
+                      xmltext.open("GET", "/index.xml", false);
+                      xmltext.send();
+                      resp = xmltext.responseXML;
+                      
+                      items = resp.getElementsByTagName("item");
+                      
+                      var i = 0;
+                      haveResult = false;
+                      while (i < items.length) {
+                        txt = items[i].getElementsByTagName("title")[0].innerHTML + items[i].getElementsByTagName("description")[0].innerHTML
+                        txt = txt.toLowerCase();
+                        if (txt.indexOf(key) > -1) {
+                          haveResult = true;
+                          title = items[i].getElementsByTagName("title")[0].innerHTML;
+                          link = items[i].getElementsByTagName("link")[0].innerHTML;
+                          time = items[i].getElementsByTagName("pubDate")[0].innerHTML;
+                          mark = items[i].getElementsByTagName("description")[0].innerHTML;
+                          time = time.slice(0, -5);
+                          addItem(title, link, time, mark)
+                        }
+                        i++;
+                      }
+                      if (!haveResult) {
+                        document.getElementById("search-tip").innerText = "搜索完毕，未发现结果 ...";
+                        document.getElementById("search-tip").style.display = "block";
+                      }
+
+                      
+                      var el = document.getElementById("blog-head");
+                      el.innerHTML="Blogs"
+                    }
+                  
+                    
+                    function addItem(title, link, time, mark) {
+                      document.getElementById("search-tip").style.display = "none";
+                      tmpl = "<article class=\"post\" style=\"border-bottom: 1px solid #e6e6e6;\" >" +
+                        "<header class=\"post-header\">" +
+                        "<h1 class=\"post-title\"><a class=\"post-link\" href=\"" + link + "\" target=\"_blank\">" + title + "</a></h1>" +
+                        "<div class=\"post-meta\">" +
+                        " <span class=\"post-time\">" + time + "</span>" +
+                        "</div>" +
+                        " </header>" +
+                        "<div class=\"post-content\">" +
+                        "<div class=\"post-summary\">" + mark + "</div>" +
+                        "<div class=\"read-more\">" +
+                        "<a href=" + link + " class=\"read-more-link\" target=\"_blank\">阅读更多</a>" +
+                        "</div>" +
+                        " </div>" +
+                        "</article>"
+                      div = document.createElement("div")
+                      div.innerHTML = tmpl;
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      el.appendChild(div)
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+
+        </script>
+        
+    </div>
+</div>
+
+
+
+
+
+
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">归档栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="nav nav-pills nav-stacked">
+            
+            
+            <li>
+                <a href="/categories/bosh">bosh (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloud_controller_ng">cloud_controller_ng (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloudfoundry">cloudfoundry (15)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/containerd">containerd (1)</a>
+            </li>
+            
+            <li class="active">
+                <a href="/categories/docker">docker (19)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/etcd">etcd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/haproxy">haproxy (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/healthmanager">healthmanager (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/karmada">karmada (4)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubeedge">kubeedge (5)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubernetes">kubernetes (14)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/network">network (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/openyurt">openyurt (2)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/service-mesh">service-mesh (4)</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+<div class="panel sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">标签栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="tag-cloud">
+            
+            
+            <li>
+                <a href="/tags/agent"><i class="fas fa-tags"></i> agent</a>
+            </li>
+            
+            <li>
+                <a href="/tags/apiserver"><i class="fas fa-tags"></i> apiserver</a>
+            </li>
+            
+            <li>
+                <a href="/tags/books"><i class="fas fa-tags"></i> books</a>
+            </li>
+            
+            <li>
+                <a href="/tags/bosh"><i class="fas fa-tags"></i> bosh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/ccng"><i class="fas fa-tags"></i> ccng</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cf-release"><i class="fas fa-tags"></i> cf-release</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cgroups"><i class="fas fa-tags"></i> cgroups</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudfoundry"><i class="fas fa-tags"></i> cloudfoundry</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudnative"><i class="fas fa-tags"></i> cloudnative</a>
+            </li>
+            
+            <li>
+                <a href="/tags/collector"><i class="fas fa-tags"></i> collector</a>
+            </li>
+            
+            <li>
+                <a href="/tags/containerd"><i class="fas fa-tags"></i> containerd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cri"><i class="fas fa-tags"></i> cri</a>
+            </li>
+            
+            <li>
+                <a href="/tags/dea"><i class="fas fa-tags"></i> dea</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker"><i class="fas fa-tags"></i> docker</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker-network"><i class="fas fa-tags"></i> docker-network</a>
+            </li>
+            
+            <li>
+                <a href="/tags/edgecomputing"><i class="fas fa-tags"></i> edgecomputing</a>
+            </li>
+            
+            <li>
+                <a href="/tags/etcd"><i class="fas fa-tags"></i> etcd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/gorouter"><i class="fas fa-tags"></i> gorouter</a>
+            </li>
+            
+            <li>
+                <a href="/tags/haproxy"><i class="fas fa-tags"></i> haproxy</a>
+            </li>
+            
+            <li>
+                <a href="/tags/healthmanager"><i class="fas fa-tags"></i> healthmanager</a>
+            </li>
+            
+            <li>
+                <a href="/tags/istio"><i class="fas fa-tags"></i> istio</a>
+            </li>
+            
+            <li>
+                <a href="/tags/karmada"><i class="fas fa-tags"></i> karmada</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubeedge"><i class="fas fa-tags"></i> kubeedge</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubelet"><i class="fas fa-tags"></i> kubelet</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubernetes"><i class="fas fa-tags"></i> kubernetes</a>
+            </li>
+            
+            <li>
+                <a href="/tags/libcontainer"><i class="fas fa-tags"></i> libcontainer</a>
+            </li>
+            
+            <li>
+                <a href="/tags/micro-service"><i class="fas fa-tags"></i> micro-service</a>
+            </li>
+            
+            <li>
+                <a href="/tags/namespace"><i class="fas fa-tags"></i> namespace</a>
+            </li>
+            
+            <li>
+                <a href="/tags/nats"><i class="fas fa-tags"></i> nats</a>
+            </li>
+            
+            <li>
+                <a href="/tags/news"><i class="fas fa-tags"></i> news</a>
+            </li>
+            
+            <li>
+                <a href="/tags/openyurt"><i class="fas fa-tags"></i> openyurt</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pipework"><i class="fas fa-tags"></i> pipework</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pouch"><i class="fas fa-tags"></i> pouch</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runc"><i class="fas fa-tags"></i> runc</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runtime"><i class="fas fa-tags"></i> runtime</a>
+            </li>
+            
+            <li>
+                <a href="/tags/security"><i class="fas fa-tags"></i> security</a>
+            </li>
+            
+            <li>
+                <a href="/tags/serverless"><i class="fas fa-tags"></i> serverless</a>
+            </li>
+            
+            <li>
+                <a href="/tags/service-mesh"><i class="fas fa-tags"></i> service-mesh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/syslog_aggregator"><i class="fas fa-tags"></i> syslog_aggregator</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+                        
+
+                    </div>
+                    
+
+                    
+
+                </div>
+                
+            </div>
+            
+        </div>
+        
+
+        <footer id="footer">
+    <div class="container">
+
+        
+        <div class="col-md-4 col-sm-6">
+            <h4></h4>
+
+            <p><strong>关于我们：<strong> <p>浙大SEL实验室</p><p>地址：杭州市浙大路38号曹光彪西楼405室</p><p><strong></strong>
+            <a href="/contact" class="btn btn-small btn-template-main" >跳转到关于</a>
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+        <div class="col-md-4 col-sm-6">
+
+             
+            <h4>最新博客</h4>
+            
+
+            <div class="blog-entries">
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/27/overview.png" class="img-responsive" alt="基于KubeEdge的边缘节点分组管理设计与实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">基于KubeEdge的边缘节点分组管理设计与实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/20/karmada-scheduler.png" class="img-responsive" alt="多云环境下的资源调度：karmada scheduler的框架和实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">多云环境下的资源调度：karmada scheduler的框架和实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">
+                          
+                            <img src="/img/blogs/19/karmada-arch.jpg" class="img-responsive" alt="多云环境下的成员集群管理，看看开源项目karmada是如何做到的">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">多云环境下的成员集群管理，看看开源项目karmada是如何做到的</a></h5>
+                    </div>
+                </div>
+                
+            </div>
+
+            <hr class="hidden-md hidden-lg">
+             
+
+        </div>
+        
+
+        
+        <div class="col-md-4 col-sm-6">
+
+          <h4></h4>
+
+            <p><strong>联系我们: 
+                                    <p>团队负责人：丁轶群 yiqunding@zju.edu.cn</p>
+                                    <p>网站维护人：刘佳文 839809484@qq.com</p>                
+    </strong>
+
+            
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+    </div>
+    
+</footer>
+
+
+
+
+
+
+
+<div id="copyright">
+    <div class="container">
+        <div class="col-md-12">
+            
+            <p class="pull-left">Copyright ©️ 2020 SEL Laboratory , ZJ University all rights reserved.</p>
+            
+            <p class="pull-right">
+               <a href="https://bootstrapious.com/p/universal-business-e-commerce-template">Bootstrapious</a>.
+              
+
+               <a href="https://github.com/devcows/hugo-universal-theme">DevCows</a>.
+            </p>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+    </div>
+    
+
+    
+
+
+<script src="/js/jquery.min.js"></script>
+<script src="/js/bootstrap.min.js"></script>
+
+
+
+<script src="/js/jquery.cookie.min.js"></script>
+<script src="/js/jquery.waypoints.min.js"></script>
+<script src="/js/jquery.counterup.min.js"></script>
+<script src="/js/jquery-parallax.js"></script>
+
+
+<script src="/js/front.js"></script>
+
+
+<script src="/js/owl.carousel.min.js"></script>
+
+
+
+  </body>
+</html>

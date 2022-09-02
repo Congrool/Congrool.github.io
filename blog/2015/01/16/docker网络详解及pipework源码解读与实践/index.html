@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="robots" content="all,follow">
+  <meta name="googlebot" content="index,follow,snippet,archive">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <title>Docker网络详解及pipework源码解读与实践</title>
+  <meta name="author" content="冯明振" />
+  
+  
+  
+  
+  <meta name="keywords" content="Docker, pipework, Docker Network">
+  
+  
+  <meta name="description" content="Docker作为目前最火的轻量级容器技术，有很多令人称道的功能，如Docker的镜像管理。然而，Docker同样有着很多不完善的地方，网络方面就是Docker比较薄弱的部分。因此，我们有必要深入了解Docker的网络知识，以满足更高的网络需求。本文首先介绍了Docker自身的4种网络工作方式，然后通过3个样例 —— 将Docker容器配置到本地网络环境中、单主机Docker容器的VLAN划分、多主机Docker容器的VLAN划分，演示了如何使用pipework帮助我们进行复杂的网络设置，以及pipework是如何工作的。">
+
+  <meta name="generator" content="Hugo 0.68.3" />
+
+  
+  <link href='//fonts.googleapis.com/css?family=Roboto:400,100,100italic,300,300italic,500,700,800' rel='stylesheet' type='text/css'>
+
+  
+  
+  
+  
+  
+
+  <link href="/css/all.css" rel="stylesheet">
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+
+  
+  <link href="/css/animate.css" rel="stylesheet">
+
+  
+  
+    <link href="/css/style.default.css" rel="stylesheet" id="theme-stylesheet">
+  
+
+  
+  <link href="/css/custom.css" rel="stylesheet">
+
+  
+  
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+        <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  
+
+  
+  <link rel="shortcut icon" href="/img/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
+
+  
+  <link href="/css/owl.carousel.css" rel="stylesheet">
+  <link href="/css/owl.theme.css" rel="stylesheet">
+
+  
+  <link rel="alternate" href="https://Congrool.github.io/index.xml" type="application/rss+xml" title="浙大SEL实验室">
+
+  
+  
+  
+  
+  
+  
+  <meta property="og:updated_time" content="2015-01-16T14:20:20Z">
+  
+    
+    
+    <meta property="article:section" content="Docker">
+    <meta property="article:tag" content="Docker">
+    <meta property="article:tag" content="pipework">
+    <meta property="article:tag" content="Docker Network">
+    
+    
+    <meta property="article:published_time" content="2015-01-16T14:20:20Z">
+    <meta property="article:modified_time" content="2015-01-16T14:20:20Z">
+  
+
+  
+  <meta name="twitter:card" content="summary">
+  
+  <meta name="twitter:title" content="Docker网络详解及pipework源码解读与实践">
+  
+  <meta name="twitter:description" content="Docker作为目前最火的轻量级容器技术，有很多令人称道的功能，如Docker的镜像管理。然而，Docker同样有着很多不完善的地方，网络方面就是Docker比较薄弱的部分。因此，我们有必要深入了解Docker的网络知识，以满足更高的网络需求。本文首先介绍了Docker自身的4种网络工作方式，然后通过3个样例 —— 将Docker容器配置到本地网络环境中、单主机Docker容器的VLAN划分、多主 …">
+  
+  
+</head>
+
+
+  <body>
+
+    <div id="all">
+
+        <header class="navbar-affixed-top" data-spy="affix" data-offset-top="62">
+    <div class="navbar navbar-default yamm" role="navigation" id="navbar" style="background-color:white;">    
+        <div class="container">
+            <div class="navbar-header">
+                <a class="navbar-brand home" href="/">
+                    <img src="/img/sel.png" alt="Docker网络详解及pipework源码解读与实践" class="hidden-xs hidden-sm img-responsive">
+                    
+                    <span class="sr-only">Docker网络详解及pipework源码解读与实践 - </span>
+                </a>
+                <div class="navbar-buttons">
+                    <button type="button" class="navbar-toggle btn-template-main" data-toggle="collapse" data-target="#navigation">
+                      <span class="sr-only"></span>
+                        <i class="fas fa-align-justify"></i>
+                    </button>
+                </div>
+            </div>
+            
+
+            <div class="navbar-collapse collapse" id="navigation">
+                <ul class="nav navbar-nav navbar-right">
+                  
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/">主页</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/blog/">博客</a>
+                    
+                  </li>
+
+                  <li class="dropdown">
+                    
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">社区 <span class="caret"></span></a>
+                  <ul class="dropdown-menu">
+                    
+                      <li><a href="https://www.servicemesher.com/">ServiceMesh社区</a></li>
+                    
+                      <li><a href="">kubeedge社区</a></li>
+
+                      <li><a href="http://www.icsoft.zju.edu.cn/index.php">浙江大学智能计算与软件中心</a></li>
+                    
+                  </ul>
+
+                  <li class="dropdown">
+                    
+                    <a href="/archives/">归档</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/contact/">关于</a>
+                    
+                  </li>
+                  
+                </li>
+
+                
+                
+
+                
+                </ul>
+            </div>
+            
+
+            <div class="collapse clearfix" id="search">    
+                <form class="navbar-form" role="search">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search">
+                        <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main"><i class="fas fa-search"></i></button>
+                </span>
+                    </div>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+
+    
+</header>
+
+
+
+
+        <div id="heading-breadcrumbs">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h1>Docker网络详解及pipework源码解读与实践</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+        <div id="content">
+            <div class="container">
+
+                <div class="row">
+
+                    
+
+                    <div class="col-md-9" id="blog-post">
+
+                        
+                          <p class="text-muted text-uppercase mb-small text-right">
+                             <a href="#">冯明振</a>
+                             | 
+                            2015-01-16
+                          </p>
+                        
+
+                        <div id="post-content">
+                          <p>Docker作为目前最火的轻量级容器技术，有很多令人称道的功能，如Docker的镜像管理。然而，Docker同样有着很多不完善的地方，网络方面就是Docker比较薄弱的部分。因此，我们有必要深入了解Docker的网络知识，以满足更高的网络需求。本文首先介绍了Docker自身的4种网络工作方式，然后通过3个样例 —— 将Docker容器配置到本地网络环境中、单主机Docker容器的VLAN划分、多主机Docker容器的VLAN划分，演示了如何使用<a href="https://github.com/jpetazzo/pipework">pipework</a>帮助我们进行复杂的网络设置，以及pipework是如何工作的。</p>
+
+<h2 id="1-docker的4种网络模式">1. <strong>Docker的4种网络模式</strong></h2>
+
+<p>我们在使用<code>docker run</code>创建Docker容器时，可以用<code>--net</code>选项指定容器的网络模式，Docker有以下4种网络模式：</p>
+
+<ul>
+<li>host模式，使用<code>--net=host</code>指定。</li>
+<li>container模式，使用<code>--net=container:NAME_or_ID</code>指定。</li>
+<li>none模式，使用<code>--net=none</code>指定。</li>
+<li>bridge模式，使用<code>--net=bridge</code>指定，默认设置。</li>
+</ul>
+
+<p>下面分别介绍一下Docker的各个网络模式。</p>
+
+<h3 id="1-1-host模式">1.1 host模式</h3>
+
+<p>众所周知，Docker使用了Linux的Namespaces技术来进行资源隔离，如PID Namespace隔离进程，Mount Namespace隔离文件系统，Network Namespace隔离网络等。一个Network Namespace提供了一份独立的网络环境，包括网卡、路由、Iptable规则等都与其他的Network Namespace隔离。一个Docker容器一般会分配一个独立的Network Namespace。但如果启动容器的时候使用host模式，那么这个容器将不会获得一个独立的Network Namespace，而是和宿主机共用一个Network Namespace。容器将不会虚拟出自己的网卡，配置自己的IP等，而是使用宿主机的IP和端口。 例如，我们在<code>10.10.101.105/24</code>的机器上用host模式启动一个含有web应用的Docker容器，监听tcp80端口。当我们在容器中执行任何类似<code>ifconfig</code>命令查看网络环境时，看到的都是宿主机上的信息。而外界访问容器中的应用，则直接使用<code>10.10.101.105:80</code>即可，不用任何NAT转换，就如直接跑在宿主机中一样。但是，容器的其他方面，如文件系统、进程列表等还是和宿主机隔离的。</p>
+
+<h3 id="1-2-container模式">1.2 container模式</h3>
+
+<p>在理解了host模式后，这个模式也就好理解了。这个模式指定新创建的容器和已经存在的一个容器共享一个Network Namespace，而不是和宿主机共享。新创建的容器不会创建自己的网卡，配置自己的IP，而是和一个指定的容器共享IP、端口范围等。同样，两个容器除了网络方面，其他的如文件系统、进程列表等还是隔离的。两个容器的进程可以通过<code>lo</code>网卡设备通信。</p>
+
+<h3 id="1-3-none模式">1.3 none模式</h3>
+
+<p>这个模式和前两个不同。在这种模式下，Docker容器拥有自己的Network Namespace，但是，并不为Docker容器进行任何网络配置。也就是说，这个Docker容器没有网卡、IP、路由等信息。需要我们自己为Docker容器添加网卡、配置IP等。</p>
+
+<h3 id="1-4-bridge模式">1.4 bridge模式</h3>
+
+<p>bridge模式是Docker默认的网络设置，此模式会为每一个容器分配Network Namespace、设置IP等，并将一个主机上的Docker容器连接到一个虚拟网桥上。下面着重介绍一下此模式。</p>
+
+<h4 id="1-4-1-bridge模式的拓扑"><strong>1.4.1 bridge模式的拓扑</strong></h4>
+
+<p>当Docker server启动时，会在主机上创建一个名为<code>docker0</code>的虚拟网桥，此主机上启动的Docker容器会连接到这个虚拟网桥上。虚拟网桥的工作方式和物理交换机类似，这样主机上的所有容器就通过交换机连在了一个二层网络中。接下来就要为容器分配IP了，Docker会从<a href="http://tools.ietf.org/html/rfc1918">RFC1918</a>所定义的私有IP网段中，选择一个和宿主机不同的IP地址和子网分配给<code>docker0</code>，连接到<code>docker0</code>的容器就从这个子网中选择一个未占用的IP使用。如一般Docker会使用<code>172.17.0.0/16</code>这个网段，并将<code>172.17.42.1/16</code>分配给<code>docker0</code>网桥（在主机上使用<code>ifconfig</code>命令是可以看到<code>docker0</code>的，可以认为它是网桥的管理接口，在宿主机上作为一块虚拟网卡使用）。单机环境下的网络拓扑如下，主机地址为<code>10.10.101.105/24</code>。
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605616384/sel/PIPEWORK1_kvzkiy.png" alt="" style="zoom:100%;" />
+</center></p>
+
+<p>Docker完成以上网络配置的过程大致是这样的：</p>
+
+<ol>
+<li>在主机上创建一对虚拟网卡veth pair设备。veth设备总是成对出现的，它们组成了一个数据的通道，数据从一个设备进入，就会从另一个设备出来。因此，veth设备常用来连接两个网络设备。</li>
+
+<li><p>Docker将veth pair设备的一端放在新创建的容器中，并命名为<code>eth0</code>。另一端放在主机中，以<code>veth65f9</code>这样类似的名字命名，并将这个网络设备加入到<code>docker0</code>网桥中，可以通过<code>brctl show</code>命令查看。
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605616385/sel/PIPEWORK2_bjvv1u.png" alt="" style="zoom:100%;" />
+</center></p></li>
+
+<li><p>从<code>docker0</code>子网中分配一个IP给容器使用，并设置<code>docker0</code>的IP地址为容器的默认网关。</p></li>
+</ol>
+
+<p>网络拓扑介绍完后，接着介绍一下bridge模式下容器是如何通信的。</p>
+
+<h4 id="1-4-2-bridge模式下容器的通信"><strong>1.4.2 bridge模式下容器的通信</strong></h4>
+
+<p>在bridge模式下，连在同一网桥上的容器可以相互通信（若出于安全考虑，也可以禁止它们之间通信，方法是在<code>DOCKER_OPTS</code>变量中设置<code>--icc=false</code>，这样只有使用<code>--link</code>才能使两个容器通信）。 容器也可以与外部通信，我们看一下主机上的Iptable规则，可以看到这么一条</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">-A POSTROUTING -s 172.17.0.0/16 ! -o docker0 -j MASQUERADE</code></pre></div>
+<p>这条规则会将源地址为<code>172.17.0.0/16</code>的包（也就是从Docker容器产生的包），并且不是从<code>docker0</code>网卡发出的，进行源地址转换，转换成主机网卡的地址。这么说可能不太好理解，举一个例子说明一下。假设主机有一块网卡为<code>eth0</code>，IP地址为<code>10.10.101.105/24</code>，网关为<code>10.10.101.254</code>。从主机上一个IP为<code>172.17.0.1/16</code>的容器中<code>ping</code>百度（<code>180.76.3.151</code>）。IP包首先从容器发往自己的默认网关<code>docker0</code>，包到达<code>docker0</code>后，也就到达了主机上。然后会查询主机的路由表，发现包应该从主机的<code>eth0</code>发往主机的网关<code>10.10.105.254/24</code>。接着包会转发给<code>eth0</code>，并从<code>eth0</code>发出去（主机的<code>ip_forward</code>转发应该已经打开）。这时候，上面的Iptable规则就会起作用，对包做SNAT转换，将源地址换为<code>eth0</code>的地址。这样，在外界看来，这个包就是从<code>10.10.101.105</code>上发出来的，Docker容器对外是不可见的。 那么，外面的机器是如何访问Docker容器的服务呢？我们首先用下面命令创建一个含有web应用的容器，将容器的80端口映射到主机的80端口。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">docker run -d --name web -p 80:80 fmzhen/simpleweb</code></pre></div>
+<p>然后查看Iptable规则的变化，发现多了这样一条规则：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">-A DOCKER ! -i docker0 -p tcp -m tcp --dport <span style="color:#f60">80</span> -j DNAT --to-destination 172.17.0.5:80</code></pre></div>
+<p>此条规则就是对主机<code>eth0</code>收到的目的端口为80的tcp流量进行DNAT转换，将流量发往<code>172.17.0.5:80</code>，也就是我们上面创建的Docker容器。所以，外界只需访问<code>10.10.101.105:80</code>就可以访问到容器中得服务。 除此之外，我们还可以自定义Docker使用的IP地址、DNS等信息，甚至使用自己定义的网桥，但是其工作方式还是一样的。</p>
+
+<h2 id="2-pipework的使用以及源码分析"><strong>2. pipework的使用以及源码分析</strong></h2>
+
+<p>Docker自身的网络功能比较简单，不能满足很多复杂的应用场景。因此，有很多开源项目用来改善Docker的网络功能，如<a href="https://github.com/jpetazzo/pipework">pipework</a>、<a href="https://github.com/zettio/weave">weave</a>、<a href="https://github.com/coreos/flannel">flannel</a>等。这里，就先介绍一下pipework的使用和工作原理。 pipework是由Docker的工程师Jérôme Petazzoni开发的一个Docker网络配置工具，由200多行shell实现，方便易用。下面用三个场景来演示pipework的使用和工作原理。</p>
+
+<h3 id="2-1-将docker容器配置到本地网络环境中">2.1 将Docker容器配置到本地网络环境中</h3>
+
+<p>为了使本地网络中的机器和Docker容器更方便的通信，我们经常会有将Docker容器配置到和主机同一网段的需求。这个需求其实很容易实现，我们只要将Docker容器和主机的网卡桥接起来，再给Docker容器配上IP就可以了。 下面我们来操作一下，我主机A地址为<code>10.10.101.105/24</code>,网关为<code>10.10.101.254</code>,需要给Docker容器的地址配置为<code>10.10.101.150/24</code>。 在主机A上做如下操作：</p>
+
+<p><strong>安装pipework</strong></p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">git clone https://github.com/jpetazzo/pipework
+cp ~/pipework/pipework /usr/local/bin/</code></pre></div>
+<p><strong>启动Docker容器</strong></p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">docker run  </code></pre></div>
+<p><strong>配置容器网络，并连到网桥br0上。网关在IP地址后面加@指定。</strong>
+若主机环境中存在dhcp服务器，也可以通过dhcp的方式获取IP</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">pipework br0 test1 dhcp 
+pipework br0 test1 10.10.101.150/24@10.10.101.254</code></pre></div>
+<p><strong>将主机eth0桥接到br0上，并把eth0的IP配置在br0上。这里由于是远程操作，中间网络会断掉，所以放在一条命令中执行。</strong></p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">ip addr add 10.10.101.105/24 dev br0; <span style="color:#c30;font-weight:bold">\\</span>
+ip addr del 10.10.101.105/24 dev eth0; <span style="color:#c30;font-weight:bold">\\</span>
+brctl addif br0 eth0; <span style="color:#c30;font-weight:bold">\\</span>
+ip route del default; <span style="color:#c30;font-weight:bold">\\</span>
+ip route add default gw 10.10.101.254 dev br0</code></pre></div>
+<p>完成上述步骤后，我们发现Docker容器已经可以使用新的IP和主机网络里的机器相互通信了。</p>
+
+<p><strong>pipework工作原理分析</strong></p>
+
+<p>那么容器到底发生了哪些变化呢？我们<code>docker attach</code>到test1上，发现容器中多了一块<code>eth1</code>的网卡，并且配置了<code>10.10.101.150/24</code>的IP，而且默认路由也改为了<code>10.10.101.254</code>。这些都是pipework帮我们配置的。通过查看源代码，可以发现<code>pipework br0 test1 10.10.101.150/24@10.10.101.254</code>是由以下命令完成的（这里只列出了具体执行操作的代码）。</p>
+
+<p><strong>创建br0网桥</strong></p>
+
+<p>若ovs开头，则创建OVS网桥
+    ovs-vsctl add-br ovs
+    brctl addbr $IFNAME</p>
+
+<p><strong>创建veth pair,用于连接容器和br0</strong></p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">ip link add name <span style="color:#033">$LOCAL_IFNAME</span> mtu <span style="color:#033">$MTU</span> <span style="color:#366">type</span> veth peer name <span style="color:#033">$GUEST_IFNAME</span> mtu <span style="color:#033">$MTU</span></code></pre></div>
+<p><strong>找到Docker容器test1在主机上的PID,创建容器网络命名空间的软连接</strong></p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell"><span style="color:#033">DOCKERPID</span><span style="color:#555">=</span><span style="color:#069;font-weight:bold">$(</span>docker inspect --format<span style="color:#555">=</span><span style="color:#c30">&#39;{{ .State.Pid }}&#39;</span> <span style="color:#033">$GUESTNAME</span><span style="color:#069;font-weight:bold">)</span>
+ln -s /proc/<span style="color:#033">$NSPID</span>/ns/net /var/run/netns/<span style="color:#033">$NSPID</span></code></pre></div>
+<p><strong>将veth pair一端放入Docker容器中，并设置正确的名字eth1</strong></p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">ip link <span style="color:#366">set</span> <span style="color:#033">$GUEST_IFNAME</span> netns <span style="color:#033">$NSPID</span>
+ip netns <span style="color:#366">exec</span> <span style="color:#033">$NSPID</span> ip link <span style="color:#366">set</span> <span style="color:#033">$GUEST_IFNAME</span> name <span style="color:#033">$CONTAINER_IFNAME</span></code></pre></div>
+<p><strong>将veth pair另一端加入网桥</strong></p>
+
+<p>若为OVS网桥则为 ovs-vsctl add-port $IFNAME $LOCAL_IFNAME ${VLAN:+&ldquo;tag=$VLAN&rdquo;}
+    brctl addif $IFNAME $LOCAL_IFNAME</p>
+
+<p><strong>为新增加的容器配置IP和路由</strong></p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">ip netns <span style="color:#366">exec</span> <span style="color:#033">$NSPID</span> ip addr add <span style="color:#033">$IPADDR</span> dev <span style="color:#033">$CONTAINER_IFNAME</span>
+ip netns <span style="color:#366">exec</span> <span style="color:#033">$NSPID</span> ip link <span style="color:#366">set</span> <span style="color:#033">$CONTAINER_IFNAME</span> up
+ip netns <span style="color:#366">exec</span> <span style="color:#033">$NSPID</span> ip route delete default
+ip netns <span style="color:#366">exec</span> <span style="color:#033">$NSPID</span> ip route add <span style="color:#033">$GATEWAY</span>/32 dev <span style="color:#033">$CONTAINER_IFNAME</span></code></pre></div>
+<ol>
+<li>首先pipework检查是否存在<code>br0</code>网桥，若不存在，就自己创建。若以&rdquo;ovs&rdquo;开头，就会创建OpenVswitch网桥，以&rdquo;br&rdquo;开头，创建Linux bridge。</li>
+<li>创建veth pair设备，用于为容器提供网卡并连接到<code>br0</code>网桥。</li>
+<li>使用<code>docker inspect</code>找到容器在主机中的PID，然后通过PID将容器的网络命名空间链接到<code>/var/run/netns/</code>目录下。这么做的目的是，方便在主机上使用<code>ip netns</code>命令配置容器的网络。因为，在Docker容器中，我们没有权限配置网络环境。</li>
+<li>将之前创建的veth pair设备分别加入容器和网桥中。在容器中的名称默认为<code>eth1</code>，可以通过pipework的<code>-i</code>参数修改该名称。</li>
+<li>然后就是配置新网卡的IP。若在IP地址的后面加上网关地址，那么pipework会重新配置默认路由。这样容器通往外网的流量会经由新配置的<code>eth1</code>出去，而不是通过<code>eth0</code>和<code>docker0</code>。(若想完全抛弃自带的网络设置，在启动容器的时候可以指定<code>--net=none</code>)</li>
+</ol>
+
+<p>以上就是pipework配置Docker网络的过程，这和Docker的bridge模式有着相似的步骤。事实上，Docker在实现上也采用了相同的底层机制。 通过源代码，可以看出，pipework通过封装Linux上的<code>ip</code>、<code>brctl</code>等命令，简化了在复杂场景下对容器连接的操作命令，为我们配置复杂的网络拓扑提供了一个强有力的工具。当然，如果想了解底层的操作，我们也可以直接使用这些Linux命令来完成工作，甚至可以根据自己的需求，添加额外的功能。</p>
+
+<h3 id="2-2-单主机docker容器vlan划分">2.2 单主机Docker容器VLAN划分</h3>
+
+<p>pipework不仅可以使用Linux bridge连接Docker容器，还可以与OpenVswitch结合，实现Docker容器的VLAN划分。下面，就来简单演示一下，在单机环境下，如何实现Docker容器间的二层隔离。 为了演示隔离效果，我们将4个容器放在了同一个IP网段中。但实际他们是二层隔离的两个网络，有不同的广播域。</p>
+
+<p><strong>在主机A上创建4个Docker容器，test1、test2、test3、test4</strong></p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">docker run -itd --name test1 ubuntu /bin/bash
+docker run -itd --name test2 ubuntu /bin/bash
+docker run -itd --name test3 ubuntu /bin/bash
+docker run -itd --name test4 ubuntu /bin/bash</code></pre></div>
+<p><strong>将test1，test2划分到一个vlan中，vlan在mac地址后加@指定，此处mac地址省略。</strong></p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">pipework ovs0 test1 192.168.0.1/24 @100
+pipework ovs0 test2 192.168.0.2/24 @100</code></pre></div>
+<p><strong>将test3，test4划分到另一个vlan中</strong></p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">pipework ovs0 test3 192.168.0.3/24 @200
+pipework ovs0 test4 192.168.0.4/24 @200</code></pre></div>
+<p>完成上述操作后，使用<code>docker attach</code>连到容器中，然后用<code>ping</code>命令测试连通性，发现test1和test2可以相互通信，但与test3和test4隔离。这样，一个简单的VLAN隔离容器网络就已经完成。 由于OpenVswitch本身支持VLAN功能，所以这里pipework所做的工作和之前介绍的基本一样，只不过将Linux bridge替换成了OpenVswitch，在将veth pair的一端加入<code>ovs0</code>网桥时，指定了tag。底层操作如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">ovs-vsctl add-port ovs0 veth*  <span style="color:#033">tag</span><span style="color:#555">=</span><span style="color:#f60">100</span></code></pre></div>
+<h3 id="2-3-多主机docker容器的vlan划分">2.3 多主机Docker容器的VLAN划分</h3>
+
+<p>上面介绍完了单主机上VLAN的隔离，下面我们将情况延伸到多主机的情况。有了前面两个例子做铺垫，这个也就不难了。为了实现这个目的，我们把宿主机上的网卡桥接到各自的OVS网桥上，然后再为容器配置IP和VLAN就可以了。我们实验环境如下，主机A和B各有一块网卡<code>eth0</code>，IP地址分别为<code>10.10.101.105/24</code>、<code>10.10.101.106/24</code>。在主机A上创建两个容器test1、test2，分别在VLAN 100和VLAN 200上。在主机B上创建test3、test4，分别在VLAN 100和VLAN 200 上。最终，test1可以和test3通信，test2可以和test4通信。</p>
+
+<p><strong>在主机A上创建Docker容器</strong></p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">docker run -itd --name test1 ubuntu /bin/bash
+docker run -itd --name test2 ubuntu /bin/bash</code></pre></div>
+<p><strong>划分VLAN</strong></p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">pipework ovs0 test1 192.168.0.1/24 @100
+pipework ovs0 test2 192.168.0.2/24 @200</code></pre></div>
+<p><strong>将eth0桥接到ovs0上</strong></p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">ip addr add 10.10.101.105/24 dev ovs0; <span style="color:#c30;font-weight:bold">\\</span>
+ip addr del 10.10.101.105/24 dev eth0; <span style="color:#c30;font-weight:bold">\\</span>
+ovs-vsctl add-port ovs0 eth0; <span style="color:#c30;font-weight:bold">\\</span>
+ip route del default; <span style="color:#c30;font-weight:bold">\\</span>
+ip route add default gw 10.10.101.254 dev ovs0</code></pre></div>
+<p><strong>在主机B上创建Docker容器</strong></p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">docker run -itd --name test3 ubuntu /bin/bash
+docker run -itd --name test4 ubuntu /bin/bash</code></pre></div>
+<p><strong>划分VLAN</strong></p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">pipework ovs0 test3 192.168.0.3/24 @100
+pipework ovs0 test4 192.168.0.4/24 @200</code></pre></div>
+<p><strong>将eth0桥接到ovs0上</strong></p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">ip addr add 10.10.101.106/24 dev ovs0; <span style="color:#c30;font-weight:bold">\\</span>
+ip addr del 10.10.101.106/24 dev eth0; <span style="color:#c30;font-weight:bold">\\</span>
+ovs-vsctl add-port ovs0 eth0; <span style="color:#c30;font-weight:bold">\\</span>
+ip route del default; <span style="color:#c30;font-weight:bold">\\</span>
+ip route add default gw 10.10.101.254 dev ovs0</code></pre></div>
+<p>完成上面的步骤后，主机A上的test1和主机B上的test3容器就划分到了一个VLAN中，并且与主机A上的test2和主机B上的test4隔离（主机<code>eth0</code>网卡需要设置为混杂模式，连接主机的交换机端口应设置为trunk模式，即允许VLAN 100和VLAN 200的包通过）。 拓扑图如下所示（省去了Docker默认的<code>eth0</code>网卡和主机上的<code>docker0</code>网桥）：
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605616385/sel/PIPEWORK3_pinn7x.png" alt="" style="zoom:100%;" />
+</center></p>
+
+<p>除此之外，pipework还支持使用macvlan设备、设置网卡MAC地址等功能。不过，pipework有一个缺陷，就是配置的容器在关掉重启后，之前的设置会丢失。</p>
+
+<h2 id="3-总结"><strong>3. 总结</strong></h2>
+
+<p>通过上面的介绍，我相信大家对Docker的网络已经有了一定的了解。对于一个基本应用而言，Docker的网络模型已经很不错了。然而，随着云计算和微服务的兴起，我们不能永远停留在使用基本应用的级别上，我们需要性能更好且更灵活的网络功能。pipework正好满足了我们这样的需求，从上面的样例中，我们可以看到pipework的方便之处。但是，同时也应注意到，pipework并不是一套解决方案，它只是一个网络配置工具，我们可以利用它提供的强大功能，帮助我们构建自己的解决方案。 [simple-author-box]</p>
+                        </div>
+                        
+                        
+                        
+                        
+                        
+                        
+
+                        
+                        <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+                        <script src="https://unpkg.com/gitalk@latest/dist/gitalk.min.js"></script> 
+                        <script type="text/javascript" src="/assets/js/md5.min.js"></script>
+                        <div id="gitalk-container"></div>     
+                        <script type="text/javascript">
+                            var gitalk = new Gitalk({
+                              clientID: '835183d2dcbd1167ac28', 
+                            
+                              clientSecret: 'd873919fac3cc76921ee0800172c2279bc612f8d', 
+                            
+                              repo: 'Sel-Website-talk',
+                              owner: 'Peeknut',
+                              admin: ['Peeknut','Rachel-Shao'],
+                              id: location.href.split("/").pop().substring(0, 49),      
+                              distractionFreeMode: false  
+                            })
+                            gitalk.render('gitalk-container')
+                        </script> 
+                        
+
+                    </div>
+                    
+
+                    
+
+                    
+
+                    <div class="col-md-3">
+
+                        
+
+                        
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+      <h3 class="panel-title">搜索栏</h3>
+      
+    </div>
+
+    <div class="panel-body">
+        
+        <div class="search" id="search">
+            <div class="input-group">
+                <input type="text" name="q" class="form-control" placeholder="请输入文章标题或摘要..." id="search-key">
+                <input type="hidden" name="sitesearch" value="https://Congrool.github.io/">
+                <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main" onclick="search()"><i class="fas fa-search"></i></button>
+                </span>
+            </div>
+            <h1 id="search-tip" style="color: red;text-align: center;display: none;font-size: medium;">搜索中，请稍后 ...</h1>
+        </div>
+        <script type="text/javascript">
+            
+            window.onload = function() {
+                      document.onkeydown = function(ev) {
+                        var event = ev || event
+                        if (event.keyCode == 13) {
+                          search()
+                        }
+                      }
+                    }
+            
+            function search() {
+                    
+                      key = document.getElementById("search-key").value;
+                      if (key === "") {
+                        
+                        return;
+                      }
+                      key = key.toLowerCase();
+                      document.getElementById("search-key").value = "";
+                  
+                      
+                      document.getElementById("search-tip").innerText = "搜索中，请稍后 ...";
+                      document.getElementById("search-tip").style.display = "block";
+                  
+                      
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      var childs = el.childNodes;
+                      for (var i = childs.length - 1; i >= 0; i--) {
+                        el.removeChild(childs[i]);
+                      }
+                  
+                      
+                      xmltext = new XMLHttpRequest;
+                      xmltext.open("GET", "/index.xml", false);
+                      xmltext.send();
+                      resp = xmltext.responseXML;
+                      
+                      items = resp.getElementsByTagName("item");
+                      
+                      var i = 0;
+                      haveResult = false;
+                      while (i < items.length) {
+                        txt = items[i].getElementsByTagName("title")[0].innerHTML + items[i].getElementsByTagName("description")[0].innerHTML
+                        txt = txt.toLowerCase();
+                        if (txt.indexOf(key) > -1) {
+                          haveResult = true;
+                          title = items[i].getElementsByTagName("title")[0].innerHTML;
+                          link = items[i].getElementsByTagName("link")[0].innerHTML;
+                          time = items[i].getElementsByTagName("pubDate")[0].innerHTML;
+                          mark = items[i].getElementsByTagName("description")[0].innerHTML;
+                          time = time.slice(0, -5);
+                          addItem(title, link, time, mark)
+                        }
+                        i++;
+                      }
+                      if (!haveResult) {
+                        document.getElementById("search-tip").innerText = "搜索完毕，未发现结果 ...";
+                        document.getElementById("search-tip").style.display = "block";
+                      }
+
+                      
+                      var el = document.getElementById("blog-head");
+                      el.innerHTML="Blogs"
+                    }
+                  
+                    
+                    function addItem(title, link, time, mark) {
+                      document.getElementById("search-tip").style.display = "none";
+                      tmpl = "<article class=\"post\" style=\"border-bottom: 1px solid #e6e6e6;\" >" +
+                        "<header class=\"post-header\">" +
+                        "<h1 class=\"post-title\"><a class=\"post-link\" href=\"" + link + "\" target=\"_blank\">" + title + "</a></h1>" +
+                        "<div class=\"post-meta\">" +
+                        " <span class=\"post-time\">" + time + "</span>" +
+                        "</div>" +
+                        " </header>" +
+                        "<div class=\"post-content\">" +
+                        "<div class=\"post-summary\">" + mark + "</div>" +
+                        "<div class=\"read-more\">" +
+                        "<a href=" + link + " class=\"read-more-link\" target=\"_blank\">阅读更多</a>" +
+                        "</div>" +
+                        " </div>" +
+                        "</article>"
+                      div = document.createElement("div")
+                      div.innerHTML = tmpl;
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      el.appendChild(div)
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+
+        </script>
+        
+    </div>
+</div>
+
+
+
+
+
+
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">归档栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="nav nav-pills nav-stacked">
+            
+            
+            <li>
+                <a href="/categories/bosh">bosh (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloud_controller_ng">cloud_controller_ng (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloudfoundry">cloudfoundry (15)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/containerd">containerd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/docker">docker (19)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/etcd">etcd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/haproxy">haproxy (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/healthmanager">healthmanager (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/karmada">karmada (4)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubeedge">kubeedge (5)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubernetes">kubernetes (14)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/network">network (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/openyurt">openyurt (2)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/service-mesh">service-mesh (4)</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+<div class="panel sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">标签栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="tag-cloud">
+            
+            
+            <li>
+                <a href="/tags/agent"><i class="fas fa-tags"></i> agent</a>
+            </li>
+            
+            <li>
+                <a href="/tags/apiserver"><i class="fas fa-tags"></i> apiserver</a>
+            </li>
+            
+            <li>
+                <a href="/tags/books"><i class="fas fa-tags"></i> books</a>
+            </li>
+            
+            <li>
+                <a href="/tags/bosh"><i class="fas fa-tags"></i> bosh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/ccng"><i class="fas fa-tags"></i> ccng</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cf-release"><i class="fas fa-tags"></i> cf-release</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cgroups"><i class="fas fa-tags"></i> cgroups</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudfoundry"><i class="fas fa-tags"></i> cloudfoundry</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudnative"><i class="fas fa-tags"></i> cloudnative</a>
+            </li>
+            
+            <li>
+                <a href="/tags/collector"><i class="fas fa-tags"></i> collector</a>
+            </li>
+            
+            <li>
+                <a href="/tags/containerd"><i class="fas fa-tags"></i> containerd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cri"><i class="fas fa-tags"></i> cri</a>
+            </li>
+            
+            <li>
+                <a href="/tags/dea"><i class="fas fa-tags"></i> dea</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker"><i class="fas fa-tags"></i> docker</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker-network"><i class="fas fa-tags"></i> docker-network</a>
+            </li>
+            
+            <li>
+                <a href="/tags/edgecomputing"><i class="fas fa-tags"></i> edgecomputing</a>
+            </li>
+            
+            <li>
+                <a href="/tags/etcd"><i class="fas fa-tags"></i> etcd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/gorouter"><i class="fas fa-tags"></i> gorouter</a>
+            </li>
+            
+            <li>
+                <a href="/tags/haproxy"><i class="fas fa-tags"></i> haproxy</a>
+            </li>
+            
+            <li>
+                <a href="/tags/healthmanager"><i class="fas fa-tags"></i> healthmanager</a>
+            </li>
+            
+            <li>
+                <a href="/tags/istio"><i class="fas fa-tags"></i> istio</a>
+            </li>
+            
+            <li>
+                <a href="/tags/karmada"><i class="fas fa-tags"></i> karmada</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubeedge"><i class="fas fa-tags"></i> kubeedge</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubelet"><i class="fas fa-tags"></i> kubelet</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubernetes"><i class="fas fa-tags"></i> kubernetes</a>
+            </li>
+            
+            <li>
+                <a href="/tags/libcontainer"><i class="fas fa-tags"></i> libcontainer</a>
+            </li>
+            
+            <li>
+                <a href="/tags/micro-service"><i class="fas fa-tags"></i> micro-service</a>
+            </li>
+            
+            <li>
+                <a href="/tags/namespace"><i class="fas fa-tags"></i> namespace</a>
+            </li>
+            
+            <li>
+                <a href="/tags/nats"><i class="fas fa-tags"></i> nats</a>
+            </li>
+            
+            <li>
+                <a href="/tags/news"><i class="fas fa-tags"></i> news</a>
+            </li>
+            
+            <li>
+                <a href="/tags/openyurt"><i class="fas fa-tags"></i> openyurt</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pipework"><i class="fas fa-tags"></i> pipework</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pouch"><i class="fas fa-tags"></i> pouch</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runc"><i class="fas fa-tags"></i> runc</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runtime"><i class="fas fa-tags"></i> runtime</a>
+            </li>
+            
+            <li>
+                <a href="/tags/security"><i class="fas fa-tags"></i> security</a>
+            </li>
+            
+            <li>
+                <a href="/tags/serverless"><i class="fas fa-tags"></i> serverless</a>
+            </li>
+            
+            <li>
+                <a href="/tags/service-mesh"><i class="fas fa-tags"></i> service-mesh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/syslog_aggregator"><i class="fas fa-tags"></i> syslog_aggregator</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+                        
+
+                    </div>
+                    
+
+                    
+
+                </div>
+                
+
+            </div>
+            
+        </div>
+        
+
+        <footer id="footer">
+    <div class="container">
+
+        
+        <div class="col-md-4 col-sm-6">
+            <h4></h4>
+
+            <p><strong>关于我们：<strong> <p>浙大SEL实验室</p><p>地址：杭州市浙大路38号曹光彪西楼405室</p><p><strong></strong>
+            <a href="/contact" class="btn btn-small btn-template-main" >跳转到关于</a>
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+        <div class="col-md-4 col-sm-6">
+
+             
+            <h4>最新博客</h4>
+            
+
+            <div class="blog-entries">
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/27/overview.png" class="img-responsive" alt="基于KubeEdge的边缘节点分组管理设计与实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">基于KubeEdge的边缘节点分组管理设计与实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/20/karmada-scheduler.png" class="img-responsive" alt="多云环境下的资源调度：karmada scheduler的框架和实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">多云环境下的资源调度：karmada scheduler的框架和实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">
+                          
+                            <img src="/img/blogs/19/karmada-arch.jpg" class="img-responsive" alt="多云环境下的成员集群管理，看看开源项目karmada是如何做到的">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">多云环境下的成员集群管理，看看开源项目karmada是如何做到的</a></h5>
+                    </div>
+                </div>
+                
+            </div>
+
+            <hr class="hidden-md hidden-lg">
+             
+
+        </div>
+        
+
+        
+        <div class="col-md-4 col-sm-6">
+
+          <h4></h4>
+
+            <p><strong>联系我们: 
+                                    <p>团队负责人：丁轶群 yiqunding@zju.edu.cn</p>
+                                    <p>网站维护人：刘佳文 839809484@qq.com</p>                
+    </strong>
+
+            
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+    </div>
+    
+</footer>
+
+
+
+
+
+
+
+<div id="copyright">
+    <div class="container">
+        <div class="col-md-12">
+            
+            <p class="pull-left">Copyright ©️ 2020 SEL Laboratory , ZJ University all rights reserved.</p>
+            
+            <p class="pull-right">
+               <a href="https://bootstrapious.com/p/universal-business-e-commerce-template">Bootstrapious</a>.
+              
+
+               <a href="https://github.com/devcows/hugo-universal-theme">DevCows</a>.
+            </p>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+    </div>
+    
+
+    
+
+
+<script src="/js/jquery.min.js"></script>
+<script src="/js/bootstrap.min.js"></script>
+
+
+
+<script src="/js/jquery.cookie.min.js"></script>
+<script src="/js/jquery.waypoints.min.js"></script>
+<script src="/js/jquery.counterup.min.js"></script>
+<script src="/js/jquery-parallax.js"></script>
+
+
+<script src="/js/front.js"></script>
+
+
+<script src="/js/owl.carousel.min.js"></script>
+
+
+
+  </body>
+</html>

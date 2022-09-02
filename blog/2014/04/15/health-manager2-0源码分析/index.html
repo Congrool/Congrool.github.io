@@ -1,0 +1,1300 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="robots" content="all,follow">
+  <meta name="googlebot" content="index,follow,snippet,archive">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <title>Health_Manager2.0源码分析</title>
+  <meta name="author" content="丁轶群" />
+  
+  
+  
+  
+  <meta name="keywords" content="cloudfoundry, healthmanager">
+  
+  
+  <meta name="description" content="在Cloud Foundry v2版本中，Health_Manager_next已经替代v1版本中的Health_Manager。笔者写这篇文档之前，在Github上，Health_Manager_next作为一个单独的项目，存在于Cloud Foundry之下；然而在笔者写这篇文档的时候，Health_Manager_next项目在Cloud Foundry下已经不复存在，然而进入原先的Health_Manager项目，可以发现，Health_Manager项目的项目说明已经成为HealthManager 2.0，因此可见之前的Health_Manager_next项目，也就是HealthManager 2.0如今改名为Health_Manager项目，并覆盖Cloud Foundry v1版本的Health_Manager项目。下文对于该部分的称呼全部使用Health_Manager，而非之前的Health_Manager_next。">
+
+  <meta name="generator" content="Hugo 0.68.3" />
+
+  
+  <link href='//fonts.googleapis.com/css?family=Roboto:400,100,100italic,300,300italic,500,700,800' rel='stylesheet' type='text/css'>
+
+  
+  
+  
+  
+  
+
+  <link href="/css/all.css" rel="stylesheet">
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+
+  
+  <link href="/css/animate.css" rel="stylesheet">
+
+  
+  
+    <link href="/css/style.default.css" rel="stylesheet" id="theme-stylesheet">
+  
+
+  
+  <link href="/css/custom.css" rel="stylesheet">
+
+  
+  
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+        <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  
+
+  
+  <link rel="shortcut icon" href="/img/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
+
+  
+  <link href="/css/owl.carousel.css" rel="stylesheet">
+  <link href="/css/owl.theme.css" rel="stylesheet">
+
+  
+  <link rel="alternate" href="https://Congrool.github.io/index.xml" type="application/rss+xml" title="浙大SEL实验室">
+
+  
+  
+  
+  
+  
+  
+  <meta property="og:updated_time" content="2014-04-15T15:14:56Z">
+  
+    
+    
+    <meta property="article:section" content="Cloudfoundry">
+    <meta property="article:tag" content="cloudfoundry">
+    <meta property="article:tag" content="healthmanager">
+    
+    
+    <meta property="article:published_time" content="2014-04-15T15:14:56Z">
+    <meta property="article:modified_time" content="2014-04-15T15:14:56Z">
+  
+
+  
+  <meta name="twitter:card" content="summary">
+  
+  <meta name="twitter:title" content="Health_Manager2.0源码分析">
+  
+  <meta name="twitter:description" content="在Cloud Foundry v2版本中，Health_Manager_next已经替代v1版本中的Health_Manager。笔者写这篇文档之前，在Github上，Health_Manager_next作为一个单独的项目，存在于Cloud Foundry之下；然而在笔者写这篇文档的时候，Health_Manager_next项目在Cloud Foundry下已经不复存在，然而进入原先 …">
+  
+  
+</head>
+
+
+  <body>
+
+    <div id="all">
+
+        <header class="navbar-affixed-top" data-spy="affix" data-offset-top="62">
+    <div class="navbar navbar-default yamm" role="navigation" id="navbar" style="background-color:white;">    
+        <div class="container">
+            <div class="navbar-header">
+                <a class="navbar-brand home" href="/">
+                    <img src="/img/sel.png" alt="Health_Manager2.0源码分析" class="hidden-xs hidden-sm img-responsive">
+                    
+                    <span class="sr-only">Health_Manager2.0源码分析 - </span>
+                </a>
+                <div class="navbar-buttons">
+                    <button type="button" class="navbar-toggle btn-template-main" data-toggle="collapse" data-target="#navigation">
+                      <span class="sr-only"></span>
+                        <i class="fas fa-align-justify"></i>
+                    </button>
+                </div>
+            </div>
+            
+
+            <div class="navbar-collapse collapse" id="navigation">
+                <ul class="nav navbar-nav navbar-right">
+                  
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/">主页</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/blog/">博客</a>
+                    
+                  </li>
+
+                  <li class="dropdown">
+                    
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">社区 <span class="caret"></span></a>
+                  <ul class="dropdown-menu">
+                    
+                      <li><a href="https://www.servicemesher.com/">ServiceMesh社区</a></li>
+                    
+                      <li><a href="">kubeedge社区</a></li>
+
+                      <li><a href="http://www.icsoft.zju.edu.cn/index.php">浙江大学智能计算与软件中心</a></li>
+                    
+                  </ul>
+
+                  <li class="dropdown">
+                    
+                    <a href="/archives/">归档</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/contact/">关于</a>
+                    
+                  </li>
+                  
+                </li>
+
+                
+                
+
+                
+                </ul>
+            </div>
+            
+
+            <div class="collapse clearfix" id="search">    
+                <form class="navbar-form" role="search">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search">
+                        <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main"><i class="fas fa-search"></i></button>
+                </span>
+                    </div>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+
+    
+</header>
+
+
+
+
+        <div id="heading-breadcrumbs">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h1>Health_Manager2.0源码分析</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+        <div id="content">
+            <div class="container">
+
+                <div class="row">
+
+                    
+
+                    <div class="col-md-9" id="blog-post">
+
+                        
+                          <p class="text-muted text-uppercase mb-small text-right">
+                             <a href="#">丁轶群</a>
+                             | 
+                            2014-04-15
+                          </p>
+                        
+
+                        <div id="post-content">
+                          <p>在Cloud Foundry v2版本中，Health_Manager_next已经替代v1版本中的Health_Manager。</p>
+
+<p>笔者写这篇文档之前，在Github上，Health_Manager_next作为一个单独的项目，存在于Cloud Foundry之下；然而在笔者写这篇文档的时候，Health_Manager_next项目在Cloud Foundry下已经不复存在，然而进入原先的Health_Manager项目，可以发现，Health_Manager项目的项目说明已经成为HealthManager 2.0，因此可见之前的Health_Manager_next项目，也就是HealthManager 2.0如今改名为Health_Manager项目，并覆盖Cloud Foundry v1版本的Health_Manager项目。下文对于该部分的称呼全部使用Health_Manager，而非之前的Health_Manager_next。</p>
+
+<h1 id="1-health-manager概述">1. Health_Manager概述</h1>
+
+<p>在Cloud Foundry中，Health_Manager主要负责监控应用的状态，并且保证应该在DEA中运行的应用的确在运行，还有这些应用的实例数量，实例版本都符合预期的状况。</p>
+
+<p>在实现过程中，Health_Manager会拥有两份数据，一份是DEA中运行应用的实际状态，另一份是Cloud Foundry对应用运行的状态预期。Health_Manager将这两份数据进行对比，对于一个应用来讲，当它的两份数据没有差异时，则说明该应用处于健康状态，不需要Cloud Controller对此做出管理措施；当它的两份数据出现差异时，则说明该应用处于非预期状态，因此Health_Manager需要分析差异，得到结果后，通知Cloud Controller做出相应的管理措施。</p>
+
+<h1 id="2-health-manager组件对外接口实现"><strong>2. Health_Manager组件对外接口实现</strong></h1>
+
+<p>Health_Manager作为Cloud Foundry的一个组件，需要和Cloud Foundry其他的组件进行通信。其中Health_Manager组件与DEA组件和Cloud Controller组件建立通信。</p>
+
+<h2 id="2-1-health-manager组件对dea组件的接口实现"><strong>2.1. Health_Manager组件对DEA组件的接口实现</strong></h2>
+
+<p>由于Health_Manager主要负责监控DEA中应用的状态，因此Health_Manager必须与DEA进行通信，从而获取应用的实际运行状态。</p>
+
+<p>Health_Manager组件与DEA组件的通信，通过Cloud Foundry的消息中间件NATS来实现，实现方式为“订阅/发布消息”。由于Health_Manager只从DEA组件获取信息，而DEA不会向Health_Manager组件获取信息，因此在实现过程中，Health_Manager都是订阅了若干主题的消息，通过DEA发布相应主题的消息来实现信息的获取。</p>
+
+<p>Health_Manager组件对DEA组件的接口代码实现，主要在/health_manager/lib/health_manager/actual_state.rb中的start方法中：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby"><span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">start</span>
+  logger<span style="color:#555">.</span>info <span style="color:#c30">&#34;hm.actual-state.subscribing&#34;</span>
+  @message_bus<span style="color:#555">.</span>subscribe(<span style="color:#c30">&#39;dea.heartbeat&#39;</span>) <span style="color:#069;font-weight:bold">do</span> <span style="color:#555">|</span>message<span style="color:#555">|</span>
+    process_heartbeat(message)
+  <span style="color:#069;font-weight:bold">end</span>
+  @message_bus<span style="color:#555">.</span>subscribe(<span style="color:#c30">&#39;droplet.exited&#39;</span>) <span style="color:#069;font-weight:bold">do</span> <span style="color:#555">|</span>message<span style="color:#555">|</span>
+    process_droplet_exited(message)
+  <span style="color:#069;font-weight:bold">end</span>
+  @message_bus<span style="color:#555">.</span>subscribe(<span style="color:#c30">&#39;droplet.updated&#39;</span>) <span style="color:#069;font-weight:bold">do</span> <span style="color:#555">|</span>message<span style="color:#555">|</span>
+    process_droplet_updated(message)
+  <span style="color:#069;font-weight:bold">end</span>
+<span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<h2 id="2-2-health-manager组件对cloud-controller组件的接口实现"><strong>2.2. Health_Manager组件对Cloud Controller组件的接口实现</strong></h2>
+
+<p>Health_Manager会DEA中应用运行的实际状态和相应应用的预期状态进行比较，而相应应用的预期状态，来自Cloud Controller。关于这些预期的状态，包括应用的运行情况为运行还是停止；对于一个应用而言，应该有多少个应用实例在运行等。</p>
+
+<p>Health_Manager可以通过基于HTTP请求的BULK API向Cloud Controller获取。 BULK API包含了Cloud Controller认为应用应该运行的状态。这些应用的状态信息主要是Cloud Controller的数据库CCDB中数据的一个副本。可以想象的是，这些数据可能会和DEA中应用运行的真实情况有所差异。而Health_Manager就是需要解决这个不一致问题。</p>
+
+<p>Health_Manager除了会向Cloud Controller发送HTTP请求之后，也会订阅一些主题的消息，Cloud Controller正是通过这些主题的消息，获取Health_Manager的信息，比如应用用户需要获取应用实时的状态信息，则Cloud Controller通过NATS向Health_Manager发送消息，Health_Manager响应该消息。</p>
+
+<h1 id="3-health-manager组件内模块实现"><strong>3. Health_Manager组件内模块实现</strong></h1>
+
+<p>通过研究Health_Manager该项目的源码实现，可以清楚的发现Health_Manager内部的结构非常清晰，主要有Manager,Harmonizer,Scheduler,DesiredState,ActualState,Nudger和Reporter。</p>
+
+<p>以下对各个模块进行简单介绍：</p>
+
+<h4 id="manager"><strong>Manager</strong></h4>
+
+<p>提供整个Health_Manager项目的执行入口，提供配置初始化，实现Health_Manager组件内其它模块的初始化，以及将注册Health_Manager组件。</p>
+
+<h4 id="harmonizer"><strong>Harmonizer</strong></h4>
+
+<p>通过分析ActualState，得出如何将应用变成DisiredState的策略。 在Harmonizer中，ActualState与DesiredState会定期进行比较，实现通过Scheduler。</p>
+
+<h4 id="scheduler"><strong>Scheduler</strong></h4>
+
+<p>模拟了EventMachine的功能，用于时钟设置与取消等。</p>
+
+<h4 id="desirestate"><strong>DesireState</strong></h4>
+
+<p>提供应用预期的运行的状态。</p>
+
+<h4 id="actualstate"><strong>ActualState</strong></h4>
+
+<p>提供应用在DEA中的实际状态，这部分状态信息主要来源于ActualState模块监听DEA向Health_Manager发送来的心跳信息以及其他应用停止等消息。在实现过程中，每一个应用的状态都用一个AppState对象表示。这个对象在获取DEA第一次发送来心跳信息是被建立，从而该对象的信息会被更新。</p>
+
+<h4 id="nudger"><strong>Nudger</strong></h4>
+
+<p>提供接口使得Health_Manager可以改变DEA中应用的运行状态，实现方法为分发请求给Cloud Controller，由Cloud Controller来具体执行改变DEA中应用的运行状态。实现途径中，Nudger维护了一个请求队列，通过对队列的管理来实现不同优先级请求的分发。</p>
+
+<p>以下是Health_Manager结合自身内部各模块的示意图：</p>
+
+<p><center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605776409/sel/aa_jlfqz8.jpg" alt="enter image description here" style="zoom:33%;" />
+</center></p>
+
+<h2 id="3-1-manager模块源码实现"><strong>3.1. Manager模块源码实现</strong></h2>
+
+<p>Manager是整个Health_Manager的运行入口，同时也负责其他模块的初始化以及运行。 首先来看Manager模块的start方法实现，如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby"><span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">start</span>
+  logger<span style="color:#555">.</span>info(<span style="color:#c30">&#34;starting...&#34;</span>)
+  <span style="color:#360">EM</span><span style="color:#555">.</span>epoll
+  <span style="color:#360">EM</span><span style="color:#555">.</span>run <span style="color:#069;font-weight:bold">do</span>
+    message_bus <span style="color:#555">=</span> <span style="color:#360">CfMessageBus</span><span style="color:#555">::</span><span style="color:#360">MessageBus</span><span style="color:#555">.</span>new(<span style="color:#fc3">uri</span>: message_bus_uri, <span style="color:#fc3">logger</span>: logger)
+    setup_components(message_bus)
+    @reporter<span style="color:#555">.</span>prepare
+    @harmonizer<span style="color:#555">.</span>prepare
+    @actual_state<span style="color:#555">.</span>start
+    register_as_vcap_component(message_bus)
+    @scheduler<span style="color:#555">.</span>start <span style="color:#09f;font-style:italic">#blocking call</span>
+  <span style="color:#069;font-weight:bold">end</span>
+<span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>在该方法中，通过运行EventMachine来实现，创建与消息中间件NATS的连接，以及通过该连接对象实现其他模块的设置与创建，随后又对这些模块发起运行命令。以下着重进入setup_component方法：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby"><span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">setup_components</span>(message_bus)
+  <span style="color:#069;font-weight:bold">if</span> <span style="color:#360">HealthManager</span><span style="color:#555">::</span><span style="color:#360">Config</span><span style="color:#555">.</span>black_box_test_mode?
+    @scheduler <span style="color:#555">=</span> <span style="color:#360">FakeScheduler</span><span style="color:#555">.</span>new(message_bus)
+    @@scheduler <span style="color:#555">=</span> @scheduler
+  <span style="color:#069;font-weight:bold">else</span>
+    @scheduler <span style="color:#555">=</span> <span style="color:#360">Scheduler</span><span style="color:#555">.</span>new
+  <span style="color:#069;font-weight:bold">end</span>
+  @droplet_registry <span style="color:#555">=</span> <span style="color:#360">DropletRegistry</span><span style="color:#555">.</span>new
+  @actual_state <span style="color:#555">=</span> <span style="color:#360">ActualState</span><span style="color:#555">.</span>new(@varz, @droplet_registry, message_bus)
+  @desired_state <span style="color:#555">=</span> <span style="color:#360">DesiredState</span><span style="color:#555">.</span>new(@varz, @droplet_registry, message_bus)
+  @nudger <span style="color:#555">=</span> <span style="color:#360">Nudger</span><span style="color:#555">.</span>new(@varz, message_bus)
+  @harmonizer <span style="color:#555">=</span> <span style="color:#360">Harmonizer</span><span style="color:#555">.</span>new(@varz, @nudger, @scheduler, @actual_state, @desired_state, @droplet_registry)
+  @reporter <span style="color:#555">=</span> <span style="color:#360">Reporter</span><span style="color:#555">.</span>new(@varz, @droplet_registry, message_bus)
+<span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>在该方法中，Manager模块创建了多个其他模块，比如droplet_registry，actual_state，desired_state，nudger，harmonizer，reporter等。</p>
+
+<p>在Manager的start方法中，调用了setup_component方法之后，又调用了多个模块的运行方法，使得这些模块真正运行起来，如：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">    @reporter<span style="color:#555">.</span>prepare
+    @harmonizer<span style="color:#555">.</span>prepare
+    @actual_state<span style="color:#555">.</span>start
+    register_as_vcap_component(message_bus)
+    @scheduler<span style="color:#555">.</span>start <span style="color:#09f;font-style:italic">#blocking call</span></code></pre></div>
+<p>在Manager模块执行完start方法后，Health_Manager的其他模块也就开始执行了，以下进入其他模块进行简单分析。</p>
+
+<h2 id="3-2-actualstate模块源码实现"><strong>3.2. ActualState模块源码实现</strong></h2>
+
+<p>ActualState模块的功能上文已经讲述，现在进入该模块的代码实现。</p>
+
+<p>ActualState的创建由Manager模块的setup_component方法来实现：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">    @actual_state <span style="color:#555">=</span> <span style="color:#360">ActualState</span><span style="color:#555">.</span>new(@varz, @droplet_registry, message_bus)</code></pre></div>
+<p>而该@actual_state对象的运行在Manager的start方法中：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">    <span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">start</span>
+  logger<span style="color:#555">.</span>info(<span style="color:#c30">&#34;starting...&#34;</span>)
+
+  <span style="color:#360">EM</span><span style="color:#555">.</span>epoll
+  <span style="color:#360">EM</span><span style="color:#555">.</span>run <span style="color:#069;font-weight:bold">do</span>
+    message_bus <span style="color:#555">=</span> <span style="color:#360">CfMessageBus</span><span style="color:#555">::</span><span style="color:#360">MessageBus</span><span style="color:#555">.</span>new(<span style="color:#fc3">uri</span>: message_bus_uri, <span style="color:#fc3">logger</span>: logger)
+    setup_components(message_bus)
+
+    @reporter<span style="color:#555">.</span>prepare
+    @harmonizer<span style="color:#555">.</span>prepare
+    @actual_state<span style="color:#555">.</span>start
+
+    register_as_vcap_component(message_bus)
+    @scheduler<span style="color:#555">.</span>start <span style="color:#09f;font-style:italic">#blocking call</span>
+  <span style="color:#069;font-weight:bold">end</span>
+<span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>首先进入该模块的订阅消息部分：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby"><span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">start</span>
+  logger<span style="color:#555">.</span>info <span style="color:#c30">&#34;hm.actual-state.subscribing&#34;</span>
+  @message_bus<span style="color:#555">.</span>subscribe(<span style="color:#c30">&#39;dea.heartbeat&#39;</span>) <span style="color:#069;font-weight:bold">do</span> <span style="color:#555">|</span>message<span style="color:#555">|</span>
+    process_heartbeat(message)
+  <span style="color:#069;font-weight:bold">end</span>
+  @message_bus<span style="color:#555">.</span>subscribe(<span style="color:#c30">&#39;droplet.exited&#39;</span>) <span style="color:#069;font-weight:bold">do</span> <span style="color:#555">|</span>message<span style="color:#555">|</span>
+    process_droplet_exited(message)
+  <span style="color:#069;font-weight:bold">end</span>
+  @message_bus<span style="color:#555">.</span>subscribe(<span style="color:#c30">&#39;droplet.updated&#39;</span>) <span style="color:#069;font-weight:bold">do</span> <span style="color:#555">|</span>message<span style="color:#555">|</span>
+    process_droplet_updated(message)
+  <span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>end</p>
+
+<p>深入了解这部分的代码之后，可以发现，ActualState信息的获取，就是通过订阅这三个主题的消息得到的。’dea.heartbeat’代表DEA发送给Health_Manager的心跳信息的主题；’droplet.exit’代表DEA中有应用退出时发送给Health_Manager关于应用的退出消息的主题；’droplet.update’代表当应用有信息被更新的主题。</p>
+
+<p>首先进入process_heartbeat方法中，当有DEA组件发布’dea.heartbeat’消息时，ActualState模块随即获取消息的message，对其执行process_heartbeat方法，方法实现如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">    <span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">process_heartbeat</span>(message)
+  logger<span style="color:#555">.</span>debug <span style="color:#c30">&#34;hm.actual-state.process-heartbeat&#34;</span>,
+               <span style="color:#fc3">:dea</span> <span style="color:#555">=&gt;</span> message<span style="color:#555">.</span>fetch(<span style="color:#fc3">:dea</span>)
+  varz<span style="color:#555">[</span><span style="color:#fc3">:heartbeat_msgs_received</span><span style="color:#555">]</span> <span style="color:#555">+=</span> <span style="color:#f60">1</span>
+  message<span style="color:#555">[</span><span style="color:#fc3">:droplets</span><span style="color:#555">].</span>each <span style="color:#069;font-weight:bold">do</span> <span style="color:#555">|</span>beat<span style="color:#555">|</span>
+    droplet <span style="color:#555">=</span> get_droplet(beat)
+    droplet<span style="color:#555">.</span>process_heartbeat(<span style="color:#360">Heartbeat</span><span style="color:#555">.</span>new(beat))
+    harmonizer<span style="color:#555">.</span>on_extra_instances(droplet, droplet<span style="color:#555">.</span>extra_instances)
+  <span style="color:#069;font-weight:bold">end</span>
+<span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>首先ActualState将message中的droplets信息全部取出，针对每一个droplet的心跳信息，通过 droplet = get_droplet(beat) ，将droplet信息保存。随后对于该droplet对象执行process_heartbeat方法，实现对droplet对象的简单处理，包括处理得到该对象的extra_instance对象，最后通过harmonizer来实现对应用多余的instance删除的操作。</p>
+
+<p>以下进入process_droplet_exit方法，可以知道该方法是在有应用需要退出的时候被调用，现在进入源码分析：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">    <span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">process_droplet_exited</span>(message)
+  logger<span style="color:#555">.</span>debug <span style="color:#c30">&#34;hm.actual-state.process-droplet-exited&#34;</span>,
+               <span style="color:#fc3">:message</span> <span style="color:#555">=&gt;</span> message
+  varz<span style="color:#555">[</span><span style="color:#fc3">:droplet_exited_msgs_received</span><span style="color:#555">]</span> <span style="color:#555">+=</span> <span style="color:#f60">1</span>
+  droplet <span style="color:#555">=</span> get_droplet(message)
+  droplet<span style="color:#555">.</span>mark_instance_as_down(message<span style="color:#555">.</span>fetch(<span style="color:#fc3">:version</span>),
+                                message<span style="color:#555">.</span>fetch(<span style="color:#fc3">:index</span>),
+                                message<span style="color:#555">.</span>fetch(<span style="color:#fc3">:instance</span>))
+  <span style="color:#069;font-weight:bold">case</span> message<span style="color:#555">.</span>fetch(<span style="color:#fc3">:reason</span>)
+  <span style="color:#069;font-weight:bold">when</span> <span style="color:#360">CRASHED</span>
+    varz<span style="color:#555">[</span><span style="color:#fc3">:crashed_instances</span><span style="color:#555">]</span> <span style="color:#555">+=</span> <span style="color:#f60">1</span>
+    droplet<span style="color:#555">.</span>process_exit_crash(message)
+    harmonizer<span style="color:#555">.</span>on_exit_crashed(droplet, message)
+  <span style="color:#069;font-weight:bold">when</span> <span style="color:#360">DEA_SHUTDOWN</span>, <span style="color:#360">DEA_EVACUATION</span>
+    droplet<span style="color:#555">.</span>reset_missing_indices
+    harmonizer<span style="color:#555">.</span>on_exit_dea(droplet, message)
+  <span style="color:#069;font-weight:bold">when</span> <span style="color:#360">STOPPED</span>
+    droplet<span style="color:#555">.</span>reset_missing_indices
+    harmonizer<span style="color:#555">.</span>on_exit_stopped(message)
+  <span style="color:#069;font-weight:bold">end</span>
+<span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>在源码实现中，可以看到，通过分析message中:reason属性的值，来引导下一步的操作。 当应用退出的原因为CRASHED的话，那么对于该应用，首先修改该应用的状态，然后通过harmonizer对象来执行相应的crashed退出操作。</p>
+
+<p>当应用退出的原因是DEA_SHUTDOWN或者DEA_EVACUATION时，则说明这些应用退出是因为原先这些应用所在的DEA组件退出了，而Cloud Foundry对于这种状况，采取的措施为重新寻找合适的DEA来运行先前的那些应用，在代码中，也是首先先设置不再运行的那些应用实例的分片，然后再通过harmonizer对该应用执行DEA退出的操作。</p>
+
+<p>当应用实例退出的原因为STOPPED的话，也就是说应用实例有可能被用户主动叫停，那么首先先将这些应用实例的状态在分片中设置，然后再通过harmonizer对该应用执行应用实例被停止的操作。</p>
+
+<p>以下进入process_droplet_updated方法，可以知道该方法是在有应用实例被更新的时候被调用，现在进入源码分析：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">    <span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">process_droplet_updated</span>(message)
+  logger<span style="color:#555">.</span>debug <span style="color:#c30">&#34;hm.actual-state.process-droplet-updated&#34;</span>,
+               <span style="color:#fc3">:droplet</span> <span style="color:#555">=&gt;</span> message<span style="color:#555">.</span>fetch(<span style="color:#fc3">:droplet</span>)
+  varz<span style="color:#555">[</span><span style="color:#fc3">:droplet_updated_msgs_received</span><span style="color:#555">]</span> <span style="color:#555">+=</span> <span style="color:#f60">1</span>
+  droplet <span style="color:#555">=</span> get_droplet(message)
+  droplet<span style="color:#555">.</span>reset_missing_indices
+  harmonizer<span style="color:#555">.</span>on_droplet_updated(droplet, message)
+<span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>在源码实现中，可见首先是通过message来定位到相应的droplet对象，然后通过harmonizer对象对该droplet对象进行更新操作，具体实现在Harmonizer模块讲述。</p>
+
+<h2 id="3-3-desiredstate模块源码实现"><strong>3.3. DesiredState模块源码实现</strong></h2>
+
+<p>DesiredState模块最主要的功能是，从Cloud Controller获取应用所预期的运行状态，该部分信息为CCDB的一个副本。DesiredState通过BULK API向Cloud Controller发送HTTP请求。</p>
+
+<p>DesireState的创建由Manager模块的setup_component方法来实现：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">    @desired_state <span style="color:#555">=</span> <span style="color:#360">DesiredState</span><span style="color:#555">.</span>new(@varz, @droplet_registry, message_bus)</code></pre></div>
+<p>而该@desired_state对象的运行在@harmonizer中，因为在创建@harmonizer对象时，Manager将很多对象都进行传递，如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">    @harmonizer <span style="color:#555">=</span> <span style="color:#360">Harmonizer</span><span style="color:#555">.</span>new(@varz, @nudger, @scheduler, @actual_state, @desired_state, @droplet_registry)</code></pre></div>
+<p>而在@harmonizer的运行过程中，对DesiredState对象进行周期性调度，于lib/health_manager/harmonizer.rb，如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">    scheduler<span style="color:#555">.</span>at_interval <span style="color:#fc3">:desired_state_update</span> <span style="color:#069;font-weight:bold">do</span>
+    update_desired_state
+  <span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>而update_desired_state方法实现为：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">    <span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">update_desired_state</span>
+  desired_state<span style="color:#555">.</span>update_user_counts
+  varz<span style="color:#555">.</span>reset_desired!
+  desired_state<span style="color:#555">.</span>update
+<span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>进入DesiredState模块，即lib/health_manager/desired_state.rb中，首先来到update_user_counts方法。在该方法中，DesiredState先调用with_credentials方法通过Cloud Controller的BULK API向Cloud Controller获取关于用户的credentials信息；随后通过这些credentials信息再次构建HTTP请求，再向Cloud Controller发送，获取用户数。</p>
+
+<p>在desired_state.update实现中，调用process_next_batch方法，于lib/health_manager/desired_state.rb，如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">    <span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">update</span>(<span style="color:#555">&amp;</span>block)
+  process_next_batch({}, <span style="color:#360">Time</span><span style="color:#555">.</span>now, <span style="color:#555">&amp;</span>block)
+<span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>而process_next_batch方法的实现如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">    <span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">process_next_batch</span>(bulk_token, start_time, <span style="color:#555">&amp;</span>block)
+  with_credentials <span style="color:#069;font-weight:bold">do</span> <span style="color:#555">|</span>user, password<span style="color:#555">|</span>
+    options <span style="color:#555">=</span> {
+      <span style="color:#fc3">:head</span> <span style="color:#555">=&gt;</span> { <span style="color:#c30">&#39;authorization&#39;</span> <span style="color:#555">=&gt;</span> <span style="color:#555">[</span>user, password<span style="color:#555">]</span> },
+      <span style="color:#fc3">:query</span> <span style="color:#555">=&gt;</span> {
+        <span style="color:#c30">&#39;batch_size&#39;</span> <span style="color:#555">=&gt;</span> batch_size,
+        <span style="color:#c30">&#39;bulk_token&#39;</span> <span style="color:#555">=&gt;</span> encode_json(bulk_token)
+      },
+    }
+    <span style="color:#069;font-weight:bold">if</span> <span style="color:#360">HealthManager</span><span style="color:#555">::</span><span style="color:#360">Config</span><span style="color:#555">.</span>black_box_test_mode?
+      res <span style="color:#555">=</span> make_synchronous_request(options)
+      bulk_token <span style="color:#555">=</span> process_response_and_get_next_bulk_token(res<span style="color:#555">.</span>code<span style="color:#555">.</span>to_i, res<span style="color:#555">.</span>body, start_time, <span style="color:#555">&amp;</span>block)
+      process_next_batch(bulk_token, start_time, <span style="color:#555">&amp;</span>block) <span style="color:#069;font-weight:bold">unless</span> bulk_token <span style="color:#555">==</span> <span style="color:#069">nil</span>
+    <span style="color:#069;font-weight:bold">else</span>
+      http <span style="color:#555">=</span> <span style="color:#360">EM</span><span style="color:#555">::</span><span style="color:#360">HttpRequest</span><span style="color:#555">.</span>new(app_url)<span style="color:#555">.</span>get(options)
+      http<span style="color:#555">.</span>callback <span style="color:#069;font-weight:bold">do</span>
+        bulk_token <span style="color:#555">=</span> process_response_and_get_next_bulk_token(http<span style="color:#555">.</span>response_header<span style="color:#555">.</span>status, http<span style="color:#555">.</span>response, start_time, <span style="color:#555">&amp;</span>block)
+        process_next_batch(bulk_token, start_time, <span style="color:#555">&amp;</span>block) <span style="color:#069;font-weight:bold">unless</span> bulk_token <span style="color:#555">==</span> <span style="color:#069">nil</span>
+      <span style="color:#069;font-weight:bold">end</span>
+<span style="color:#a00;background-color:#faa">……………………</span>
+    <span style="color:#069;font-weight:bold">end</span>
+  <span style="color:#069;font-weight:bold">end</span>
+<span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>实现过程如下：首先通过with_credentials方法获取user和password，然后通过这些credentials构建HTTP请求的body信息，最后通过Health_Manager的配置，来向Cloud Controller发送相应的HTTP请求，最终获取应用的预期运行状态，在process_response_and_get_next_bulk_token方法中实现，如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">    <span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">process_response_and_get_next_bulk_token</span>(status, raw_response, start_time, <span style="color:#555">&amp;</span>block)
+   <span style="color:#a00;background-color:#faa">………………</span>
+  batch<span style="color:#555">.</span>each <span style="color:#069;font-weight:bold">do</span> <span style="color:#555">|</span>app_id, droplet<span style="color:#555">|</span>
+    update_desired_stats_for_droplet(droplet)
+    @droplet_registry<span style="color:#555">.</span>get(app_id)<span style="color:#555">.</span>set_desired_state(droplet)
+    block<span style="color:#555">.</span>call(app_id<span style="color:#555">.</span>to_s, droplet) <span style="color:#069;font-weight:bold">if</span> block
+  <span style="color:#069;font-weight:bold">end</span>
+  bulk_token
+<span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<h2 id="3-4-harmonizer模块源码实现"><strong>3.4. Harmonizer模块源码实现</strong></h2>
+
+<p>上文中提及到的Harmonizer模块是用于分析ActualState，得出如何将应用变成DisiredState的策略。</p>
+
+<p>可以简单认为Harmonizer的任务有两个： 执行周期性的任务（比如定期获取DesiredState，分析应用状态等） 对一些消息做出反应（比如droplet.exit消息）</p>
+
+<p>现在可以来看Harmonizer模块执行周期性任务的代码实现，首先进入Harmonizer的prepare方法：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">    <span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">prepare</span>
+  logger<span style="color:#555">.</span>debug { <span style="color:#c30">&#34;harmonizer: #prepare&#34;</span> }
+  <span style="color:#09f;font-style:italic">#schedule time-based actions</span>
+  scheduler<span style="color:#555">.</span>immediately { update_desired_state }
+  scheduler<span style="color:#555">.</span>at_interval <span style="color:#fc3">:request_queue</span> <span style="color:#069;font-weight:bold">do</span>
+    nudger<span style="color:#555">.</span>deque_batch_of_requests
+  <span style="color:#069;font-weight:bold">end</span>
+  scheduler<span style="color:#555">.</span>at_interval <span style="color:#fc3">:desired_state_update</span> <span style="color:#069;font-weight:bold">do</span>
+    update_desired_state
+  <span style="color:#069;font-weight:bold">end</span>
+  scheduler<span style="color:#555">.</span>at_interval <span style="color:#fc3">:droplets_analysis</span> <span style="color:#069;font-weight:bold">do</span>
+    analyze_apps
+  <span style="color:#069;font-weight:bold">end</span>
+  scheduler<span style="color:#555">.</span>at_interval <span style="color:#fc3">:droplet_gc</span> <span style="color:#069;font-weight:bold">do</span>
+    gc_droplets
+  <span style="color:#069;font-weight:bold">end</span>
+<span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>可见，在Manager模块的start方法中@hamonizer.prepare实现就是调用以上的代码。分析代码可以获知其中通过scheduler对象来实现周期性调度。</p>
+
+<p>通过scheduler的调度实现budger中分发队列中的请求，实现为nudger.deque_batch_of_request。</p>
+
+<p>通过scheduler的调度实现DesiredState的周期性获取，实现为update_dedired_state。</p>
+
+<p>通过scheduler的调度实现过期无用的应用的周期性GC，实现为gc_droplets。</p>
+
+<p>通过scheduler的调度实现周期性分析应用状态的正确性，实现为analyze_app，该部分内容将着重讲述anaylze_apps的实现。</p>
+
+<p>首先进入analyze_apps的代码实现：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">    <span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">analyze_apps</span>
+  <span style="color:#069;font-weight:bold">unless</span> desired_state<span style="color:#555">.</span>available?
+    logger<span style="color:#555">.</span>warn(<span style="color:#c30">&#34;Droplet analysis interrupted. Desired state is not available&#34;</span>)
+    <span style="color:#069;font-weight:bold">return</span>
+  <span style="color:#069;font-weight:bold">end</span>
+  <span style="color:#069;font-weight:bold">if</span> @current_analysis_slice <span style="color:#555">==</span> <span style="color:#f60">0</span>
+    scheduler<span style="color:#555">.</span>set_start_time(<span style="color:#fc3">:droplets_analysis</span>)
+    logger<span style="color:#555">.</span>debug { <span style="color:#c30">&#34;harmonizer: droplets_analysis&#34;</span> }
+    varz<span style="color:#555">.</span>reset_realtime!
+  <span style="color:#069;font-weight:bold">end</span>
+  droplets_analysis_for_slice
+<span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>进行简单的处理之后，该方法主要调用droplets_analysis_for_slice方法，实现如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">    <span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">droplets_analysis_for_slice</span>
+  droplets_analyzed_per_iteration <span style="color:#555">=</span> <span style="color:#360">Config</span><span style="color:#555">.</span>get_param(<span style="color:#fc3">:number_of_droplets_analyzed_per_analysis_iteration</span>)
+  droplets <span style="color:#555">=</span> @droplet_registry<span style="color:#555">.</span>values<span style="color:#555">.</span>slice(@current_analysis_slice, droplets_analyzed_per_iteration)
+  <span style="color:#069;font-weight:bold">if</span> droplets <span style="color:#555">&amp;&amp;</span> droplets<span style="color:#555">.</span>any?
+    droplets<span style="color:#555">.</span>each <span style="color:#069;font-weight:bold">do</span> <span style="color:#555">|</span>droplet<span style="color:#555">|</span>
+      analyze_droplet(droplet)
+      droplet<span style="color:#555">.</span>update_realtime_varz(varz)
+    <span style="color:#069;font-weight:bold">end</span>
+  <span style="color:#069;font-weight:bold">end</span>
+  @current_analysis_slice <span style="color:#555">+=</span> droplets_analyzed_per_iteration
+  <span style="color:#069;font-weight:bold">if</span> droplets<span style="color:#555">.</span>nil? <span style="color:#555">||</span> droplets<span style="color:#555">.</span>size <span style="color:#555">&lt;</span> droplets_analyzed_per_iteration
+    @current_analysis_slice <span style="color:#555">=</span> <span style="color:#f60">0</span>
+    finish_droplet_analysis
+  <span style="color:#069;font-weight:bold">end</span>
+<span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>分析的方式为找出@droplet_registry对象的每一个值，所谓一个应用，然后对这个应用的每一个实例进行分析，执行analyze_droplet方法，如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">    <span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">analyze_droplet</span>(droplet)
+  on_extra_app(droplet) <span style="color:#069;font-weight:bold">if</span> droplet<span style="color:#555">.</span>is_extra?
+  <span style="color:#069;font-weight:bold">if</span> droplet<span style="color:#555">.</span>has_missing_indices?
+    on_missing_instances(droplet)
+    droplet<span style="color:#555">.</span>reset_missing_indices
+  <span style="color:#069;font-weight:bold">end</span>
+  droplet<span style="color:#555">.</span>update_extra_instances
+  on_extra_instances(droplet, droplet<span style="color:#555">.</span>extra_instances)
+  droplet<span style="color:#555">.</span>prune_crashes
+<span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>实现过程中，首先判断该应用实例是否为多余的实例，若是执行on_extra_app方法；然后判断该应用实例是否存在多余的分片，若是执行on_missing_instances方法；接着对于该应用实例执行update_extra_instances方法，以及执行on_extra_instances方法和prune_crashes方法。关于这些方法的具体实现，在类Droplet中，主要是droplet出现不一致状态的判断以及修正。</p>
+
+<p>以上分析analyze_apps是Harmonizer模块最重要的功能之一，但是除此之外，Harmonizer模块还会将处理一些其他的状态，比如：在ActualState模块接收到’droplet.exited’消息的时候，需要判断droplet退出的原因，然后根据原因，让Harmonizer做出相应的操作，源码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">    <span style="color:#069;font-weight:bold">case</span> message<span style="color:#555">.</span>fetch(<span style="color:#fc3">:reason</span>)
+  <span style="color:#069;font-weight:bold">when</span> <span style="color:#360">CRASHED</span>
+    varz<span style="color:#555">[</span><span style="color:#fc3">:crashed_instances</span><span style="color:#555">]</span> <span style="color:#555">+=</span> <span style="color:#f60">1</span>
+    droplet<span style="color:#555">.</span>process_exit_crash(message)
+    harmonizer<span style="color:#555">.</span>on_exit_crashed(droplet, message)
+  <span style="color:#069;font-weight:bold">when</span> <span style="color:#360">DEA_SHUTDOWN</span>, <span style="color:#360">DEA_EVACUATION</span>
+    droplet<span style="color:#555">.</span>reset_missing_indices
+    harmonizer<span style="color:#555">.</span>on_exit_dea(droplet, message)
+  <span style="color:#069;font-weight:bold">when</span> <span style="color:#360">STOPPED</span>
+    droplet<span style="color:#555">.</span>reset_missing_indices
+    harmonizer<span style="color:#555">.</span>on_exit_stopped(message)
+  <span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>当退出的原因为DEA_SHUTDOWN和DEA_EVACUATION时，Harmonizer模块在on_exit_dea方法中会另外选择一个DEA来重启启动相应的应用；当退出的原因为STOPPED时，Harmonizer模块会在on_exit_stopped方法中，将droplet对象的状态改成相应的状态。</p>
+
+<p>而在应用的状态为CRASHED时，Harmonizer在on_exit_crashed方法的处理过程会相当复杂，以下将一步一步分析其实现过程。</p>
+
+<p>首先进入on_exit_crash方法中：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">    <span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">on_exit_crashed</span>(droplet, message)
+  logger<span style="color:#555">.</span>debug { <span style="color:#c30">&#34;harmonizer: exit_crashed&#34;</span> }
+  index <span style="color:#555">=</span> message<span style="color:#555">.</span>fetch(<span style="color:#fc3">:index</span>)
+  instance <span style="color:#555">=</span> droplet<span style="color:#555">.</span>get_instance(message<span style="color:#555">.</span>fetch(<span style="color:#fc3">:index</span>), message<span style="color:#555">.</span>fetch(<span style="color:#fc3">:version</span>))
+  <span style="color:#069;font-weight:bold">if</span> instance<span style="color:#555">.</span>flapping?
+    execute_flapping_policy(droplet, instance, <span style="color:#069">true</span>)
+  <span style="color:#069;font-weight:bold">else</span>
+    nudger<span style="color:#555">.</span>start_instance(droplet, index, <span style="color:#360">LOW_PRIORITY</span>)
+  <span style="color:#069;font-weight:bold">end</span>
+<span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>可见在on_exit_crashed方法的实现中，从message对象中获取相应instance对象，随后判断该应用实例是否处于flapping状态，若是则执行execute_flapping_policy方法，若不是，则马上让nudger对象执行start_instance方法。</p>
+
+<p>首先来简单阐述何为flapping状态。当一个应用的实例在flapping_timeout时间内已经崩溃超过flapping_death次数时，这个应用的实例会被认为是处于flapping状态。。以下是可能导致应用实例处于flapping状态的原因： 应用程序彻底损坏，导致不能启动； 应用程序中存在一个bug，导致应用每隔一段时间就会崩溃一次； 应用有一个外部依赖，比如说是CF-provisioned服务实例，然而该服务实例处于长时间的不可用状态，或者是暂时性的不可用状态，最终导致应用实例多次崩溃。</p>
+
+<p>为了成功处理应用实例的flapping状态，Harmonizer提供以下策略： 计算出一个延迟，经过这个延迟时间后，立即重启这个应用实例； 对于之后的每次的崩溃，将以上的延迟时间翻倍，但不能超过max_restart_delay时间； 在计算延迟的时候，会加一个随机噪声，以避免连续的重启（关于噪声的意义，我还没有太理解，正在请教Pivotal的大牛） 当应用实例的崩溃次数超过giveup_crash_number，就放弃重启这个应用实例。</p>
+
+<p>以下进入execute_flapping_policy方法：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">    <span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">execute_flapping_policy</span>(droplet, instance, chatty)
+  <span style="color:#069;font-weight:bold">unless</span> instance<span style="color:#555">.</span>pending_restart?
+    <span style="color:#069;font-weight:bold">if</span> instance<span style="color:#555">.</span>giveup_restarting?
+      logger<span style="color:#555">.</span>info { <span style="color:#c30">&#34;given up on restarting: app_id=</span><span style="color:#a00">#{</span>droplet<span style="color:#555">.</span>id<span style="color:#a00">}</span><span style="color:#c30"> index=</span><span style="color:#a00">#{</span>instance<span style="color:#555">.</span>index<span style="color:#a00">}</span><span style="color:#c30">&#34;</span> } <span style="color:#069;font-weight:bold">if</span> chatty
+    <span style="color:#069;font-weight:bold">else</span>
+      delay <span style="color:#555">=</span> calculate_delay(instance)
+      schedule_delayed_restart(droplet, instance, instance<span style="color:#555">.</span>index, delay)
+    <span style="color:#069;font-weight:bold">end</span>
+  <span style="color:#069;font-weight:bold">end</span>
+<span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>可以看到在实现过程中，会通过calculate_delay方法计算挤一个delay值，然后通过这个delay值去立即执行方法schedule_delayed_restart。</p>
+
+<p>以下进入schedule_delayed_restart方法的代码实现：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">    <span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">schedule_delayed_restart</span>(droplet, instance, index, delay)
+  receipt <span style="color:#555">=</span> scheduler<span style="color:#555">.</span>after(delay) <span style="color:#069;font-weight:bold">do</span>
+    instance<span style="color:#555">.</span>unmark_pending_restart!
+    nudger<span style="color:#555">.</span>start_flapping_instance_immediately(droplet, index)
+  <span style="color:#069;font-weight:bold">end</span>
+  instance<span style="color:#555">.</span>mark_pending_restart_with_receipt!(receipt)
+<span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>可见在运行过程中，通过scheduler对象实现在delay这个时间段后，立即让nudger对象重启该实例对象。 以下是计算delay的方法实现：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">    <span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">calculate_delay</span>(instance)
+  delay <span style="color:#555">=</span> <span style="color:#555">[</span>interval(<span style="color:#fc3">:max_restart_delay</span>),
+           interval(<span style="color:#fc3">:min_restart_delay</span>) <span style="color:#555">&lt;&lt;</span> (instance<span style="color:#555">.</span>crash_count <span style="color:#555">-</span> interval(<span style="color:#fc3">:flapping_death</span>) <span style="color:#555">-</span> <span style="color:#f60">1</span>)
+          <span style="color:#555">].</span>min<span style="color:#555">.</span>to_f
+  noise_amount <span style="color:#555">=</span> <span style="color:#f60">2</span><span style="color:#555">.</span><span style="color:#f60">0</span> <span style="color:#555">*</span> (<span style="color:#366">rand</span> <span style="color:#555">-</span> <span style="color:#f60">0</span><span style="color:#555">.</span><span style="color:#f60">5</span>) <span style="color:#555">*</span> interval(<span style="color:#fc3">:delay_time_noise</span>)<span style="color:#555">.</span>to_f
+  result <span style="color:#555">=</span> delay <span style="color:#555">+</span> noise_amount
+  logger<span style="color:#555">.</span>info(<span style="color:#c30">&#34;delay: </span><span style="color:#a00">#{</span>delay<span style="color:#a00">}</span><span style="color:#c30"> noise: </span><span style="color:#a00">#{</span>noise_amount<span style="color:#a00">}</span><span style="color:#c30"> result: </span><span style="color:#a00">#{</span>result<span style="color:#a00">}</span><span style="color:#c30">&#34;</span>)
+  result
+<span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<h2 id="3-5-nudger模块源码实现"><strong>3.5. Nudger模块源码实现</strong></h2>
+
+<p>Nudger模块是Health_Manager用来与Cloud Controller建立通信，并发送真正用来矫正应用状态的模块。</p>
+
+<p>在实现过程中Nudger模块，通过分发cloudcontrollers.hm.request消息来通知Cloud Controller需要重启或者停止特定的应用实例。另外Nudger来维护了一个优先级队列来存储这部分的请求，实现优先级分发。</p>
+
+<p>首先进入Nudger对于请求消息的分发实现：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">    <span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">deque_batch_of_requests</span>
+  @queue_batch_size<span style="color:#555">.</span>times <span style="color:#069;font-weight:bold">do</span>
+    <span style="color:#069;font-weight:bold">break</span> <span style="color:#069;font-weight:bold">if</span> @queue<span style="color:#555">.</span>empty?
+
+    request <span style="color:#555">=</span> @queue<span style="color:#555">.</span>remove
+    publish_request_message(
+      request<span style="color:#555">[</span><span style="color:#fc3">:operation</span><span style="color:#555">]</span>,
+      request<span style="color:#555">[</span><span style="color:#fc3">:payload</span><span style="color:#555">]</span>)
+  <span style="color:#069;font-weight:bold">end</span>
+<span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>首先从队列中取消一个请求，然后将请求通过publish_request_message方法发布出去，发布实现如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">    <span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">publish_request_message</span>(operation, payload)
+  logger<span style="color:#555">.</span>info(<span style="color:#c30">&#34;hm.nudger.request&#34;</span>,
+              <span style="color:#fc3">:operation</span> <span style="color:#555">=&gt;</span> operation, <span style="color:#fc3">:payload</span> <span style="color:#555">=&gt;</span> payload)
+  <span style="color:#069;font-weight:bold">if</span> operation <span style="color:#555">==</span> <span style="color:#c30">&#39;start&#39;</span>
+    varz<span style="color:#555">[</span><span style="color:#fc3">:health_start_messages_sent</span><span style="color:#555">]+=</span><span style="color:#f60">1</span>
+  <span style="color:#069;font-weight:bold">elsif</span> operation <span style="color:#555">==</span> <span style="color:#c30">&#39;stop&#39;</span>
+    varz<span style="color:#555">[</span><span style="color:#fc3">:health_stop_messages_sent</span><span style="color:#555">]+=</span><span style="color:#f60">1</span>
+  <span style="color:#069;font-weight:bold">end</span>
+  publisher<span style="color:#555">.</span>publish(<span style="color:#c30">&#34;health.</span><span style="color:#a00">#{</span>operation<span style="color:#a00">}</span><span style="color:#c30">&#34;</span>, payload)
+<span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>在创建Nudger对象的时候，Message_bus被赋值于publisher，因此最终是通过消息中间件连接来实现消息的发布。</p>
+
+<p>而在Nudger模块中还实现了start_flapping_instance_immediately方法，start_instance方法，start_instances方法，stop_instance_immediately方法，stop_instance方法，这些方法都是基于请求队列来实现，或者直接调用publish_request_message方法。</p>
+
+<h2 id="3-6-reporter模块源码实现"><strong>3.6. Reporter模块源码实现</strong></h2>
+
+<p>Reports模块主要是为了对于”healthmanager.status”, ”healthmanager.health”, ”healthmanager.droplet”这一系列的请求。</p>
+
+<p>Reports模块订阅这些主题消息的代码实现如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">    <span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">prepare</span>
+  @message_bus<span style="color:#555">.</span>subscribe(<span style="color:#c30">&#39;healthmanager.status&#39;</span>) <span style="color:#069;font-weight:bold">do</span> <span style="color:#555">|</span>msg, reply_to<span style="color:#555">|</span>
+    process_status_message(msg, reply_to)
+  <span style="color:#069;font-weight:bold">end</span>
+  @message_bus<span style="color:#555">.</span>subscribe(<span style="color:#c30">&#39;healthmanager.health&#39;</span>) <span style="color:#069;font-weight:bold">do</span> <span style="color:#555">|</span>msg, reply_to<span style="color:#555">|</span>
+    process_health_message(msg, reply_to)
+  <span style="color:#069;font-weight:bold">end</span>
+  @message_bus<span style="color:#555">.</span>subscribe(<span style="color:#c30">&#39;healthmanager.droplet&#39;</span>) <span style="color:#069;font-weight:bold">do</span> <span style="color:#555">|</span>msg, reply_to<span style="color:#555">|</span>
+    process_droplet_message(msg, reply_to)
+  <span style="color:#069;font-weight:bold">end</span>
+ <span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>process_status_message方法通过NATS给Cloud Controller返回某个droplet的状态；process_health_message方法通过NATS给Cloud Controller返回所有droplet的健康状态；process_droplet_message返回整个droplet的所有信息。</p>
+
+<p>例如：当用户端执行cf apps指令时，Cloud Controller处即发布”healthmanager.health”消息，而Health_Manager通过Reports模块订阅该主题消息来响应该请求。</p>
+
+<p><strong>4. 总结</strong></p>
+
+<p>以上就是笔者对于HealthManager组件的源码分析。</p>
+
+<p>相比Cloud Foundry v1中HealthManager组件的实现，HealthManager2.0 在架构设计上更为成熟。</p>
+
+<p><strong>5. 文献引用</strong> <a href="https://github.com/cloudfoundry/health_manager">https://github.com/cloudfoundry/health_manager</a></p>
+                        </div>
+                        
+                        
+                        
+                        
+                        
+                        
+
+                        
+                        <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+                        <script src="https://unpkg.com/gitalk@latest/dist/gitalk.min.js"></script> 
+                        <script type="text/javascript" src="/assets/js/md5.min.js"></script>
+                        <div id="gitalk-container"></div>     
+                        <script type="text/javascript">
+                            var gitalk = new Gitalk({
+                              clientID: '835183d2dcbd1167ac28', 
+                            
+                              clientSecret: 'd873919fac3cc76921ee0800172c2279bc612f8d', 
+                            
+                              repo: 'Sel-Website-talk',
+                              owner: 'Peeknut',
+                              admin: ['Peeknut','Rachel-Shao'],
+                              id: location.href.split("/").pop().substring(0, 49),      
+                              distractionFreeMode: false  
+                            })
+                            gitalk.render('gitalk-container')
+                        </script> 
+                        
+
+                    </div>
+                    
+
+                    
+
+                    
+
+                    <div class="col-md-3">
+
+                        
+
+                        
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+      <h3 class="panel-title">搜索栏</h3>
+      
+    </div>
+
+    <div class="panel-body">
+        
+        <div class="search" id="search">
+            <div class="input-group">
+                <input type="text" name="q" class="form-control" placeholder="请输入文章标题或摘要..." id="search-key">
+                <input type="hidden" name="sitesearch" value="https://Congrool.github.io/">
+                <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main" onclick="search()"><i class="fas fa-search"></i></button>
+                </span>
+            </div>
+            <h1 id="search-tip" style="color: red;text-align: center;display: none;font-size: medium;">搜索中，请稍后 ...</h1>
+        </div>
+        <script type="text/javascript">
+            
+            window.onload = function() {
+                      document.onkeydown = function(ev) {
+                        var event = ev || event
+                        if (event.keyCode == 13) {
+                          search()
+                        }
+                      }
+                    }
+            
+            function search() {
+                    
+                      key = document.getElementById("search-key").value;
+                      if (key === "") {
+                        
+                        return;
+                      }
+                      key = key.toLowerCase();
+                      document.getElementById("search-key").value = "";
+                  
+                      
+                      document.getElementById("search-tip").innerText = "搜索中，请稍后 ...";
+                      document.getElementById("search-tip").style.display = "block";
+                  
+                      
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      var childs = el.childNodes;
+                      for (var i = childs.length - 1; i >= 0; i--) {
+                        el.removeChild(childs[i]);
+                      }
+                  
+                      
+                      xmltext = new XMLHttpRequest;
+                      xmltext.open("GET", "/index.xml", false);
+                      xmltext.send();
+                      resp = xmltext.responseXML;
+                      
+                      items = resp.getElementsByTagName("item");
+                      
+                      var i = 0;
+                      haveResult = false;
+                      while (i < items.length) {
+                        txt = items[i].getElementsByTagName("title")[0].innerHTML + items[i].getElementsByTagName("description")[0].innerHTML
+                        txt = txt.toLowerCase();
+                        if (txt.indexOf(key) > -1) {
+                          haveResult = true;
+                          title = items[i].getElementsByTagName("title")[0].innerHTML;
+                          link = items[i].getElementsByTagName("link")[0].innerHTML;
+                          time = items[i].getElementsByTagName("pubDate")[0].innerHTML;
+                          mark = items[i].getElementsByTagName("description")[0].innerHTML;
+                          time = time.slice(0, -5);
+                          addItem(title, link, time, mark)
+                        }
+                        i++;
+                      }
+                      if (!haveResult) {
+                        document.getElementById("search-tip").innerText = "搜索完毕，未发现结果 ...";
+                        document.getElementById("search-tip").style.display = "block";
+                      }
+
+                      
+                      var el = document.getElementById("blog-head");
+                      el.innerHTML="Blogs"
+                    }
+                  
+                    
+                    function addItem(title, link, time, mark) {
+                      document.getElementById("search-tip").style.display = "none";
+                      tmpl = "<article class=\"post\" style=\"border-bottom: 1px solid #e6e6e6;\" >" +
+                        "<header class=\"post-header\">" +
+                        "<h1 class=\"post-title\"><a class=\"post-link\" href=\"" + link + "\" target=\"_blank\">" + title + "</a></h1>" +
+                        "<div class=\"post-meta\">" +
+                        " <span class=\"post-time\">" + time + "</span>" +
+                        "</div>" +
+                        " </header>" +
+                        "<div class=\"post-content\">" +
+                        "<div class=\"post-summary\">" + mark + "</div>" +
+                        "<div class=\"read-more\">" +
+                        "<a href=" + link + " class=\"read-more-link\" target=\"_blank\">阅读更多</a>" +
+                        "</div>" +
+                        " </div>" +
+                        "</article>"
+                      div = document.createElement("div")
+                      div.innerHTML = tmpl;
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      el.appendChild(div)
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+
+        </script>
+        
+    </div>
+</div>
+
+
+
+
+
+
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">归档栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="nav nav-pills nav-stacked">
+            
+            
+            <li>
+                <a href="/categories/bosh">bosh (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloud_controller_ng">cloud_controller_ng (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloudfoundry">cloudfoundry (15)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/containerd">containerd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/docker">docker (19)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/etcd">etcd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/haproxy">haproxy (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/healthmanager">healthmanager (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/karmada">karmada (4)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubeedge">kubeedge (5)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubernetes">kubernetes (14)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/network">network (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/openyurt">openyurt (2)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/service-mesh">service-mesh (4)</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+<div class="panel sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">标签栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="tag-cloud">
+            
+            
+            <li>
+                <a href="/tags/agent"><i class="fas fa-tags"></i> agent</a>
+            </li>
+            
+            <li>
+                <a href="/tags/apiserver"><i class="fas fa-tags"></i> apiserver</a>
+            </li>
+            
+            <li>
+                <a href="/tags/books"><i class="fas fa-tags"></i> books</a>
+            </li>
+            
+            <li>
+                <a href="/tags/bosh"><i class="fas fa-tags"></i> bosh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/ccng"><i class="fas fa-tags"></i> ccng</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cf-release"><i class="fas fa-tags"></i> cf-release</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cgroups"><i class="fas fa-tags"></i> cgroups</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudfoundry"><i class="fas fa-tags"></i> cloudfoundry</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudnative"><i class="fas fa-tags"></i> cloudnative</a>
+            </li>
+            
+            <li>
+                <a href="/tags/collector"><i class="fas fa-tags"></i> collector</a>
+            </li>
+            
+            <li>
+                <a href="/tags/containerd"><i class="fas fa-tags"></i> containerd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cri"><i class="fas fa-tags"></i> cri</a>
+            </li>
+            
+            <li>
+                <a href="/tags/dea"><i class="fas fa-tags"></i> dea</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker"><i class="fas fa-tags"></i> docker</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker-network"><i class="fas fa-tags"></i> docker-network</a>
+            </li>
+            
+            <li>
+                <a href="/tags/edgecomputing"><i class="fas fa-tags"></i> edgecomputing</a>
+            </li>
+            
+            <li>
+                <a href="/tags/etcd"><i class="fas fa-tags"></i> etcd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/gorouter"><i class="fas fa-tags"></i> gorouter</a>
+            </li>
+            
+            <li>
+                <a href="/tags/haproxy"><i class="fas fa-tags"></i> haproxy</a>
+            </li>
+            
+            <li>
+                <a href="/tags/healthmanager"><i class="fas fa-tags"></i> healthmanager</a>
+            </li>
+            
+            <li>
+                <a href="/tags/istio"><i class="fas fa-tags"></i> istio</a>
+            </li>
+            
+            <li>
+                <a href="/tags/karmada"><i class="fas fa-tags"></i> karmada</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubeedge"><i class="fas fa-tags"></i> kubeedge</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubelet"><i class="fas fa-tags"></i> kubelet</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubernetes"><i class="fas fa-tags"></i> kubernetes</a>
+            </li>
+            
+            <li>
+                <a href="/tags/libcontainer"><i class="fas fa-tags"></i> libcontainer</a>
+            </li>
+            
+            <li>
+                <a href="/tags/micro-service"><i class="fas fa-tags"></i> micro-service</a>
+            </li>
+            
+            <li>
+                <a href="/tags/namespace"><i class="fas fa-tags"></i> namespace</a>
+            </li>
+            
+            <li>
+                <a href="/tags/nats"><i class="fas fa-tags"></i> nats</a>
+            </li>
+            
+            <li>
+                <a href="/tags/news"><i class="fas fa-tags"></i> news</a>
+            </li>
+            
+            <li>
+                <a href="/tags/openyurt"><i class="fas fa-tags"></i> openyurt</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pipework"><i class="fas fa-tags"></i> pipework</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pouch"><i class="fas fa-tags"></i> pouch</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runc"><i class="fas fa-tags"></i> runc</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runtime"><i class="fas fa-tags"></i> runtime</a>
+            </li>
+            
+            <li>
+                <a href="/tags/security"><i class="fas fa-tags"></i> security</a>
+            </li>
+            
+            <li>
+                <a href="/tags/serverless"><i class="fas fa-tags"></i> serverless</a>
+            </li>
+            
+            <li>
+                <a href="/tags/service-mesh"><i class="fas fa-tags"></i> service-mesh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/syslog_aggregator"><i class="fas fa-tags"></i> syslog_aggregator</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+                        
+
+                    </div>
+                    
+
+                    
+
+                </div>
+                
+
+            </div>
+            
+        </div>
+        
+
+        <footer id="footer">
+    <div class="container">
+
+        
+        <div class="col-md-4 col-sm-6">
+            <h4></h4>
+
+            <p><strong>关于我们：<strong> <p>浙大SEL实验室</p><p>地址：杭州市浙大路38号曹光彪西楼405室</p><p><strong></strong>
+            <a href="/contact" class="btn btn-small btn-template-main" >跳转到关于</a>
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+        <div class="col-md-4 col-sm-6">
+
+             
+            <h4>最新博客</h4>
+            
+
+            <div class="blog-entries">
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/27/overview.png" class="img-responsive" alt="基于KubeEdge的边缘节点分组管理设计与实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">基于KubeEdge的边缘节点分组管理设计与实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/20/karmada-scheduler.png" class="img-responsive" alt="多云环境下的资源调度：karmada scheduler的框架和实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">多云环境下的资源调度：karmada scheduler的框架和实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">
+                          
+                            <img src="/img/blogs/19/karmada-arch.jpg" class="img-responsive" alt="多云环境下的成员集群管理，看看开源项目karmada是如何做到的">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">多云环境下的成员集群管理，看看开源项目karmada是如何做到的</a></h5>
+                    </div>
+                </div>
+                
+            </div>
+
+            <hr class="hidden-md hidden-lg">
+             
+
+        </div>
+        
+
+        
+        <div class="col-md-4 col-sm-6">
+
+          <h4></h4>
+
+            <p><strong>联系我们: 
+                                    <p>团队负责人：丁轶群 yiqunding@zju.edu.cn</p>
+                                    <p>网站维护人：刘佳文 839809484@qq.com</p>                
+    </strong>
+
+            
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+    </div>
+    
+</footer>
+
+
+
+
+
+
+
+<div id="copyright">
+    <div class="container">
+        <div class="col-md-12">
+            
+            <p class="pull-left">Copyright ©️ 2020 SEL Laboratory , ZJ University all rights reserved.</p>
+            
+            <p class="pull-right">
+               <a href="https://bootstrapious.com/p/universal-business-e-commerce-template">Bootstrapious</a>.
+              
+
+               <a href="https://github.com/devcows/hugo-universal-theme">DevCows</a>.
+            </p>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+    </div>
+    
+
+    
+
+
+<script src="/js/jquery.min.js"></script>
+<script src="/js/bootstrap.min.js"></script>
+
+
+
+<script src="/js/jquery.cookie.min.js"></script>
+<script src="/js/jquery.waypoints.min.js"></script>
+<script src="/js/jquery.counterup.min.js"></script>
+<script src="/js/jquery-parallax.js"></script>
+
+
+<script src="/js/front.js"></script>
+
+
+<script src="/js/owl.carousel.min.js"></script>
+
+
+
+  </body>
+</html>

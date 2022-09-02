@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Docker on 浙大SEL实验室</title>
+    <link>https://Congrool.github.io/tags/docker/</link>
+    <description>Recent content in Docker on 浙大SEL实验室</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Sun, 05 Aug 2018 19:03:13 +0000</lastBuildDate>
+    
+	<atom:link href="https://Congrool.github.io/tags/docker/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>从containerd pull镜像流程分析oci distribution spec</title>
+      <link>https://Congrool.github.io/blog/2018/08/05/%E4%BB%8Econtainerd-pull%E9%95%9C%E5%83%8F%E6%B5%81%E7%A8%8B%E5%88%86%E6%9E%90oci-distribution-spec/</link>
+      <pubDate>Sun, 05 Aug 2018 19:03:13 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2018/08/05/%E4%BB%8Econtainerd-pull%E9%95%9C%E5%83%8F%E6%B5%81%E7%A8%8B%E5%88%86%E6%9E%90oci-distribution-spec/</guid>
+      <description>&lt;p&gt;oci组织成立以来已经形成了关于image和runtime的两个spec。&lt;a href=&#34;https://www.linuxfoundation.org/press-release/2018/04/open-container-initiative-announces-distribution-specification-project/&#34;&gt;2018年4月&lt;/a&gt;，作为与registry交互的镜像分发协议也进入了oci标准化的工作范围。oci以当前被广泛采用的&lt;a href=&#34;https://github.com/docker/distribution/blob/5cb406d511b7b9163bff9b6439072e4892e5ae3b/docs/spec/api.md&#34;&gt;Docker Registry HTTP API V2&lt;/a&gt;为基础，构建了oci distribution spec。containerd当前同时支持docker版的和oci版的registry api。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>深入理解Docker容器引擎runC执行框架</title>
+      <link>https://Congrool.github.io/blog/2018/05/10/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3docker%E5%AE%B9%E5%99%A8%E5%BC%95%E6%93%8Erunc%E6%89%A7%E8%A1%8C%E6%A1%86%E6%9E%B6/</link>
+      <pubDate>Thu, 10 May 2018 10:16:40 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2018/05/10/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3docker%E5%AE%B9%E5%99%A8%E5%BC%95%E6%93%8Erunc%E6%89%A7%E8%A1%8C%E6%A1%86%E6%9E%B6/</guid>
+      <description>&lt;h2 id=&#34;1-简介&#34;&gt;1 简介&lt;/h2&gt;
+
+&lt;p&gt;根据官方的定义：runC是一个根据OCI标准创建并运行容器的CLI tool。&lt;/p&gt;
+
+&lt;p&gt;Docker就是基于runC创建的，简单地说，runC是Docker中最为核心的部分，容器的创建，运行，销毁等等操作最终都将通过调用runC完成。下面我们将演示如何使用runC，以最精简的方式创建并运行一个容器。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>《Docker容器与容器云》第2版推荐</title>
+      <link>https://Congrool.github.io/blog/2016/11/30/docker%E5%AE%B9%E5%99%A8%E4%B8%8E%E5%AE%B9%E5%99%A8%E4%BA%91%E7%AC%AC2%E7%89%88%E6%8E%A8%E8%8D%90/</link>
+      <pubDate>Wed, 30 Nov 2016 17:41:43 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2016/11/30/docker%E5%AE%B9%E5%99%A8%E4%B8%8E%E5%AE%B9%E5%99%A8%E4%BA%91%E7%AC%AC2%E7%89%88%E6%8E%A8%E8%8D%90/</guid>
+      <description>&lt;h2 id=&#34;介绍&#34;&gt;介绍&lt;/h2&gt;
+
+&lt;p&gt;本书根据Docker 1.10版和Kubernetes 1.2版对第1版进行了全面更新，从实践者的角度出发，以Docker和Kubernetes为重点，沿着“基本用法介绍”到“核心原理解读”到“高级实践技巧”的思路，一本书讲透当前主流的容器和容器云技术，有助于读者在实际场景中利用Docker容器和容器云解决问题并启发新的思考。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>《Docker容器与容器云》推荐</title>
+      <link>https://Congrool.github.io/blog/2015/10/21/docker%E5%AE%B9%E5%99%A8%E4%B8%8E%E5%AE%B9%E5%99%A8%E4%BA%91%E6%8E%A8%E8%8D%90/</link>
+      <pubDate>Wed, 21 Oct 2015 20:26:10 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2015/10/21/docker%E5%AE%B9%E5%99%A8%E4%B8%8E%E5%AE%B9%E5%99%A8%E4%BA%91%E6%8E%A8%E8%8D%90/</guid>
+      <description>&lt;p&gt;《Docker容器与容器云》是Kubernetes社区核心开发者张磊博士及其技术团队近年来PaaS方面积累，全书不仅描述了容器与容器云技术，还融入了实验室四年来对云计算各个层面的理解。该书是国内第一本对Docker原理进行深度解析的书籍，也是第一本结合PaaS对各类容器云进行深度剖析，并着重深入分析Kubernetes原理的书籍。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>Docker背后的标准化容器执行引擎——runC</title>
+      <link>https://Congrool.github.io/blog/2015/10/21/docker%E8%83%8C%E5%90%8E%E7%9A%84%E6%A0%87%E5%87%86%E5%8C%96%E5%AE%B9%E5%99%A8%E6%89%A7%E8%A1%8C%E5%BC%95%E6%93%8E-runc/</link>
+      <pubDate>Wed, 21 Oct 2015 19:44:38 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2015/10/21/docker%E8%83%8C%E5%90%8E%E7%9A%84%E6%A0%87%E5%87%86%E5%8C%96%E5%AE%B9%E5%99%A8%E6%89%A7%E8%A1%8C%E5%BC%95%E6%93%8E-runc/</guid>
+      <description>&lt;p&gt;随着容器技术发展的愈发火热，Linux基金会于2015年6月成立&lt;a href=&#34;https://www.opencontainers.org/&#34;&gt;OCI（Open Container Initiative）&lt;/a&gt;组织，旨在围绕容器格式和运行时制定一个开放的工业化标准。该组织一成立便得到了包括谷歌、微软、亚马逊、华为等一系列云计算厂商的支持。而runC就是Docker贡献出来的，按照该开放容器格式标准（OCF, Open Container Format）制定的一种具体实现。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>Docker背后的容器管理——libcontainer深度解析</title>
+      <link>https://Congrool.github.io/blog/2015/06/03/docker%E8%83%8C%E5%90%8E%E7%9A%84%E5%AE%B9%E5%99%A8%E7%AE%A1%E7%90%86-libcontainer%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90/</link>
+      <pubDate>Wed, 03 Jun 2015 13:29:26 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2015/06/03/docker%E8%83%8C%E5%90%8E%E7%9A%84%E5%AE%B9%E5%99%A8%E7%AE%A1%E7%90%86-libcontainer%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90/</guid>
+      <description>&lt;p&gt;libcontainer 是Docker中用于容器管理的包，它基于Go语言实现，通过管理&lt;code&gt;namespaces&lt;/code&gt;、&lt;code&gt;cgroups&lt;/code&gt;、&lt;code&gt;capabilities&lt;/code&gt;以及文件系统来进行容器控制。你可以使用libcontainer创建容器，并对容器进行生命周期管理。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>Docker背后的内核知识——cgroups资源限制</title>
+      <link>https://Congrool.github.io/blog/2015/04/22/docker%E8%83%8C%E5%90%8E%E7%9A%84%E5%86%85%E6%A0%B8%E7%9F%A5%E8%AF%86-cgroups%E8%B5%84%E6%BA%90%E9%99%90%E5%88%B6/</link>
+      <pubDate>Wed, 22 Apr 2015 10:03:07 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2015/04/22/docker%E8%83%8C%E5%90%8E%E7%9A%84%E5%86%85%E6%A0%B8%E7%9F%A5%E8%AF%86-cgroups%E8%B5%84%E6%BA%90%E9%99%90%E5%88%B6/</guid>
+      <description>&lt;h2 id=&#34;摘要&#34;&gt;摘要&lt;/h2&gt;
+
+&lt;p&gt;当我们谈论Docker时，我们常常会聊到Docker的实现方式。很多开发者都会知道，Docker的本质实际上是宿主机上的一个进程，通过namespace实现了资源隔离，通过cgroup实现了资源限制，通过UnionFS实现了Copy on Write的文件操作。但是当我们再深入一步的提出，namespace和cgroup实现细节时，知道的人可能就所剩无几了。本文在docker基础研究工作中着重对内核的cgroup技术做了细致的分析和梳理，希望能对读者深入理解Docker有所帮助。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>Docker背后的内核知识——Namespace资源隔离</title>
+      <link>https://Congrool.github.io/blog/2015/03/13/docker%E8%83%8C%E5%90%8E%E7%9A%84%E5%86%85%E6%A0%B8%E7%9F%A5%E8%AF%86-namespace%E8%B5%84%E6%BA%90%E9%9A%94%E7%A6%BB/</link>
+      <pubDate>Fri, 13 Mar 2015 13:54:32 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2015/03/13/docker%E8%83%8C%E5%90%8E%E7%9A%84%E5%86%85%E6%A0%B8%E7%9F%A5%E8%AF%86-namespace%E8%B5%84%E6%BA%90%E9%9A%94%E7%A6%BB/</guid>
+      <description>&lt;p&gt;Docker这么火，喜欢技术的朋友可能也会想，如果要自己实现一个资源隔离的容器，应该从哪些方面下手呢？也许你第一反应可能就是&lt;code&gt;chroot&lt;/code&gt;命令，这条命令给用户最直观的感觉就是使用后根目录&lt;code&gt;/&lt;/code&gt;的挂载点切换了，即文件系统被隔离了。然后，为了在分布式的环境下进行通信和定位，容器必然需要一个独立的IP、端口、路由等等，自然就想到了网络的隔离。同时，你的容器还需要一个独立的主机名以便在网络中标识自己。想到网络，顺其自然就想到通信，也就想到了进程间通信的隔离。可能你也想到了权限的问题，对用户和用户组的隔离就实现了用户权限的隔离。最后，运行在容器中的应用需要有自己的&lt;code&gt;PID&lt;/code&gt;,自然也需要与宿主机中的&lt;code&gt;PID&lt;/code&gt;进行隔离。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>Docker源码分析（九）：Docker镜像</title>
+      <link>https://Congrool.github.io/blog/2015/03/12/docker%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90%E4%B9%9Ddocker%E9%95%9C%E5%83%8F/</link>
+      <pubDate>Thu, 12 Mar 2015 20:16:14 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2015/03/12/docker%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90%E4%B9%9Ddocker%E9%95%9C%E5%83%8F/</guid>
+      <description>&lt;h2 id=&#34;1-前言&#34;&gt;&lt;strong&gt;1.前言&lt;/strong&gt;&lt;/h2&gt;
+
+&lt;p&gt;回首过去的2014年，大家可以看到Docker在全球刮起了一阵又一阵的“容器风”，工业界对Docker的探索与实践更是一波高过一波。在如今的2015年以及未来，Docker似乎并不会像其他昙花一现的技术一样，在历史的舞台上热潮褪去，反而在工业界实践与评估之后，显现了前所未有的发展潜力。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>Docker源码分析（八）：Docker Container网络（下）</title>
+      <link>https://Congrool.github.io/blog/2015/03/12/docker%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90%E5%85%ABdocker-container%E7%BD%91%E7%BB%9C%E4%B8%8B/</link>
+      <pubDate>Thu, 12 Mar 2015 20:03:21 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2015/03/12/docker%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90%E5%85%ABdocker-container%E7%BD%91%E7%BB%9C%E4%B8%8B/</guid>
+      <description>&lt;h2 id=&#34;1-docker-client配置容器网络模式&#34;&gt;&lt;strong&gt;1.Docker Client配置容器网络模式&lt;/strong&gt;&lt;/h2&gt;
+
+&lt;p&gt;Docker目前支持4种网络模式，分别是bridge、host、container、none，Docker开发者可以根据自己的需求来确定最适合自己应用场景的网络模式。 从Docker Container网络创建流程图中可以看到，创建流程第一个涉及的Docker模块即为Docker Client。当然，这也十分好理解，毕竟Docker Container网络环境的创建需要由用户发起，用户根据自身对容器的需求，选择网络模式，并将其通过Docker Client传递给Docker Daemon。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>Docker源码分析（七）：Docker Container网络 （上）</title>
+      <link>https://Congrool.github.io/blog/2015/01/26/docker%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90%E4%B8%83docker-container%E7%BD%91%E7%BB%9C-%E4%B8%8A/</link>
+      <pubDate>Mon, 26 Jan 2015 10:31:13 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2015/01/26/docker%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90%E4%B8%83docker-container%E7%BD%91%E7%BB%9C-%E4%B8%8A/</guid>
+      <description>&lt;h1 id=&#34;1-前言-什么是docker-container&#34;&gt;&lt;strong&gt;1. 前言(什么是Docker Container)&lt;/strong&gt;&lt;/h1&gt;
+
+&lt;p&gt;如今，Docker技术大行其道，大家在尝试以及玩转Docker的同时，肯定离不开一个概念，那就是“容器”或者“Docker Container”。那么我们首先从实现的角度来看看“容器”或者“Docker Container”到底为何物。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>Docker网络详解及pipework源码解读与实践</title>
+      <link>https://Congrool.github.io/blog/2015/01/16/docker%E7%BD%91%E7%BB%9C%E8%AF%A6%E8%A7%A3%E5%8F%8Apipework%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB%E4%B8%8E%E5%AE%9E%E8%B7%B5/</link>
+      <pubDate>Fri, 16 Jan 2015 14:20:20 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2015/01/16/docker%E7%BD%91%E7%BB%9C%E8%AF%A6%E8%A7%A3%E5%8F%8Apipework%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB%E4%B8%8E%E5%AE%9E%E8%B7%B5/</guid>
+      <description>&lt;p&gt;Docker作为目前最火的轻量级容器技术，有很多令人称道的功能，如Docker的镜像管理。然而，Docker同样有着很多不完善的地方，网络方面就是Docker比较薄弱的部分。因此，我们有必要深入了解Docker的网络知识，以满足更高的网络需求。本文首先介绍了Docker自身的4种网络工作方式，然后通过3个样例 —— 将Docker容器配置到本地网络环境中、单主机Docker容器的VLAN划分、多主机Docker容器的VLAN划分，演示了如何使用&lt;a href=&#34;https://github.com/jpetazzo/pipework&#34;&gt;pipework&lt;/a&gt;帮助我们进行复杂的网络设置，以及pipework是如何工作的。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>Docker源码分析（六）：Docker Daemon网络</title>
+      <link>https://Congrool.github.io/blog/2015/01/05/docker%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90%E5%85%ADdocker-daemon%E7%BD%91%E7%BB%9C/</link>
+      <pubDate>Mon, 05 Jan 2015 10:52:28 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2015/01/05/docker%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90%E5%85%ADdocker-daemon%E7%BD%91%E7%BB%9C/</guid>
+      <description>&lt;p&gt;&lt;strong&gt;摘要:&lt;/strong&gt; Docker的容器特性和镜像特性已然为Docker实践者带来了诸多效益，然而Docker的网络特性却不能让用户满意。本文从Docker的网络模式入手，分析了Docker Daemon创建网络环境的详细流程，其中着重于分析Docker桥接模式的创建，为之后Docker Container创建网络环境做铺垫。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>玩转Docker镜像</title>
+      <link>https://Congrool.github.io/blog/2014/12/16/%E7%8E%A9%E8%BD%ACdocker%E9%95%9C%E5%83%8F/</link>
+      <pubDate>Tue, 16 Dec 2014 16:15:36 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2014/12/16/%E7%8E%A9%E8%BD%ACdocker%E9%95%9C%E5%83%8F/</guid>
+      <description>&lt;p&gt;&lt;strong&gt;摘要:&lt;/strong&gt;Docker是基于Go语言开发，通过分层镜像标准化和内核虚拟化技术，使得应用开发者和运维工程师可以以统一的方式跨平台发布应用。镜像是Docker最核心的技术之一，也是应用发布的标准格式。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>Docker源码分析（五）：Docker Server的创建</title>
+      <link>https://Congrool.github.io/blog/2014/12/09/docker%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90%E4%BA%94docker-server%E7%9A%84%E5%88%9B%E5%BB%BA/</link>
+      <pubDate>Tue, 09 Dec 2014 13:00:37 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2014/12/09/docker%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90%E4%BA%94docker-server%E7%9A%84%E5%88%9B%E5%BB%BA/</guid>
+      <description>&lt;h1 id=&#34;1-docker-server简介&#34;&gt;&lt;strong&gt;1. Docker Server简介&lt;/strong&gt;&lt;/h1&gt;
+
+&lt;p&gt;Docker架构中，Docker Server是Docker Daemon的重要组成部分。Docker Server最主要的功能是：接受用户通过Docker Client发送的请求，并按照相应的路由规则实现路由分发。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>Cloud Foundry’s 新容器技术： A Garden Overview</title>
+      <link>https://Congrool.github.io/blog/2014/12/02/cloud-foundrys-%E6%96%B0%E5%AE%B9%E5%99%A8%E6%8A%80%E6%9C%AF-a-garden-overview/</link>
+      <pubDate>Tue, 02 Dec 2014 18:52:46 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2014/12/02/cloud-foundrys-%E6%96%B0%E5%AE%B9%E5%99%A8%E6%8A%80%E6%9C%AF-a-garden-overview/</guid>
+      <description>&lt;h2 id=&#34;前言&#34;&gt;前言&lt;/h2&gt;
+
+&lt;p&gt;编译自：&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://blog.pivotal.io/cloud-foundry-pivotal/features/cloud-foundry-container-technology-a-garden-overview&#34;&gt;Cloud Foundry’s Container Technology: A Garden Overview&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://underlap.blogspot.com/2014/06/warden-meets-libcontainer.html&#34;&gt;Containers in Cloud Foundry: warden meets libcontainer&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;CloudFoundry（CF）中很早就使用了VMware研发的Warden容器来负责应用的资源分配隔离和实例调度。可惜的是，这一本来可以成为业界标准和并掀起一阵革命的容器PaaS技术却因为Pivotal的方针路线上的种种原因被后来居上Docker吊打至今。最近CFer有醒悟的迹象，在Warden上进行了大量改进和升级，本文就来一窥CF新容器技术的一些要点。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>Docker源码分析（四）：Docker Daemon之NewDaemon实现</title>
+      <link>https://Congrool.github.io/blog/2014/12/02/docker%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90%E5%9B%9Bdocker-daemon%E4%B9%8Bnewdaemon%E5%AE%9E%E7%8E%B0/</link>
+      <pubDate>Tue, 02 Dec 2014 13:03:12 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2014/12/02/docker%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90%E5%9B%9Bdocker-daemon%E4%B9%8Bnewdaemon%E5%AE%9E%E7%8E%B0/</guid>
+      <description>&lt;h1 id=&#34;前言&#34;&gt;前言&lt;/h1&gt;
+
+&lt;p&gt;Docker的生态系统日趋完善，开发者群体也在日趋庞大，这让业界对Docker持续抱有极其乐观的态度。然而，对于广大开发者而言，使用Docker这项技术已然不是门槛，享受Docker带来的技术福利已不是困难。如今，如何探寻Docker适应的场景，如何发展Docker周边的技术，以及如何弥合Docker新技术与传统物理机或VM技术的鸿沟，已经占据Docker研究者们的思考与实践。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>Docker源码分析（三）：Docker Daemon启动</title>
+      <link>https://Congrool.github.io/blog/2014/12/02/docker%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90%E4%B8%89docker-daemon%E5%90%AF%E5%8A%A8/</link>
+      <pubDate>Tue, 02 Dec 2014 13:02:44 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2014/12/02/docker%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90%E4%B8%89docker-daemon%E5%90%AF%E5%8A%A8/</guid>
+      <description>&lt;h1 id=&#34;摘要&#34;&gt;【摘要】&lt;/h1&gt;
+
+&lt;p&gt;Docker作为业界备受推崇的轻量级虚拟化容器管理引擎，其强大的后台能力全凭Docker Daemon。本文从源码出发，介绍了Docker Daemon的启动流程，并深入分析启动流程中每一步骤的实现细节。Docker的运行真可谓，载体为daemon，调度管理由engine，任务执行靠job。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>Docker源码分析（二）：Docker Client创建与命令执行</title>
+      <link>https://Congrool.github.io/blog/2014/12/02/docker%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90%E4%BA%8Cdocker-client%E5%88%9B%E5%BB%BA%E4%B8%8E%E5%91%BD%E4%BB%A4%E6%89%A7%E8%A1%8C/</link>
+      <pubDate>Tue, 02 Dec 2014 13:01:39 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2014/12/02/docker%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90%E4%BA%8Cdocker-client%E5%88%9B%E5%BB%BA%E4%B8%8E%E5%91%BD%E4%BB%A4%E6%89%A7%E8%A1%8C/</guid>
+      <description>&lt;h1 id=&#34;1-前言&#34;&gt;&lt;strong&gt;1. 前言&lt;/strong&gt;&lt;/h1&gt;
+
+&lt;p&gt;如今，Docker作为业界领先的轻量级虚拟化容器管理引擎，给全球开发者提供了一种新颖、便捷的软件集成测试与部署之道。在团队开发软件时，Docker可以提供可复用的运行环境、灵活的资源配置、便捷的集成测试方法以及一键式的部署方式。可以说，Docker的优势在简化持续集成、运维部署方面体现得淋漓尽致，它完全让开发者从前者中解放出来，把精力真正地倾注在开发上。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>Docker源码分析（一）：Docker架构</title>
+      <link>https://Congrool.github.io/blog/2014/12/02/docker%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90%E4%B8%80docker%E6%9E%B6%E6%9E%84/</link>
+      <pubDate>Tue, 02 Dec 2014 10:19:09 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2014/12/02/docker%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90%E4%B8%80docker%E6%9E%B6%E6%9E%84/</guid>
+      <description>&lt;h1 id=&#34;1-背景&#34;&gt;&lt;strong&gt;1 背景&lt;/strong&gt;&lt;/h1&gt;
+
+&lt;h2 id=&#34;1-1-docker简介&#34;&gt;&lt;strong&gt;1.1 Docker简介&lt;/strong&gt;&lt;/h2&gt;
+
+&lt;p&gt;Docker是Docker公司开源的一个基于轻量级虚拟化技术的容器引擎项目,整个项目基于Go语言开发，并遵从Apache 2.0协议。目前，Docker可以在容器内部快速自动化部署应用，并可以通过内核虚拟化技术（namespaces及cgroups等）来提供容器的资源隔离与安全保障等。由于Docker通过操作系统层的虚拟化实现隔离，所以Docker容器在运行时，不需要类似虚拟机（VM）额外的操作系统开销，提高资源利用率，并且提升诸如IO等方面的性能。&lt;/p&gt;</description>
+    </item>
+    
+  </channel>
+</rss>

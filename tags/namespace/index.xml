@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>namespace on 浙大SEL实验室</title>
+    <link>https://Congrool.github.io/tags/namespace/</link>
+    <description>Recent content in namespace on 浙大SEL实验室</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Fri, 13 Mar 2015 13:54:32 +0000</lastBuildDate>
+    
+	<atom:link href="https://Congrool.github.io/tags/namespace/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>Docker背后的内核知识——Namespace资源隔离</title>
+      <link>https://Congrool.github.io/blog/2015/03/13/docker%E8%83%8C%E5%90%8E%E7%9A%84%E5%86%85%E6%A0%B8%E7%9F%A5%E8%AF%86-namespace%E8%B5%84%E6%BA%90%E9%9A%94%E7%A6%BB/</link>
+      <pubDate>Fri, 13 Mar 2015 13:54:32 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2015/03/13/docker%E8%83%8C%E5%90%8E%E7%9A%84%E5%86%85%E6%A0%B8%E7%9F%A5%E8%AF%86-namespace%E8%B5%84%E6%BA%90%E9%9A%94%E7%A6%BB/</guid>
+      <description>&lt;p&gt;Docker这么火，喜欢技术的朋友可能也会想，如果要自己实现一个资源隔离的容器，应该从哪些方面下手呢？也许你第一反应可能就是&lt;code&gt;chroot&lt;/code&gt;命令，这条命令给用户最直观的感觉就是使用后根目录&lt;code&gt;/&lt;/code&gt;的挂载点切换了，即文件系统被隔离了。然后，为了在分布式的环境下进行通信和定位，容器必然需要一个独立的IP、端口、路由等等，自然就想到了网络的隔离。同时，你的容器还需要一个独立的主机名以便在网络中标识自己。想到网络，顺其自然就想到通信，也就想到了进程间通信的隔离。可能你也想到了权限的问题，对用户和用户组的隔离就实现了用户权限的隔离。最后，运行在容器中的应用需要有自己的&lt;code&gt;PID&lt;/code&gt;,自然也需要与宿主机中的&lt;code&gt;PID&lt;/code&gt;进行隔离。&lt;/p&gt;</description>
+    </item>
+    
+  </channel>
+</rss>

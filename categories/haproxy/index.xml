@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>haproxy on 浙大SEL实验室</title>
+    <link>https://Congrool.github.io/categories/haproxy/</link>
+    <description>Recent content in haproxy on 浙大SEL实验室</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Tue, 28 Oct 2014 17:02:26 +0000</lastBuildDate>
+    
+	<atom:link href="https://Congrool.github.io/categories/haproxy/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>Haproxy端口映射（client头中URL/HOST修改后转发）</title>
+      <link>https://Congrool.github.io/blog/2014/10/28/haproxy%E7%AB%AF%E5%8F%A3%E6%98%A0%E5%B0%84client%E5%A4%B4%E4%B8%ADurlhost%E4%BF%AE%E6%94%B9%E5%90%8E%E8%BD%AC%E5%8F%91/</link>
+      <pubDate>Tue, 28 Oct 2014 17:02:26 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2014/10/28/haproxy%E7%AB%AF%E5%8F%A3%E6%98%A0%E5%B0%84client%E5%A4%B4%E4%B8%ADurlhost%E4%BF%AE%E6%94%B9%E5%90%8E%E8%BD%AC%E5%8F%91/</guid>
+      <description>&lt;p&gt;CloudFoundry是对域名强依赖的云计算集群，没有域名的话几乎无法访问。但是域名备案等事宜所耗时间较长，在上线较为紧急的情况下，就需要实现直接通过“IP+端口”的形式，在公网访问CF集群上部署的APP。&lt;/p&gt;</description>
+    </item>
+    
+  </channel>
+</rss>

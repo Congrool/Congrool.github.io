@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>serverless on 浙大SEL实验室</title>
+    <link>https://Congrool.github.io/tags/serverless/</link>
+    <description>Recent content in serverless on 浙大SEL实验室</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Thu, 11 Oct 2018 20:11:02 +0000</lastBuildDate>
+    
+	<atom:link href="https://Congrool.github.io/tags/serverless/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>knative serving开发环境搭建</title>
+      <link>https://Congrool.github.io/blog/2018/10/11/knative-serving%E5%BC%80%E5%8F%91%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA/</link>
+      <pubDate>Thu, 11 Oct 2018 20:11:02 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2018/10/11/knative-serving%E5%BC%80%E5%8F%91%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA/</guid>
+      <description>本文基官方knative serving的开发环境搭建文档，加自己的实践，给出以下knative serving开发环境的搭建方案。</description>
+    </item>
+    
+  </channel>
+</rss>

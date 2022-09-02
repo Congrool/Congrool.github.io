@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="robots" content="all,follow">
+  <meta name="googlebot" content="index,follow,snippet,archive">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <title>Cloud Foundry中gorouter源码分析</title>
+  <meta name="author" content="丁轶群" />
+  
+  
+  
+  
+  <meta name="keywords" content="gorouter, cloudfoundry">
+  
+  
+  <meta name="description" content="在Cloud Foundry v1版本中，router作为路由节点，转发所有进入Cloud Foundry的请求。由于开发语言为ruby，故router接受并处理并发请求的能力受到语言层的限制。虽然在v1版本中，router曾经有过一定的优化，采用lua脚本代替原先的ruby脚本，由lua来分析请求，使得一部分请求不再经过ruby代码，而直接去DEA访问应用，但是，一旦router暴露在大量的访问请求下，性能依旧是不尽如人意. 为了提高Cloud Foundry router的可用性，Cloud Foundry开源社区不久前推出了gorouter。gorouter采用现阶段比较新颖的go作为编程语言，并重新设计了原有的组件架构。由于go语言本身的特性，gorouter处理并发请求的能力大大超过了router，甚至在同种实验环境下，性能是原先router的20倍左右。">
+
+  <meta name="generator" content="Hugo 0.68.3" />
+
+  
+  <link href='//fonts.googleapis.com/css?family=Roboto:400,100,100italic,300,300italic,500,700,800' rel='stylesheet' type='text/css'>
+
+  
+  
+  
+  
+  
+
+  <link href="/css/all.css" rel="stylesheet">
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+
+  
+  <link href="/css/animate.css" rel="stylesheet">
+
+  
+  
+    <link href="/css/style.default.css" rel="stylesheet" id="theme-stylesheet">
+  
+
+  
+  <link href="/css/custom.css" rel="stylesheet">
+
+  
+  
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+        <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  
+
+  
+  <link rel="shortcut icon" href="/img/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
+
+  
+  <link href="/css/owl.carousel.css" rel="stylesheet">
+  <link href="/css/owl.theme.css" rel="stylesheet">
+
+  
+  <link rel="alternate" href="https://Congrool.github.io/index.xml" type="application/rss+xml" title="浙大SEL实验室">
+
+  
+  
+  
+  
+  
+  
+  <meta property="og:updated_time" content="2014-05-07T10:20:09Z">
+  
+    
+    
+    <meta property="article:section" content="cloudfoundry">
+    <meta property="article:tag" content="gorouter">
+    <meta property="article:tag" content="cloudfoundry">
+    
+    
+    <meta property="article:published_time" content="2014-05-07T10:20:09Z">
+    <meta property="article:modified_time" content="2014-05-07T10:20:09Z">
+  
+
+  
+  <meta name="twitter:card" content="summary">
+  
+  <meta name="twitter:title" content="Cloud Foundry中gorouter源码分析">
+  
+  <meta name="twitter:description" content="在Cloud Foundry v1版本中，router作为路由节点，转发所有进入Cloud Foundry的请求。由于开发语言为ruby，故router接受并处理并发请求的能力受到语言层的限制。虽然在v1版本中，router曾经有过一定的优化，采用lua脚本代替原先的ruby脚本，由lua来分析请求，使得一部分请求不再经过ruby代码，而直接去DEA访问应用，但是，一旦router暴露在大量的访问 …">
+  
+  
+</head>
+
+
+  <body>
+
+    <div id="all">
+
+        <header class="navbar-affixed-top" data-spy="affix" data-offset-top="62">
+    <div class="navbar navbar-default yamm" role="navigation" id="navbar" style="background-color:white;">    
+        <div class="container">
+            <div class="navbar-header">
+                <a class="navbar-brand home" href="/">
+                    <img src="/img/sel.png" alt="Cloud Foundry中gorouter源码分析" class="hidden-xs hidden-sm img-responsive">
+                    
+                    <span class="sr-only">Cloud Foundry中gorouter源码分析 - </span>
+                </a>
+                <div class="navbar-buttons">
+                    <button type="button" class="navbar-toggle btn-template-main" data-toggle="collapse" data-target="#navigation">
+                      <span class="sr-only"></span>
+                        <i class="fas fa-align-justify"></i>
+                    </button>
+                </div>
+            </div>
+            
+
+            <div class="navbar-collapse collapse" id="navigation">
+                <ul class="nav navbar-nav navbar-right">
+                  
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/">主页</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/blog/">博客</a>
+                    
+                  </li>
+
+                  <li class="dropdown">
+                    
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">社区 <span class="caret"></span></a>
+                  <ul class="dropdown-menu">
+                    
+                      <li><a href="https://www.servicemesher.com/">ServiceMesh社区</a></li>
+                    
+                      <li><a href="">kubeedge社区</a></li>
+
+                      <li><a href="http://www.icsoft.zju.edu.cn/index.php">浙江大学智能计算与软件中心</a></li>
+                    
+                  </ul>
+
+                  <li class="dropdown">
+                    
+                    <a href="/archives/">归档</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/contact/">关于</a>
+                    
+                  </li>
+                  
+                </li>
+
+                
+                
+
+                
+                </ul>
+            </div>
+            
+
+            <div class="collapse clearfix" id="search">    
+                <form class="navbar-form" role="search">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search">
+                        <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main"><i class="fas fa-search"></i></button>
+                </span>
+                    </div>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+
+    
+</header>
+
+
+
+
+        <div id="heading-breadcrumbs">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h1>Cloud Foundry中gorouter源码分析</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+        <div id="content">
+            <div class="container">
+
+                <div class="row">
+
+                    
+
+                    <div class="col-md-9" id="blog-post">
+
+                        
+                          <p class="text-muted text-uppercase mb-small text-right">
+                             <a href="#">丁轶群</a>
+                             | 
+                            2014-05-07
+                          </p>
+                        
+
+                        <div id="post-content">
+                          <p>在Cloud Foundry v1版本中，router作为路由节点，转发所有进入Cloud Foundry的请求。由于开发语言为ruby，故router接受并处理并发请求的能力受到语言层的限制。虽然在v1版本中，router曾经有过一定的优化，采用lua脚本代替原先的ruby脚本，由lua来分析请求，使得一部分请求不再经过ruby代码，而直接去DEA访问应用，但是，一旦router暴露在大量的访问请求下，性能依旧是不尽如人意.</p>
+
+<p>为了提高Cloud Foundry router的可用性，Cloud Foundry开源社区不久前推出了gorouter。gorouter采用现阶段比较新颖的go作为编程语言，并重新设计了原有的组件架构。由于go语言本身的特性，gorouter处理并发请求的能力大大超过了router，甚至在同种实验环境下，性能是原先router的20倍左右。</p>
+
+<p>由于gorouter的高性能，笔者也抱着期待的心态去接触go，当然还有gorouter。本文不会从go语言语法的角度入手gorouter，所以有一些go语言的基础再来看本文，是有必要的。本文主要是对gorouter的源码的简单解读，另外还包含一些笔者对gorouter的看法。</p>
+
+<h2 id="gorouter的程序组织形式"><strong>gorouter的程序组织形式</strong></h2>
+
+<p>首先，先从gorouter的程序组织形式入手，可见下图：
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605616378/sel/gorouter-76-1_uvz43w.png" alt="" style="zoom:80%;" />
+</center></p>
+
+<p>以下简单介绍其中一些重要文件的功能：</p>
+
+<ul>
+<li>common：common意指通用，所以该文件夹中也是一些比较通识的概念定义，比如varz，healthz，component等，以及关于项目过程的一些基本操作定义。</li>
+<li>config：顾名思义，该文件夹中的文件为gorouter组件的配置文件。</li>
+<li>log：定义gorouter的log形式定义。</li>
+<li>proxy：作为一个代理处理外界进入Cloud Foundry的所有请求。</li>
+<li>registry：处理组件或者DEA中应用到gorouter来注册uri的事件，另外还负责请求访问应用时查找应用真实IP，port。</li>
+<li>route：主要定义在rigistry中需要使用到的三个数据结构：endpoint，pool和uris。</li>
+<li>router：程序的主入口，main函数所在处。</li>
+<li>stats：主要负责一些应用记录的状态，还有一些其他零碎的东西，比如定义一个堆。</li>
+<li>util：其中一般是工具源码，在这里只负责给gorouter进程写pid这件事。</li>
+<li>varz：主要涉及varz信息的处理，其实就是gorouter组件状态的查阅。</li>
+<li>router.go: 主要定义了router的数据结构，及其实例初始化的过程，还有最终运行的流程。<br /></li>
+</ul>
+
+<p><strong>gorouter的功能</strong>：gorouter的功能主要可以分为三个部分：负责接收Cloud Foundry内部组件及应用uri注册以及注销的请求，负责转发所有外部对Cloud Foundry的访问请求，负责提供gorouter作为一个组件的状态监控。</p>
+
+<ul>
+<li><strong>接受uri注册及注销请求</strong> 当Cloud Foundry内一个组件需要提供HTTP服务的时候，那么这个组件则必须将自己的uri和IP一起注册到gorouter处，典型的有，Cloud Foundry中Service Gateway与Cloud Controller通过HTTP建立连接的，另外Cloud Controller也需要对外提供HTTP服务，所以这些组件必须在gorouter中进行注册，以便可以顺利通信或访问。 除了平台级的组件uri注册，最常见的是应用级的应用uri注册，也就是在Cloud Foundry中新部署应用时，应用所在的DEA会向gorouter发送一个uri，IP和port的注册请求。gorouter收到这个请求后，会添加该记录，并保证可以解析外部的URL访问形式。当然，反过来，当一个应用被删除的时候，为了不浪费Cloud Foundry内部的uri资源，Cloud Foundry会将该uri从gorouter中注销，随即gorouter在节点处删除这条记录。</li>
+<li><strong>转发对Cloud Foundry的访问请求</strong> gorouter接受到的访问请求大致可以分为三种：外部请求有：用户对应用的访问请求，用户对Cloud Foundry内部资源的管理请求；内部的请求有：内部组件之间通过HTTP的各类通信。 虽然说请求的类型可以分为三种，但是gorouter对于这些请求的操作都是一致的，找到相应的uri，提取出相应的IP和port，然后进行转发。需要注意的是，在原先版本的router中，router只能接收HTTP请求，然而现在gorouter中，已经考虑了TCP连接，以及websocket。</li>
+<li><strong>提供组件监控</strong> Cloud Foundry都有自己的状态监控，可以通过HTTP访问。这主要是每个组件在启动的时候，都作为一个component向Cloud Foundry进行注册，注册的时候带有很多关于自身组件的信息，同时也启动了一个HTTP server。</li>
+</ul>
+
+<h2 id="gorouter的初始化及启动流程-和-router对象实例的创建与初始化"><strong>gorouter的初始化及启动流程</strong>和<strong>Router对象实例的创建与初始化</strong></h2>
+
+<p>gorouter的启动过程主要在router.go文件中，在该文件中，首先定义创建一个Router实例的操作并进行初始化，另外还定义了Router实例的开始运行所做的操作。 在router.go文件中，首先需要是Router结构体的定义： [plain] view plaincopy在CODE上查看代码片派生到我的代码片</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">type <span style="color:#360">Router</span> struct {  
+    config     <span style="color:#555">*</span>config<span style="color:#555">.</span>Config  
+    <span style="color:#a00;background-color:#faa">……</span>  
+}  </code></pre></div>
+<p>随后又定义了Router实例的初始化： [plain] view plaincopy在CODE上查看代码片派生到我的代码片</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">func <span style="color:#360">NewRouter</span>(c <span style="color:#555">*</span>config<span style="color:#555">.</span>Config) <span style="color:#555">*</span><span style="color:#360">Router</span> {  
+    router :<span style="color:#555">=</span> <span style="color:#555">&amp;</span><span style="color:#360">Router</span>{  
+        <span style="color:#fc3">config</span>: c,  
+    }  
+        <span style="color:#a00;background-color:#faa">……</span>  
+    <span style="color:#069;font-weight:bold">return</span> router  
+}  </code></pre></div>
+<p>还有就是定义了Router实例开始运行时所做的操作： [plain] view plaincopy在CODE上查看代码片派生到我的代码片</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">func (router <span style="color:#555">*</span><span style="color:#360">Router</span>) <span style="color:#360">Run</span>() {  
+        <span style="color:#a00;background-color:#faa">……</span>  
+}  </code></pre></div>
+<p>查看源码可以发现Router结构体有以下几个属性： config：负责传入gorouter所需要的配置信息 proxy：一个代理对象，负责完成请求的转发 mbusClient：作为gorouter中的nats_client，负责与Cloud Foundry的消息中间件NATS通信 registry：作为gorouter中的注册模块，完成Cloud Foundry中注册或注销请求的处理 varz：处理gorouter自身作为一个组件的状态监控 component：gorouter作为一个组件的信息，将自身的信息存入该component对象 在初始化Router对象实例的时候，都是通过传入的config文件中的配置文件来完成初始化。首先通过创建一个Router实例，并初始化该实例的配置信息： [plain] view plaincopy在CODE上查看代码片派生到我的代码片</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">router :<span style="color:#555">=</span> <span style="color:#555">&amp;</span><span style="color:#360">Router</span>{  
+        <span style="color:#fc3">config</span>: c,  
+    }  </code></pre></div>
+<p>然后通过读取该配置属性的信息逐步完成Router实例其他属性的初始化。 创建完Router实例对象router之后，router首先做的是创建一个用来与Cloud Foundry中与nats_server建立联机的nats_client: mbusClient： [plain] view plaincopy在CODE上查看代码片派生到我的代码片</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">router<span style="color:#555">.</span>establishMBus()  </code></pre></div>
+<p>然后分别初始化了router对象的registry，varz，proxy： [plain] view plaincopy在CODE上查看代码片派生到我的代码片</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">    router<span style="color:#555">.</span>registry <span style="color:#555">=</span> registry<span style="color:#555">.</span>NewRegistry(router<span style="color:#555">.</span>config, router<span style="color:#555">.</span>mbusClient)  
+    router<span style="color:#555">.</span>registry<span style="color:#555">.</span>StartPruningCycle()  
+
+    router<span style="color:#555">.</span>varz <span style="color:#555">=</span> varz<span style="color:#555">.</span>NewVarz(router<span style="color:#555">.</span>registry)  
+    router<span style="color:#555">.</span>proxy <span style="color:#555">=</span> proxy<span style="color:#555">.</span>NewProxy(router<span style="color:#555">.</span>config, router<span style="color:#555">.</span>registry, router<span style="color:#555">.</span>varz)  </code></pre></div>
+<p>接着较为重要的是：router.component的创建和执行启动操作： [plain] view plaincopy在CODE上查看代码片派生到我的代码片</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">router<span style="color:#555">.</span>component <span style="color:#555">=</span> <span style="color:#555">&amp;</span>vcap<span style="color:#555">.</span>VcapComponent{  
+        <span style="color:#fc3">Type</span>:        <span style="color:#c30">&#34;Router&#34;</span>,  
+        <span style="color:#fc3">Index</span>:       router<span style="color:#555">.</span>config<span style="color:#555">.</span>Index,  
+        <span style="color:#fc3">Host</span>:        host,  
+        <span style="color:#fc3">Credentials</span>: <span style="color:#555">[]</span>string{router<span style="color:#555">.</span>config<span style="color:#555">.</span>Status<span style="color:#555">.</span>User, router<span style="color:#555">.</span>config<span style="color:#555">.</span>Status<span style="color:#555">.</span>Pass},  
+        <span style="color:#fc3">Config</span>:      router<span style="color:#555">.</span>config,  
+        <span style="color:#fc3">Varz</span>:        varz,  
+        <span style="color:#fc3">Healthz</span>:     healthz,  
+        <span style="color:#fc3">InfoRoutes</span>: map<span style="color:#555">[</span>string<span style="color:#555">]</span>json<span style="color:#555">.</span>Marshaler{  
+            <span style="color:#c30">&#34;/routes&#34;</span>: router<span style="color:#555">.</span>registry,  
+        },  
+    }  
+    vcap<span style="color:#555">.</span>StartComponent(router<span style="color:#555">.</span>component)  </code></pre></div>
+<p>最后返回了router实例对象之后，创建与初始化工作即完成了。</p>
+
+<h2 id="router实例对象的运行操作"><strong>Router实例对象的运行操作</strong></h2>
+
+<p>在Router对象的函数run()中，几乎执行了所有的Router实例对象的运行操作。 1.router对象使用mbusClient周期性地去连接Cloud Foundry的nats_server： [plain] view plaincopy在CODE上查看代码片派生到我的代码片</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby"><span style="color:#069;font-weight:bold">for</span> {  
+    err <span style="color:#555">=</span> router<span style="color:#555">.</span>mbusClient<span style="color:#555">.</span>Connect()  
+    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">==</span> <span style="color:#069">nil</span> {  
+        <span style="color:#069;font-weight:bold">break</span>  
+    }  
+    log<span style="color:#555">.</span>Errorf(<span style="color:#c30">&#34;Could not connect to NATS: %s&#34;</span>, err)  
+    time<span style="color:#555">.</span>Sleep(<span style="color:#f60">500</span> <span style="color:#555">*</span> time<span style="color:#555">.</span>Millisecond)  
+}  </code></pre></div>
+<p>2.router通过mbusClient将自己作为一个component注册到Cloud Foundry: router.RegisterComponent() 3.router订阅其他组件和应用要注册或注销的消息： [plain] view plaincopy在CODE上查看代码片派生到我的代码片</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">router<span style="color:#555">.</span>SubscribeRegister()  
+router<span style="color:#555">.</span>HandleGreetings()  
+router<span style="color:#555">.</span>SubscribeUnregister()  </code></pre></div>
+<p>4.router通过SendStartMessage()发布router.start的消息： [plain] view plaincopy在CODE上查看代码片派生到我的代码片</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">router<span style="color:#555">.</span>SendStartMessage()  
+
+<span style="color:#3aa">//</span> <span style="color:#360">Send</span> start again on reconnect  
+router<span style="color:#555">.</span>mbusClient<span style="color:#555">.</span>OnConnect(func() {  
+    router<span style="color:#555">.</span>SendStartMessage()  
+})  </code></pre></div>
+<p>5.周期性的刷新活着的应用的app_id。 6.等待一个start信息的发送时间，以保证gorouter内registry映射表中已经有路由信息，以便而后在代理外部请求的时候，可以找到路由表的映射关系。所以，很显然大家可以发现，gorouter会将组件或者应用的uri注册信息存放在该自身的内存中，而gorouter关闭的时候，映射表中所有的信息丢失，每当重启的时候，需要通过发送一个start消息，然后靠订阅该消息的组件重新注册uri，从而获取所有的路由关系。 7.以TCP的方式监听本机的一个端口： [plain] view plaincopy在CODE上查看代码片派生到我的代码片</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">listen, err :<span style="color:#555">=</span> net<span style="color:#555">.</span>Listen(<span style="color:#c30">&#34;tcp&#34;</span>, fmt<span style="color:#555">.</span>Sprintf(<span style="color:#c30">&#34;:%d&#34;</span>, router<span style="color:#555">.</span>config<span style="color:#555">.</span>Port))  
+<span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069">nil</span> {  
+    log<span style="color:#555">.</span>Fatalf(<span style="color:#c30">&#34;net.Listen: %s&#34;</span>, err)  
+}  </code></pre></div>
+<p>8.写pid文件：util.WritePidFile(router.config.Pidfile) 9.创建proxy中Server结构体的实例server，并最终一个协程来执行这个server服务于刚才创建的Listen对象： [plain] view plaincopy在CODE上查看代码片派生到我的代码片</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">server :<span style="color:#555">=</span> proxy<span style="color:#555">.</span>Server{<span style="color:#fc3">Handler</span>: router<span style="color:#555">.</span>proxy}  
+go func() {   
+    err :<span style="color:#555">=</span> server<span style="color:#555">.</span>Serve(listen)  
+    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069">nil</span> {  
+        log<span style="color:#555">.</span>Fatalf(<span style="color:#c30">&#34;proxy.Serve: %s&#34;</span>, err)  
+    }  
+}()  </code></pre></div>
+<p>以上便是gorouter的router实例在运行时所需要作的操作，当然其中很多模块在实现功能的时候，还定义了其他的函数辅助实现，几乎都在router.go文件的函数定义部分，代码本身不难理解，可以对源码进行仔细阅读。</p>
+
+<h2 id="registry模块源码分析"><strong>registry模块源码分析</strong></h2>
+
+<p>registry模块接管的是Cloud Foundry中组件及应用的uri注册或者注销请求。从计算和存储的角度来分析该模块，即可发现该模块完成了请求的处理和自身内存路由表的设计与维护。 首先来分析一下registry的Registry对象： [plain] view plaincopy在CODE上查看代码片派生到我的代码片</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">type <span style="color:#360">Registry</span> struct {  
+    sync<span style="color:#555">.</span>RWMutex  
+
+    <span style="color:#555">*</span>steno<span style="color:#555">.</span>Logger  
+
+    <span style="color:#555">*</span>stats<span style="color:#555">.</span>ActiveApps  
+    <span style="color:#555">*</span>stats<span style="color:#555">.</span>TopApps  
+
+    byUri map<span style="color:#555">[</span>route<span style="color:#555">.</span>Uri<span style="color:#555">]*</span>route<span style="color:#555">.</span>Pool  
+
+    table map<span style="color:#555">[</span>tableKey<span style="color:#555">]*</span>tableEntry  
+
+    pruneStaleDropletsInterval time<span style="color:#555">.</span>Duration  
+    dropletStaleThreshold      time<span style="color:#555">.</span>Duration  
+
+    messageBus mbus<span style="color:#555">.</span>MessageBus  
+
+    timeOfLastUpdate time<span style="color:#555">.</span>Time  
+}  </code></pre></div>
+<p>在该对象中，有两个非常重要的属性byUri和table。 可以看到byUri属性是一个map类型，map的key类型为route.Uri,value类型为*route.pool。那么现在去route/uris.go和route/pool.go中去看一下这些数据结构。uris.go中由定义 type Uri string，那说明它本身就是一个字符串类型，而后可以发现，这是主要域名的形式。而pool类型要稍显复杂，可以理解为是一个路由池，因为在实际情况中，如果DEA上的一个应用由多个实例的话，那么一个uri会对应于多个IP+port的组合。pool拥有一个属性为endpoints，该属性又是一个map类型，key为string，value为Endpoint，具体形式如下： [plain] view plaincopy在CODE上查看代码片派生到我的代码片</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">type <span style="color:#360">Pool</span> struct {  
+    endpoints map<span style="color:#555">[</span>string<span style="color:#555">]*</span><span style="color:#360">Endpoint</span>  
+}  </code></pre></div>
+<p>而Endpoint的定义在route/endpoint.go文件中，如下： [plain] view plaincopy在CODE上查看代码片派生到我的代码片</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">type <span style="color:#360">Endpoint</span> struct {  
+    sync<span style="color:#555">.</span>Mutex  
+
+    <span style="color:#360">ApplicationId</span>     string  
+    <span style="color:#360">Host</span>              string  
+    <span style="color:#360">Port</span>              uint16  
+    <span style="color:#360">Tags</span>              map<span style="color:#555">[</span>string<span style="color:#555">]</span>string  
+    <span style="color:#360">PrivateInstanceId</span> string  
+}  </code></pre></div>
+<p>同样的table属性也是map类型，key为tableKey，value为*tableEntry，随后在相同文件中，有者两个属性的定义： [plain] view plaincopy在CODE上查看代码片派生到我的代码片</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">type tableKey struct {  
+    addr string  
+    uri  route<span style="color:#555">.</span>Uri  
+}  
+
+type tableEntry struct {  
+    endpoint  <span style="color:#555">*</span>route<span style="color:#555">.</span>Endpoint  
+    updatedAt time<span style="color:#555">.</span>Time  
+}  </code></pre></div>
+<p>关于uri的注册，可以参看Resgister函数： [plain] view plaincopy在CODE上查看代码片派生到我的代码片</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> (registry <span style="color:#555">*</span>Registry) <span style="color:#c0f">Register</span>(uri route.Uri, endpoint <span style="color:#555">*</span>route.Endpoint) {  
+    registry.<span style="color:#c0f">Lock</span>()  
+    <span style="color:#069;font-weight:bold">defer</span> registry.<span style="color:#c0f">Unlock</span>()  
+
+    uri = uri.<span style="color:#c0f">ToLower</span>()  
+
+    key <span style="color:#555">:=</span> tableKey{  
+        addr: endpoint.<span style="color:#c0f">CanonicalAddr</span>(),  
+        uri:  uri,  
+    }  
+
+    <span style="color:#069;font-weight:bold">var</span> endpointToRegister <span style="color:#555">*</span>route.Endpoint  
+
+    entry, found <span style="color:#555">:=</span> registry.table[key]  
+    <span style="color:#069;font-weight:bold">if</span> found {  
+        endpointToRegister = entry.endpoint  
+    } <span style="color:#069;font-weight:bold">else</span> {  
+        endpointToRegister = endpoint  
+        entry = <span style="color:#555">&amp;</span>tableEntry{endpoint: endpoint}  
+
+        registry.table[key] = entry  
+    }  
+
+    pool, found <span style="color:#555">:=</span> registry.byUri[uri]  
+    <span style="color:#069;font-weight:bold">if</span> !found {  
+        pool = route.<span style="color:#c0f">NewPool</span>()  
+        registry.byUri[uri] = pool  
+    }  
+
+    pool.<span style="color:#c0f">Add</span>(endpointToRegister)  
+
+    entry.updatedAt = time.<span style="color:#c0f">Now</span>()  
+
+    registry.timeOfLastUpdate = time.<span style="color:#c0f">Now</span>()  
+}  </code></pre></div>
+<p>其中，lock()函数负责将registry对象上锁，随后的defer语句，表示当整个Register函数执行完毕后，有go语言来完成registry对象的解锁操作。 key为一个tableKey的实例，其中addr为&rdquo;IP:port&rdquo;形式的string值，同时创建一个Endpoint类型的endpointToRegister，对于需要注册的（uri，endpoint）组合，首先查看table属性中能都找到键为key的记录，如果找到，那说明该key(实为IP+port,uri的组合)已经存在于table中，所以将table中的记录赋值于endpointToRegister；如果没有找到，那说明该key还未存在于table中，属于一个全新的key，需要在table中相应的记录，则首先用请求中的endpoint赋值给endpointToRegister，然后在通过endpoint创建一个endtry对象，并使用语句：registry.table[key] = entry来实现最终在table中的存储。当gorouter需要解析域名的时候使用的是byUri数据结构，所以在注册的时候也要对byUri进行操作。首先通过请求中的uri来在byUri中查找是否存在该uri的路由表，如果没有找到的话，则需要新建一个路由池pool，在将整个路由池pool，映射到相应的域名上，也就是请求中的uri。随后还需要给该路由池pool添加endpointToRegister整个对象，由于pool的一条记录本身是map类型的，所以在执行添加时，以endpointToPoint的（IP+port）作为该记录的key，整个endpointToRegister作为value。最后再更新一些其他属性。 以上便是Register函数所做的一些工作，Unregister函数做的工作则是一些注销工作。 随后则是一些关于byUri的查找，主要由以下几种类型： Lookup(uri route.Uri) 通过uri查找，返回pool.Sample(),其实也就是将pool随机返回一条记录，具体可以查看pool的Sample（）函数。</p>
+
+<p>LookupByPrivateInstanceId(uri route.Uri, p string) 通过 PrivateInstanceID查找，返回pool匹配该PrivateInstanceID的endpoint。 lookupByUri(uri route.Uri) 通过uri查找，返回整个路由池pool。 以上是关于uri的注册或者注销，另外gorouter还会对路由表进行一定的管理，主要是清理一些很陈旧的路由记录。首先在Router实例对象的初始化中就有陈旧路由信息的剪枝：router.registry.StartPruningCycle()，然后通过建立一个协程进行go registry.checkAndPrune(),通过中间一系列的操作之后，执行pruneStaleDroplets()，遍历table对象中所有的记录，并按条件进行剪枝。</p>
+
+<h2 id="proxy模块源码分析-和-server部分"><strong>proxy模块源码分析</strong>和<strong>server部分</strong></h2>
+
+<p>可以说作为一个路由节点，proxy是其最为重要的功能，registry这样的模块，其实也是为了能够服务于proxy。对于Cloud Foundry来说，所有通过uri访问Cloud Foundry内部资源的请求，都需要路由节点gorouter作代理。gorouter的proxy模块，首先监听底层的网络端口，然后再将端口发来的请求进行uri解析，最终将请求转发至指定的Cloud Foundry内部节点处。 在proxy模块，实现过程几乎可以从源码中百分百的呈现。从代理流程来讲，proxy模块可以认为是一个方向代理server端，接收所有从nginx发来的请求，并把请求转发至Cloud Foundry内的某些组件处。从实现方式来看，proxy模块建立一条nginx发来请求的连接，根据请求的内部具体信息，做相应的HTTP处理，最终构建该请求的response信息，并通过刚才的连接，将response信息返回给Nginx，当然Nginx最后也会把请求返回给发起请求的用户。其中，刚才提到的相应的HTTP处理，也就是如何将请求发给Cloud Foundry内的某些组件，并接收返回的信息。 粗略划分的话，proxy模块可以分为server端的实现与proxy代理流程的实现。首先从源码入手，第一个需要了解的自然是一些proxy模块中server的重要数据结构，位于server.go文件中。 conn：代表一条连到proxy模块中server上的连接，或者说是从Nginx到gorouter的连接。其中，有需要访问的远程目标的地址，该连接连上的server对象等。 [plain] view plaincopy在CODE上查看代码片派生到我的代码片</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">	<span style="color:#069;font-weight:bold">type</span> conn <span style="color:#069;font-weight:bold">struct</span> {  
+		remoteAddr <span style="color:#078;font-weight:bold">string</span> <span style="color:#09f;font-style:italic">// network address of remote side  
+</span><span style="color:#09f;font-style:italic"></span>		server <span style="color:#555">*</span>Server <span style="color:#09f;font-style:italic">// the Server on which the connection arrived  
+</span><span style="color:#09f;font-style:italic"></span>		rwc net.Conn <span style="color:#09f;font-style:italic">// i/o connection  
+</span><span style="color:#09f;font-style:italic"></span>		lr <span style="color:#555">*</span>io.LimitedReader <span style="color:#09f;font-style:italic">// io.LimitReader(rwc)  
+</span><span style="color:#09f;font-style:italic"></span>		buf <span style="color:#555">*</span>bufio.ReadWriter <span style="color:#09f;font-style:italic">// buffered(lr,rwc), reading from bufio-&gt;limitReader-&gt;rwc  
+</span><span style="color:#09f;font-style:italic"></span>		hijacked <span style="color:#078;font-weight:bold">bool</span> <span style="color:#09f;font-style:italic">// connection has been hijacked by handler  
+</span><span style="color:#09f;font-style:italic"></span>	}</code></pre></div>
+<p>request：代表请求对象，其中包括http类型中的请求对象，也包含一个response返回信息的对象。 [plain] view plaincopy在CODE上查看代码片派生到我的代码片</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">	<span style="color:#069;font-weight:bold">type</span> request <span style="color:#069;font-weight:bold">struct</span> {  
+		<span style="color:#555">*</span>http.Request  
+		w <span style="color:#555">*</span>response  
+	} </code></pre></div>
+<p>response：代表从server端返回去的一条response的HTTP信息，其中包括这条返回信息返回时的承载的连接，还有很多关于该HTTP响应的属性值。 [plain] view plaincopy在CODE上查看代码片派生到我的代码片</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    <span style="color:#069;font-weight:bold">type</span> response <span style="color:#069;font-weight:bold">struct</span> {  
+		conn <span style="color:#555">*</span>conn  
+		reqWantsHttp10KeepAlive <span style="color:#078;font-weight:bold">bool</span>  
+        reqMethod               <span style="color:#078;font-weight:bold">string</span>  
+        reqProtoAtLeast10       <span style="color:#078;font-weight:bold">bool</span>  
+        reqProtoAtLeast11       <span style="color:#078;font-weight:bold">bool</span>  
+        reqExpectsContinue      <span style="color:#078;font-weight:bold">bool</span>  
+        reqContentLength        <span style="color:#078;font-weight:bold">int64</span>  
+
+        chunking      <span style="color:#078;font-weight:bold">bool</span>        <span style="color:#09f;font-style:italic">// using chunked transfer encoding for reply body  
+</span><span style="color:#09f;font-style:italic"></span>        wroteHeader   <span style="color:#078;font-weight:bold">bool</span>        <span style="color:#09f;font-style:italic">// reply header has been written  
+</span><span style="color:#09f;font-style:italic"></span>        wroteContinue <span style="color:#078;font-weight:bold">bool</span>        <span style="color:#09f;font-style:italic">// 100 Continue response was written  
+</span><span style="color:#09f;font-style:italic"></span>        header        http.Header <span style="color:#09f;font-style:italic">// reply header parameters  
+</span><span style="color:#09f;font-style:italic"></span>        written       <span style="color:#078;font-weight:bold">int64</span>       <span style="color:#09f;font-style:italic">// number of bytes written in body  
+</span><span style="color:#09f;font-style:italic"></span>        contentLength <span style="color:#078;font-weight:bold">int64</span>       <span style="color:#09f;font-style:italic">// explicitly-declared Content-Length; or -1  
+</span><span style="color:#09f;font-style:italic"></span>        status        <span style="color:#078;font-weight:bold">int</span>         <span style="color:#09f;font-style:italic">// status code passed to WriteHeader  
+</span><span style="color:#09f;font-style:italic"></span>
+        closeAfterReply <span style="color:#078;font-weight:bold">bool</span>  
+
+        requestBodyLimitHit <span style="color:#078;font-weight:bold">bool</span>  
+    }  </code></pre></div>
+<p>server：代表接收请求，转发请求的server端，其中包含一个远程地址，另外还有一个非常重要的handler对象，用来处理HTTP请求，如果对Nginx源码熟悉的话，对Handler这个模块应该不会陌生。另外，这里的handler其实就是proxy.go文件中定义的proxy结构体。 [plain] view plaincopy在CODE上查看代码片派生到我的代码片</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">	<span style="color:#069;font-weight:bold">type</span> Server <span style="color:#069;font-weight:bold">struct</span> {  
+		Addr <span style="color:#078;font-weight:bold">string</span> <span style="color:#09f;font-style:italic">// TCP address to listen on, &#34;:http&#34; if empty  
+</span><span style="color:#09f;font-style:italic"></span>		Handler http.Handler <span style="color:#09f;font-style:italic">// handler to invoke, http.DefaultServeMux if nil  
+</span><span style="color:#09f;font-style:italic"></span>		ReadTimeout time.Duration <span style="color:#09f;font-style:italic">// maximum duration before timing out read of the request  
+</span><span style="color:#09f;font-style:italic"></span>		WriteTimeout time.Duration <span style="color:#09f;font-style:italic">// maximum duration before timing out write of the response  
+</span><span style="color:#09f;font-style:italic"></span>		MaxHeaderBytes <span style="color:#078;font-weight:bold">int</span> <span style="color:#09f;font-style:italic">// maximum size of request headers, DefaultMaxHeaderBytes if 0  
+</span><span style="color:#09f;font-style:italic"></span>	}</code></pre></div>
+<p>源码本身是从结构体入手，并进行方法定义，为了便于理解，以下采用请求流程的方式对源码进行解读。 要想对server结构有初步的了解，那必须从server的函数Server（）入手。简单代码形式如下（已省略部分异常处理等代码）： [plain] view plaincopy在CODE上查看代码片派生到我的代码片</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> (srv <span style="color:#555">*</span>Server) <span style="color:#c0f">Serve</span>(l net.Listener) <span style="color:#078;font-weight:bold">error</span> {  
+    <span style="color:#069;font-weight:bold">defer</span> l.<span style="color:#c0f">Close</span>()  
+    <span style="color:#069;font-weight:bold">var</span> tempDelay time.Duration <span style="color:#09f;font-style:italic">// how long to sleep on accept failure  
+</span><span style="color:#09f;font-style:italic"></span>    <span style="color:#069;font-weight:bold">for</span> {  
+        rw, e <span style="color:#555">:=</span> l.<span style="color:#c0f">Accept</span>()  
+        <span style="color:#a00;background-color:#faa">……</span>  
+        c, err <span style="color:#555">:=</span> srv.<span style="color:#c0f">newConn</span>(rw)  
+        <span style="color:#a00;background-color:#faa">……</span>  
+        <span style="color:#069;font-weight:bold">go</span> c.<span style="color:#c0f">serve</span>()  
+    }  
+    <span style="color:#366">panic</span>(<span style="color:#c30">&#34;not reached&#34;</span>)  
+}  </code></pre></div>
+<p>该Serve（）函数的发起者为Server实例对象，传入的参数为对端口的监听对象。在执行该函数的时候，defer方法显性的定义了关于函数执行完毕后所需要处理的后续工作。关于server的具体执行操作，不难理解的服务器端需要不断轮询端口，并对端口处发来的请求进行相应的处理。在这里的代码实现即为一个for循环，在该循环中，首先server实例对象accept一个连接。这里的原理和socket的实现很类似，首先作为一个server端，先去监听listen，某一个端口，然后去accept这个端口发来的连接请求，也就是说，一旦有连接请求发来的话，server便会去accept该请求；然后作为一个client端，所需要做的操作就是去给server端的某一端口发送连接请求，如果有server监听了这个端口，那么它可以accept该连接请求；最后双方可以通信。 首先，server通过代码 rw, e := l.Accept() 实现对监听端口请求的接受；然后server再对这个net.Conn类型的rw，进行处理，最后生成一个新的连接，也就是上面涉及到的conn结构对象；接着，server创建一个协程来完成这条连接上的请求。可以发现的是，由于在gorouter中server对象只有一个，所以所有的请求都是经过这个server的，那在for循环中，server会接受很多的请求，创建很多的连接，然后对于对于一个连接上的请求，又会创建一个协程来完成，如果不借助协程的高并发处理能力，几乎不能应对大负载。 以上是对Server实例对象执行时的代码入口的解读，当真正处理请求的时候，是在go c.serve()处，其中go代表这开辟一个协程，c.serve()则是处理的具体实现。 以下是对serve（）函数的分析，首先来看函数中的主要代码： [plain] view plaincopy在CODE上查看代码片派生到我的代码片</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> (c <span style="color:#555">*</span>conn) <span style="color:#c0f">serve</span>() {  
+    <span style="color:#069;font-weight:bold">defer</span> <span style="color:#069;font-weight:bold">func</span>() {  
+        <span style="color:#a00;background-color:#faa">……</span>  
+        }  
+    }()  
+
+    <span style="color:#069;font-weight:bold">for</span> {  
+        req, w, err <span style="color:#555">:=</span> c.<span style="color:#c0f">readRequest</span>()  
+        <span style="color:#a00;background-color:#faa">……</span>  
+        <span style="color:#09f;font-style:italic">// Expect 100 Continue support  
+</span><span style="color:#09f;font-style:italic"></span>        <span style="color:#069;font-weight:bold">if</span> req.<span style="color:#c0f">expectsContinue</span>() {  
+            <span style="color:#a00;background-color:#faa">……</span>  
+        } <span style="color:#069;font-weight:bold">else</span> <span style="color:#069;font-weight:bold">if</span> req.Header.<span style="color:#c0f">Get</span>(<span style="color:#c30">&#34;Expect&#34;</span>) <span style="color:#555">!=</span> <span style="color:#c30">&#34;&#34;</span> {  
+            <span style="color:#a00;background-color:#faa">……</span>  
+        }  
+
+        handler <span style="color:#555">:=</span> c.server.Handler  
+        <span style="color:#a00;background-color:#faa">……</span>  
+        handler.<span style="color:#c0f">ServeHTTP</span>(w, req.Request)  
+        <span style="color:#a00;background-color:#faa">……</span>  
+        req.<span style="color:#c0f">finishRequest</span>()  
+        <span style="color:#069;font-weight:bold">if</span> w.closeAfterReply {  
+            <span style="color:#069;font-weight:bold">break</span>  
+        }  
+    }  
+    c.<span style="color:#366">close</span>()  
+}  </code></pre></div>
+<p>defer关键字依旧是表示随后定义的函数是做来为serve（）方法作善后处理。接着是一个for循环，在该for循环中，首先从连接中读取一个请求，然后对该请求的某些属性进行查阅并处理，接着创建一个handler，最后由该handler来处理HTTP请求，并结束一个请求，如果该请求是一个一次连接，那么关于该连接，如果该请求处于长连接上，则继续for循环的下一次迭代，继续从连接中读取请求并处理。 现在我们涉及函数中具体实现。 在for循环中，首先读取连接中的请求，代码形式为：req, w, err := c.readRequest(), 该实现，返回两个对象，一个为读取的请求，另一个为需要生成的response。在readRequest（）函数中，代码的形式为（只显示主要部分）： [plain] view plaincopy在CODE上查看代码片派生到我的代码片</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> (c <span style="color:#555">*</span>conn) <span style="color:#c0f">readRequest</span>() (r <span style="color:#555">*</span>request, w <span style="color:#555">*</span>response, err <span style="color:#078;font-weight:bold">error</span>) {  
+    <span style="color:#a00;background-color:#faa">……</span>  
+    <span style="color:#069;font-weight:bold">var</span> req <span style="color:#555">*</span>http.Request  
+    <span style="color:#069;font-weight:bold">if</span> req, err = http.<span style="color:#c0f">ReadRequest</span>(c.buf.Reader); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {  
+        <span style="color:#a00;background-color:#faa">……</span>  
+    }  
+    c.lr.N = noLimit  
+
+    req.RemoteAddr = c.remoteAddr  
+
+    w = <span style="color:#366">new</span>(response)  
+    w.conn = c  
+
+    r = <span style="color:#366">new</span>(request)  
+    r.Request = req  
+    r.w = w  
+
+    <span style="color:#a00;background-color:#faa">……</span>  
+    <span style="color:#069;font-weight:bold">return</span> r, w, <span style="color:#069;font-weight:bold">nil</span>  
+}  </code></pre></div>
+<p>可见，执行该函数的时候，首先通过http的函数ReadRequest（）来实现从连接c中读取请求，然后通过该请求，分别创建一个request对象和response对象。需要注意的是代码w.conn=c，也就是在说创建玩reponse对象后，对对象属性初始化时，将response的连接熟悉感conn，依旧赋值为c，那么当server将该请求转发给Cloud Foundry内部组件处理后收到回复，并对回复再进行处理，来完成这里的response重写后，依旧通过之前的连接发回去。这样的实现显得更加高效，之前我一直在考虑，想nginx之类的反向代理服务器，接收请求转发请求，接收回复转发回复的流程，如果都需要重新创建连接来完成的话，连接的开销会巨大，对于一些有长连接需求的http请求，重建连接的机制会显得非常笨重。在这里的go语言实现中，由于自定义了response的结构体，又轻松地实现了连接捆绑，所以不需要考虑连接的重新创建，但是这样的方式肯定也会付出一定的代价，比如说内存的消耗等，因为每个response实例对象中，都会存放一个连接信息。 在serve（）函数可以看到，在读取连接请求readRequest（）后，对请求进行一些处理之后，会创建一个handler对象来实现HTTP请求的处理，由于该部分的实现在proxy.go文件中，所以本文稍后即会涉及，简单来讲就是给后台做代理，将请求发给后台，并接收后台的回复。 当获得后台的响应请求后，server随即执行finishRequest（）函数，其主要的功能就是将返回的后台回复，写入需要返回给用户的response对象中。然后判断response对象中的属性closeAfterReply，如果为真，则表示之前的请求是一个一次请求，该请求表明，自身发出之后接收到回复之后，不会再发起请求，就算有，也情愿是在创建一个连接来实现，所以程序跳出for循环，关闭连接；如果为假的话，那说明请求需要在一条长连接上进行操作，换言之，在请求的回复发给用户后，用户还会有请求通过这条连接发给server，这样的话，无需关闭连接，只需有server继续对这条连接执行readRequest（）函数即可。</p>
+
+<h2 id="proxy部分"><strong>proxy部分</strong></h2>
+
+<p>相比较而言，proxy部分做的工作要比server部分少一些，它主要的工作就是解析请求的uri和转发请求。 关于解析请求的uri的工作，在函数Lookup（）中实现： [plain] view plaincopy在CODE上查看代码片派生到我的代码片</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> (proxy <span style="color:#555">*</span>Proxy) <span style="color:#c0f">Lookup</span>(request <span style="color:#555">*</span>http.Request) (<span style="color:#555">*</span>route.Endpoint, <span style="color:#078;font-weight:bold">bool</span>) {  
+    uri <span style="color:#555">:=</span> route.<span style="color:#c0f">Uri</span>(<span style="color:#c0f">hostWithoutPort</span>(request))  
+
+    <span style="color:#069;font-weight:bold">if</span> _, err <span style="color:#555">:=</span> request.<span style="color:#c0f">Cookie</span>(StickyCookieKey); err <span style="color:#555">==</span> <span style="color:#069;font-weight:bold">nil</span> {  
+        <span style="color:#069;font-weight:bold">if</span> sticky, err <span style="color:#555">:=</span> request.<span style="color:#c0f">Cookie</span>(VcapCookieId); err <span style="color:#555">==</span> <span style="color:#069;font-weight:bold">nil</span> {  
+            routeEndpoint, ok <span style="color:#555">:=</span> proxy.Registry.<span style="color:#c0f">LookupByPrivateInstanceId</span>(uri, sticky.Value)  
+            <span style="color:#069;font-weight:bold">if</span> ok {  
+                <span style="color:#069;font-weight:bold">return</span> routeEndpoint, ok  
+            }  
+        }  
+    }  
+    <span style="color:#069;font-weight:bold">return</span> proxy.Registry.<span style="color:#c0f">Lookup</span>(uri)  
+}  </code></pre></div>
+<p>首先，找到请求中的host，然后对于该请求，检查是否有StickyCookieKey，如果有的话，直接从中获取sticky，再通过uri和sticky.value的组合找到相应的routeEndpoint，也就是请求的backend。这里可以稍微解释一下StickyCookieKey的作用。一旦一个请求中含有该cookie，而且能被解析到相应的uri和sticky值，也就是说这个请求，希望被处理的时候，能继续被上次处理过这个用户发出的请求的app instance上，这样的话，可以避免一些不必要的数据冲突等，或者减少DEA中 app instance的负载。如果没有找到cookie的话，那么proxy就老老实实通过host来找到相应的ip：port，如果一个host有多个instance实例的话，proxy会通过某种策略来决策由哪个Instance来服务。 在转发请求的时候，实现在函数ServeHTTP（）方法中，在实现过程中，我们需要清楚其中的几个重要的方面即可：构建一个responseWriter并初始化某些属性，判断请求的类型并分别处理（TCP、websocket和HTTP），若为HTTP类型则通过transport.RoundTrip方法发送请求并接收响应，最后填写reponseWriter和设置cookie。这一部分的代码随着gorouter版本的更新会有一些形式上的不同，但是主要的功能和思想都是一致的。 以上就是对gorouter一些模块的源码分析。</p>
+
+<h2 id="转载请注明出处"><strong>转载请注明出处。</strong></h2>
+
+<p>这篇文档更多出于我本人的理解，肯定在一些地方存在不足和错误。如果你对这方面感兴趣，并有更好的想法和建议，也请联系我。</p>
+                        </div>
+                        
+                        
+                        
+                        
+                        
+                        
+
+                        
+                        <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+                        <script src="https://unpkg.com/gitalk@latest/dist/gitalk.min.js"></script> 
+                        <script type="text/javascript" src="/assets/js/md5.min.js"></script>
+                        <div id="gitalk-container"></div>     
+                        <script type="text/javascript">
+                            var gitalk = new Gitalk({
+                              clientID: '835183d2dcbd1167ac28', 
+                            
+                              clientSecret: 'd873919fac3cc76921ee0800172c2279bc612f8d', 
+                            
+                              repo: 'Sel-Website-talk',
+                              owner: 'Peeknut',
+                              admin: ['Peeknut','Rachel-Shao'],
+                              id: location.href.split("/").pop().substring(0, 49),      
+                              distractionFreeMode: false  
+                            })
+                            gitalk.render('gitalk-container')
+                        </script> 
+                        
+
+                    </div>
+                    
+
+                    
+
+                    
+
+                    <div class="col-md-3">
+
+                        
+
+                        
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+      <h3 class="panel-title">搜索栏</h3>
+      
+    </div>
+
+    <div class="panel-body">
+        
+        <div class="search" id="search">
+            <div class="input-group">
+                <input type="text" name="q" class="form-control" placeholder="请输入文章标题或摘要..." id="search-key">
+                <input type="hidden" name="sitesearch" value="https://Congrool.github.io/">
+                <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main" onclick="search()"><i class="fas fa-search"></i></button>
+                </span>
+            </div>
+            <h1 id="search-tip" style="color: red;text-align: center;display: none;font-size: medium;">搜索中，请稍后 ...</h1>
+        </div>
+        <script type="text/javascript">
+            
+            window.onload = function() {
+                      document.onkeydown = function(ev) {
+                        var event = ev || event
+                        if (event.keyCode == 13) {
+                          search()
+                        }
+                      }
+                    }
+            
+            function search() {
+                    
+                      key = document.getElementById("search-key").value;
+                      if (key === "") {
+                        
+                        return;
+                      }
+                      key = key.toLowerCase();
+                      document.getElementById("search-key").value = "";
+                  
+                      
+                      document.getElementById("search-tip").innerText = "搜索中，请稍后 ...";
+                      document.getElementById("search-tip").style.display = "block";
+                  
+                      
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      var childs = el.childNodes;
+                      for (var i = childs.length - 1; i >= 0; i--) {
+                        el.removeChild(childs[i]);
+                      }
+                  
+                      
+                      xmltext = new XMLHttpRequest;
+                      xmltext.open("GET", "/index.xml", false);
+                      xmltext.send();
+                      resp = xmltext.responseXML;
+                      
+                      items = resp.getElementsByTagName("item");
+                      
+                      var i = 0;
+                      haveResult = false;
+                      while (i < items.length) {
+                        txt = items[i].getElementsByTagName("title")[0].innerHTML + items[i].getElementsByTagName("description")[0].innerHTML
+                        txt = txt.toLowerCase();
+                        if (txt.indexOf(key) > -1) {
+                          haveResult = true;
+                          title = items[i].getElementsByTagName("title")[0].innerHTML;
+                          link = items[i].getElementsByTagName("link")[0].innerHTML;
+                          time = items[i].getElementsByTagName("pubDate")[0].innerHTML;
+                          mark = items[i].getElementsByTagName("description")[0].innerHTML;
+                          time = time.slice(0, -5);
+                          addItem(title, link, time, mark)
+                        }
+                        i++;
+                      }
+                      if (!haveResult) {
+                        document.getElementById("search-tip").innerText = "搜索完毕，未发现结果 ...";
+                        document.getElementById("search-tip").style.display = "block";
+                      }
+
+                      
+                      var el = document.getElementById("blog-head");
+                      el.innerHTML="Blogs"
+                    }
+                  
+                    
+                    function addItem(title, link, time, mark) {
+                      document.getElementById("search-tip").style.display = "none";
+                      tmpl = "<article class=\"post\" style=\"border-bottom: 1px solid #e6e6e6;\" >" +
+                        "<header class=\"post-header\">" +
+                        "<h1 class=\"post-title\"><a class=\"post-link\" href=\"" + link + "\" target=\"_blank\">" + title + "</a></h1>" +
+                        "<div class=\"post-meta\">" +
+                        " <span class=\"post-time\">" + time + "</span>" +
+                        "</div>" +
+                        " </header>" +
+                        "<div class=\"post-content\">" +
+                        "<div class=\"post-summary\">" + mark + "</div>" +
+                        "<div class=\"read-more\">" +
+                        "<a href=" + link + " class=\"read-more-link\" target=\"_blank\">阅读更多</a>" +
+                        "</div>" +
+                        " </div>" +
+                        "</article>"
+                      div = document.createElement("div")
+                      div.innerHTML = tmpl;
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      el.appendChild(div)
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+
+        </script>
+        
+    </div>
+</div>
+
+
+
+
+
+
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">归档栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="nav nav-pills nav-stacked">
+            
+            
+            <li>
+                <a href="/categories/bosh">bosh (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloud_controller_ng">cloud_controller_ng (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloudfoundry">cloudfoundry (15)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/containerd">containerd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/docker">docker (19)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/etcd">etcd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/haproxy">haproxy (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/healthmanager">healthmanager (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/karmada">karmada (4)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubeedge">kubeedge (5)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubernetes">kubernetes (14)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/network">network (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/openyurt">openyurt (2)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/service-mesh">service-mesh (4)</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+<div class="panel sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">标签栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="tag-cloud">
+            
+            
+            <li>
+                <a href="/tags/agent"><i class="fas fa-tags"></i> agent</a>
+            </li>
+            
+            <li>
+                <a href="/tags/apiserver"><i class="fas fa-tags"></i> apiserver</a>
+            </li>
+            
+            <li>
+                <a href="/tags/books"><i class="fas fa-tags"></i> books</a>
+            </li>
+            
+            <li>
+                <a href="/tags/bosh"><i class="fas fa-tags"></i> bosh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/ccng"><i class="fas fa-tags"></i> ccng</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cf-release"><i class="fas fa-tags"></i> cf-release</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cgroups"><i class="fas fa-tags"></i> cgroups</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudfoundry"><i class="fas fa-tags"></i> cloudfoundry</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudnative"><i class="fas fa-tags"></i> cloudnative</a>
+            </li>
+            
+            <li>
+                <a href="/tags/collector"><i class="fas fa-tags"></i> collector</a>
+            </li>
+            
+            <li>
+                <a href="/tags/containerd"><i class="fas fa-tags"></i> containerd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cri"><i class="fas fa-tags"></i> cri</a>
+            </li>
+            
+            <li>
+                <a href="/tags/dea"><i class="fas fa-tags"></i> dea</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker"><i class="fas fa-tags"></i> docker</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker-network"><i class="fas fa-tags"></i> docker-network</a>
+            </li>
+            
+            <li>
+                <a href="/tags/edgecomputing"><i class="fas fa-tags"></i> edgecomputing</a>
+            </li>
+            
+            <li>
+                <a href="/tags/etcd"><i class="fas fa-tags"></i> etcd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/gorouter"><i class="fas fa-tags"></i> gorouter</a>
+            </li>
+            
+            <li>
+                <a href="/tags/haproxy"><i class="fas fa-tags"></i> haproxy</a>
+            </li>
+            
+            <li>
+                <a href="/tags/healthmanager"><i class="fas fa-tags"></i> healthmanager</a>
+            </li>
+            
+            <li>
+                <a href="/tags/istio"><i class="fas fa-tags"></i> istio</a>
+            </li>
+            
+            <li>
+                <a href="/tags/karmada"><i class="fas fa-tags"></i> karmada</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubeedge"><i class="fas fa-tags"></i> kubeedge</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubelet"><i class="fas fa-tags"></i> kubelet</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubernetes"><i class="fas fa-tags"></i> kubernetes</a>
+            </li>
+            
+            <li>
+                <a href="/tags/libcontainer"><i class="fas fa-tags"></i> libcontainer</a>
+            </li>
+            
+            <li>
+                <a href="/tags/micro-service"><i class="fas fa-tags"></i> micro-service</a>
+            </li>
+            
+            <li>
+                <a href="/tags/namespace"><i class="fas fa-tags"></i> namespace</a>
+            </li>
+            
+            <li>
+                <a href="/tags/nats"><i class="fas fa-tags"></i> nats</a>
+            </li>
+            
+            <li>
+                <a href="/tags/news"><i class="fas fa-tags"></i> news</a>
+            </li>
+            
+            <li>
+                <a href="/tags/openyurt"><i class="fas fa-tags"></i> openyurt</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pipework"><i class="fas fa-tags"></i> pipework</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pouch"><i class="fas fa-tags"></i> pouch</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runc"><i class="fas fa-tags"></i> runc</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runtime"><i class="fas fa-tags"></i> runtime</a>
+            </li>
+            
+            <li>
+                <a href="/tags/security"><i class="fas fa-tags"></i> security</a>
+            </li>
+            
+            <li>
+                <a href="/tags/serverless"><i class="fas fa-tags"></i> serverless</a>
+            </li>
+            
+            <li>
+                <a href="/tags/service-mesh"><i class="fas fa-tags"></i> service-mesh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/syslog_aggregator"><i class="fas fa-tags"></i> syslog_aggregator</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+                        
+
+                    </div>
+                    
+
+                    
+
+                </div>
+                
+
+            </div>
+            
+        </div>
+        
+
+        <footer id="footer">
+    <div class="container">
+
+        
+        <div class="col-md-4 col-sm-6">
+            <h4></h4>
+
+            <p><strong>关于我们：<strong> <p>浙大SEL实验室</p><p>地址：杭州市浙大路38号曹光彪西楼405室</p><p><strong></strong>
+            <a href="/contact" class="btn btn-small btn-template-main" >跳转到关于</a>
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+        <div class="col-md-4 col-sm-6">
+
+             
+            <h4>最新博客</h4>
+            
+
+            <div class="blog-entries">
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/27/overview.png" class="img-responsive" alt="基于KubeEdge的边缘节点分组管理设计与实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">基于KubeEdge的边缘节点分组管理设计与实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/20/karmada-scheduler.png" class="img-responsive" alt="多云环境下的资源调度：karmada scheduler的框架和实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">多云环境下的资源调度：karmada scheduler的框架和实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">
+                          
+                            <img src="/img/blogs/19/karmada-arch.jpg" class="img-responsive" alt="多云环境下的成员集群管理，看看开源项目karmada是如何做到的">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">多云环境下的成员集群管理，看看开源项目karmada是如何做到的</a></h5>
+                    </div>
+                </div>
+                
+            </div>
+
+            <hr class="hidden-md hidden-lg">
+             
+
+        </div>
+        
+
+        
+        <div class="col-md-4 col-sm-6">
+
+          <h4></h4>
+
+            <p><strong>联系我们: 
+                                    <p>团队负责人：丁轶群 yiqunding@zju.edu.cn</p>
+                                    <p>网站维护人：刘佳文 839809484@qq.com</p>                
+    </strong>
+
+            
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+    </div>
+    
+</footer>
+
+
+
+
+
+
+
+<div id="copyright">
+    <div class="container">
+        <div class="col-md-12">
+            
+            <p class="pull-left">Copyright ©️ 2020 SEL Laboratory , ZJ University all rights reserved.</p>
+            
+            <p class="pull-right">
+               <a href="https://bootstrapious.com/p/universal-business-e-commerce-template">Bootstrapious</a>.
+              
+
+               <a href="https://github.com/devcows/hugo-universal-theme">DevCows</a>.
+            </p>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+    </div>
+    
+
+    
+
+
+<script src="/js/jquery.min.js"></script>
+<script src="/js/bootstrap.min.js"></script>
+
+
+
+<script src="/js/jquery.cookie.min.js"></script>
+<script src="/js/jquery.waypoints.min.js"></script>
+<script src="/js/jquery.counterup.min.js"></script>
+<script src="/js/jquery-parallax.js"></script>
+
+
+<script src="/js/front.js"></script>
+
+
+<script src="/js/owl.carousel.min.js"></script>
+
+
+
+  </body>
+</html>

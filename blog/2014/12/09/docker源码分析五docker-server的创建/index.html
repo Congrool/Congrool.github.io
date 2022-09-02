@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="robots" content="all,follow">
+  <meta name="googlebot" content="index,follow,snippet,archive">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <title>Docker源码分析（五）：Docker Server的创建</title>
+  <meta name="author" content="孙宏亮" />
+  
+  
+  
+  
+  <meta name="keywords" content="Docker">
+  
+  
+  <meta name="description" content="Docker架构中，Docker Server是Docker Daemon的重要组成部分。Docker Server最主要的功能是：接受用户通过Docker Client发送的请求，并按照相应的路由规则实现路由分发。">
+
+  <meta name="generator" content="Hugo 0.68.3" />
+
+  
+  <link href='//fonts.googleapis.com/css?family=Roboto:400,100,100italic,300,300italic,500,700,800' rel='stylesheet' type='text/css'>
+
+  
+  
+  
+  
+  
+
+  <link href="/css/all.css" rel="stylesheet">
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+
+  
+  <link href="/css/animate.css" rel="stylesheet">
+
+  
+  
+    <link href="/css/style.default.css" rel="stylesheet" id="theme-stylesheet">
+  
+
+  
+  <link href="/css/custom.css" rel="stylesheet">
+
+  
+  
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+        <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  
+
+  
+  <link rel="shortcut icon" href="/img/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
+
+  
+  <link href="/css/owl.carousel.css" rel="stylesheet">
+  <link href="/css/owl.theme.css" rel="stylesheet">
+
+  
+  <link rel="alternate" href="https://Congrool.github.io/index.xml" type="application/rss+xml" title="浙大SEL实验室">
+
+  
+  
+  
+  
+  
+  
+  <meta property="og:updated_time" content="2014-12-09T13:00:37Z">
+  
+    
+    
+    <meta property="article:section" content="Docker">
+    <meta property="article:tag" content="Docker">
+    
+    
+    <meta property="article:published_time" content="2014-12-09T13:00:37Z">
+    <meta property="article:modified_time" content="2014-12-09T13:00:37Z">
+  
+
+  
+  <meta name="twitter:card" content="summary">
+  
+  <meta name="twitter:title" content="Docker源码分析（五）：Docker Server的创建">
+  
+  <meta name="twitter:description" content="Docker架构中，Docker Server是Docker Daemon的重要组成部分。Docker Server最主要的功能是：接受用户通过Docker Client发送的请求，并按照相应的路由规则实现路由分发。">
+  
+  
+</head>
+
+
+  <body>
+
+    <div id="all">
+
+        <header class="navbar-affixed-top" data-spy="affix" data-offset-top="62">
+    <div class="navbar navbar-default yamm" role="navigation" id="navbar" style="background-color:white;">    
+        <div class="container">
+            <div class="navbar-header">
+                <a class="navbar-brand home" href="/">
+                    <img src="/img/sel.png" alt="Docker源码分析（五）：Docker Server的创建" class="hidden-xs hidden-sm img-responsive">
+                    
+                    <span class="sr-only">Docker源码分析（五）：Docker Server的创建 - </span>
+                </a>
+                <div class="navbar-buttons">
+                    <button type="button" class="navbar-toggle btn-template-main" data-toggle="collapse" data-target="#navigation">
+                      <span class="sr-only"></span>
+                        <i class="fas fa-align-justify"></i>
+                    </button>
+                </div>
+            </div>
+            
+
+            <div class="navbar-collapse collapse" id="navigation">
+                <ul class="nav navbar-nav navbar-right">
+                  
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/">主页</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/blog/">博客</a>
+                    
+                  </li>
+
+                  <li class="dropdown">
+                    
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">社区 <span class="caret"></span></a>
+                  <ul class="dropdown-menu">
+                    
+                      <li><a href="https://www.servicemesher.com/">ServiceMesh社区</a></li>
+                    
+                      <li><a href="">kubeedge社区</a></li>
+
+                      <li><a href="http://www.icsoft.zju.edu.cn/index.php">浙江大学智能计算与软件中心</a></li>
+                    
+                  </ul>
+
+                  <li class="dropdown">
+                    
+                    <a href="/archives/">归档</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/contact/">关于</a>
+                    
+                  </li>
+                  
+                </li>
+
+                
+                
+
+                
+                </ul>
+            </div>
+            
+
+            <div class="collapse clearfix" id="search">    
+                <form class="navbar-form" role="search">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search">
+                        <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main"><i class="fas fa-search"></i></button>
+                </span>
+                    </div>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+
+    
+</header>
+
+
+
+
+        <div id="heading-breadcrumbs">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h1>Docker源码分析（五）：Docker Server的创建</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+        <div id="content">
+            <div class="container">
+
+                <div class="row">
+
+                    
+
+                    <div class="col-md-9" id="blog-post">
+
+                        
+                          <p class="text-muted text-uppercase mb-small text-right">
+                             <a href="#">孙宏亮</a>
+                             | 
+                            2014-12-09
+                          </p>
+                        
+
+                        <div id="post-content">
+                          <h1 id="1-docker-server简介"><strong>1. Docker Server简介</strong></h1>
+
+<p>Docker架构中，Docker Server是Docker Daemon的重要组成部分。Docker Server最主要的功能是：接受用户通过Docker Client发送的请求，并按照相应的路由规则实现路由分发。</p>
+
+<p>同时，Docker Server具备十分优秀的用户友好性，多种通信协议的支持大大降低Docker用户使用Docker的门槛。除此之外，Docker Server设计实现了详尽清晰的API接口，以供Docker用户选择使用。通信安全方面，Docker Server可以提供安全传输层协议（TLS），保证数据的加密传输。并发处理方面，Docker Daemon大量使用了Golang中的goroutine，大大提高了服务端的并发处理能力。</p>
+
+<p>本文为《Docker源码分析》系列的第五篇——Docker Server的创建。</p>
+
+<h1 id="2-docker-server源码分析内容安排"><strong>2. Docker Server源码分析内容安排</strong></h1>
+
+<p>本文将从源码的角度分析Docker Server的创建，分析内容的安排主要如下：</p>
+
+<ol>
+<li>“serveapi”这个job的创建并执行流程，代表Docker Server的创建；</li>
+<li>“serveapi”这个job的执行流程深入分析；</li>
+<li>Docker Server创建Listener并服务API的流程分析。</li>
+</ol>
+
+<h1 id="3-docker-server创建流程"><strong>3. Docker Server创建流程</strong></h1>
+
+<p><a href="http://www.sel.zju.edu.cn/?p=158">《Docker源码分析（三）：Docker Daemon启动》</a>主要分析了Docker Daemon的启动，而在mainDaemon()运行的最后环节，实现了创建并运行名为”serveapi”的job。这一环节的作用是：让Docker Daemon提供API访问服务。实质上，这正是实现了Docker架构中Docker Server的创建与运行。</p>
+
+<p>从流程的角度来说，Docker Server的创建并运行，代表了”serveapi”这个job的整个生命周期：创建Job实例job，配置job环境变量，以及最终执行该job。本章分三节具体分析这三个不同的阶段。</p>
+
+<h2 id="3-1-创建名为-serveapi-的job"><strong>3.1 创建名为”serveapi”的job</strong></h2>
+
+<p>Job是Docker架构中Engine内部最基本的任务执行单位，故创建Docker Server这一任务的执行也不例外，需要表示为一个可执行的Job。换言之，需要创建Docker Server，则必须创建一个相应的Job。具体的Job创建形式位于<a href="https://github.com/docker/docker/blob/v1.2.0/docker/daemon.go#L66">./docker/docker/daemon.go</a>，如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">job <span style="color:#555">:=</span> eng.<span style="color:#c0f">Job</span>(<span style="color:#c30">&#34;serveapi&#34;</span>, flHosts<span style="color:#555">...</span>)</code></pre></div>
+<p>以上代码通过Engine实例eng创建一个Job类型的实例job，job名为”serveapi”，同时用flHost的值来初始化job.Args。flHost的作用是：配置Docker Server监听的协议与监听的地址。</p>
+
+<p>需要注意的是，《Docker源码分析（三）：Docker Daemon启动》mainDaemon()具体实现过程中，在加载builtins环节已经向eng对象注册了key为”serveapi”的Handler，而该Handler的value为api.ServeApi。因此，在运行名为”serveapi”的job时，会执行该job的Handler，即api.ServeApi。</p>
+
+<h2 id="3-2-配置job环境变量"><strong>3.2 配置job环境变量</strong></h2>
+
+<p>创建完Job实例job之后，Docker Daemon为job配置环境参数。在Job实现过程中，为Job配置参数有两种方式：第一，创建Job实例时，用指定参数直接初始化Job的Args属性；第二，创建完Job后，给Job添加指定的环境变量。以下代码则实现了为创建的job配置环境变量：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">job.<span style="color:#c0f">SetenvBool</span>(<span style="color:#c30">&#34;Logging&#34;</span>, <span style="color:#069;font-weight:bold">true</span>)
+job.<span style="color:#c0f">SetenvBool</span>(<span style="color:#c30">&#34;EnableCors&#34;</span>, <span style="color:#555">*</span>flEnableCors)
+job.<span style="color:#c0f">Setenv</span>(<span style="color:#c30">&#34;Version&#34;</span>, dockerversion.VERSION)
+job.<span style="color:#c0f">Setenv</span>(<span style="color:#c30">&#34;SocketGroup&#34;</span>, <span style="color:#555">*</span>flSocketGroup)
+
+job.<span style="color:#c0f">SetenvBool</span>(<span style="color:#c30">&#34;Tls&#34;</span>, <span style="color:#555">*</span>flTls)
+job.<span style="color:#c0f">SetenvBool</span>(<span style="color:#c30">&#34;TlsVerify&#34;</span>, <span style="color:#555">*</span>flTlsVerify)
+job.<span style="color:#c0f">Setenv</span>(<span style="color:#c30">&#34;TlsCa&#34;</span>, <span style="color:#555">*</span>flCa)
+job.<span style="color:#c0f">Setenv</span>(<span style="color:#c30">&#34;TlsCert&#34;</span>, <span style="color:#555">*</span>flCert)
+job.<span style="color:#c0f">Setenv</span>(<span style="color:#c30">&#34;TlsKey&#34;</span>, <span style="color:#555">*</span>flKey)
+job.<span style="color:#c0f">SetenvBool</span>(<span style="color:#c30">&#34;BufferRequests&#34;</span>, <span style="color:#069;font-weight:bold">true</span>)</code></pre></div>
+<p>对于以上配置，环境变量的归纳总结如下表：
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605755091/sel/2014-12-09-121005-_E7_9A_84_E5_B1_8F_E5_B9_95_E6_88_AA_E5_9B_BE_y2gays.png" alt="2014-12-09 12:10:05 的屏幕截图" style="zoom:90%;" />
+</center></p>
+
+<h2 id="3-3-运行job"><strong>3.3 运行job</strong></h2>
+
+<p>配置完毕job的环境变量，随即执行job的运行函数，具体实现代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> job.<span style="color:#c0f">Run</span>(); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+    log.<span style="color:#c0f">Fatal</span>(err)
+}</code></pre></div>
+<p>在eng对象中已经注册过key为”serveapi”的Handler，故在运行job的时候，执行这个Handler的value值，相应Handler的value为api.ServeApi。至此，名为”serveapi”的job的生命周期已经完备。下文将深入分析job的Handler，api.ServeApi执行细节的具体实现。</p>
+
+<h1 id="4-serveapi运行流程"><strong>4. ServeApi运行流程</strong></h1>
+
+<p>本章将深入分析Docker Server提供API服务的部分，从源码的角度剖析Docker Server的架构设计与实现。</p>
+
+<p>作为一个监听请求、处理请求的服务端，Docker Server首先明确自身需要为多少种通信协议提供服务，在Docker这个C/S模式的架构中，可以使用的协议无外乎三种:TCP协议，Unix Socket形式，以及fd的形式。随后，Docker Server根据协议的不同，分别创建不同的服务端实例。最后，在不同的服务端实例中，创建相应的路由模块，监听模块，以及处理请求的Handler，形成一个完备的server。</p>
+
+<p>”serveapi”这个job在运行时，将执行api.ServeApi函数。ServeApi的功能是：循环检查所有Docker Daemon当前支持的通信协议，并对于每一种协议都创建一个goroutine，在这个goroutine内部配置一个服务于HTTP请求的server端。ServeApi的代码实现位于<a href="https://github.com/docker/docker/blob/v1.2.0/api/server/server.go#L1339-L1368">./docker/api/server/server.go#L1339</a>：</p>
+
+<p>第一，判断job.Args的长度是否为0，由于通过flHosts来初始化job.Args，故job.Args的长度若为0的话，说明没有Docker Server没有监听的协议与地址，参数有误，返回错误信息。代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">if</span> <span style="color:#366">len</span>(job.Args) <span style="color:#555">==</span> <span style="color:#f60">0</span> {
+    <span style="color:#069;font-weight:bold">return</span> job.<span style="color:#c0f">Errorf</span>(<span style="color:#c30">&#34;usage: %s PROTO://ADDR [PROTO://ADDR ...]&#34;</span>, job.Name)
+}</code></pre></div>
+<p>第二，定义两个变量，protoAddrs代表flHosts的内容；而chError定义了和protoAddrs长度一致的error类型channel管道，chError的作用在下文中会说明。同时还定义了activationLock，这是一个用来同步”serveapi”和”acceptconnections”这两个job执行的channel。在serveapi运行时ServeFd和ListenAndServe的实现中，由于activationLock这个channel中没有内容而阻塞，而当运行”acceptionconnections”这个job时，会首先通知init进程Docker Daemon已经启动完毕，并关闭activationLock，同时也开启了serveapi的继续执行。正是由于activationLock的存在，保证了”acceptconnections”这个job的运行起到通知”serveapi”开启正式服务于API的效果。代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">var</span> (
+    protoAddrs = job.Args
+    chErrors   = <span style="color:#366">make</span>(<span style="color:#069;font-weight:bold">chan</span> <span style="color:#078;font-weight:bold">error</span>, <span style="color:#366">len</span>(protoAddrs))
+)
+activationLock = <span style="color:#366">make</span>(<span style="color:#069;font-weight:bold">chan</span> <span style="color:#069;font-weight:bold">struct</span>{})</code></pre></div>
+<p>第三，遍历protoAddrs，即job.Args，将其中的每一项都按照字符串“://”进行分割，若分割后protoAddrParts的长度不为2，则说明协议加地址的书写形式有误，返回job错误；若不为2，则分割获得每一项中的协议protoAddrPart[0]与地址protoAddrParts<a href="http://www.sel.zju.edu.cn/?p=158">1</a>。最后分别创建一个goroutine来执行ListenAndServe的操作。goroutine的运行主要依赖于ListenAndServe(protoAddrParts[0], protoAddrParts<a href="http://www.sel.zju.edu.cn/?p=158">1</a>, job)的运行结果，若返回error，则chErrors中有error，当前goroutine执行完毕；若没有返回error，则该goroutine持续运行，持续提供服务。其中最为重要的是ListenAndServe的实现，该函数具体实现了如何创建listener、router以及server，并协调三者进行工作，最终服务于API请求。代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">for</span> _, protoAddr <span style="color:#555">:=</span> <span style="color:#069;font-weight:bold">range</span> protoAddrs {
+    protoAddrParts <span style="color:#555">:=</span> strings.<span style="color:#c0f">SplitN</span>(protoAddr, <span style="color:#c30">&#34;://&#34;</span>, <span style="color:#f60">2</span>)
+    <span style="color:#069;font-weight:bold">if</span> <span style="color:#366">len</span>(protoAddrParts) <span style="color:#555">!=</span> <span style="color:#f60">2</span> {
+        <span style="color:#069;font-weight:bold">return</span> job.<span style="color:#c0f">Errorf</span>(<span style="color:#c30">&#34;usage: %s PROTO://ADDR [PROTO://ADDR ...]&#34;</span>, job.Name)
+    }
+    <span style="color:#069;font-weight:bold">go</span> <span style="color:#069;font-weight:bold">func</span>() {
+        log.<span style="color:#c0f">Infof</span>(<span style="color:#c30">&#34;Listening for HTTP on %s (%s)&#34;</span>, proto    AddrParts[<span style="color:#f60">0</span>], protoAddrParts[<span style="color:#f60">1</span>])
+        chErrors <span style="color:#555">&lt;-</span> <span style="color:#c0f">ListenAndServe</span>(protoAddrParts[<span style="color:#f60">0</span>], protoAddrParts[<span style="color:#f60">1</span>], job)
+    }()
+}</code></pre></div>
+<p>第四，根据chErrors的值运行，若chErrors这个channel中有错误内容，则ServeApi该函数返回；若无错误内容，则循环被阻塞。代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">for</span> i <span style="color:#555">:=</span> <span style="color:#f60">0</span>; i &lt; <span style="color:#366">len</span>(protoAddrs); i <span style="color:#555">+=</span> <span style="color:#f60">1</span> {
+    err <span style="color:#555">:=</span> <span style="color:#555">&lt;-</span>chErrors
+    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        <span style="color:#069;font-weight:bold">return</span> job.<span style="color:#c0f">Error</span>(err)
+    }
+}
+    <span style="color:#069;font-weight:bold">return</span> engine.StatusOK</code></pre></div>
+<p>至此， ServeApi的运行流程已经详细分析完毕，其中核心部分ListenAndServe的实现，下一章开始深入。</p>
+
+<h1 id="5-listenandserve实现"><strong>5. ListenAndServe实现</strong></h1>
+
+<p>ListenAndServe的功能是：使Docker Server监听某一指定地址，接受该地址上的请求，并对以上请求路由转发至相应的处理函数Handler处。从实现的角度来看，ListenAndServe主要实现了设置一个服务于HTTP的server，该server将监听指定地址上的请求，并对请求做特定的协议检查，最终完成请求的路由与分发。代码实现位于<a href="https://github.com/docker/docker/blob/v1.2.0/api/server/server.go#L1247-L1335">./docker/api/server/server.go</a>。</p>
+
+<p>ListenAndServe的实现可以分为以下4个部分：</p>
+
+<ol>
+<li>创建router路由实例；</li>
+<li>创建listener监听实例；</li>
+<li>创建http.Server；</li>
+<li>启动API服务。</li>
+</ol>
+
+<p>ListenAndServe的执行流程如下图：
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605755389/sel/ListenAndServe_uajd36.jpg" alt="ListenAndServe" style="zoom:50%;" />
+</center>
+<center>图5.1 ListenAndServer执行流程图</center></p>
+
+<p>下文将按照ListenAndServe执行流程图一一深入分析各个部分。</p>
+
+<h2 id="5-1-创建router路由实例"><strong>5.1 创建router路由实例</strong></h2>
+
+<p>首先，ListenAndServe的实现中通过createRouter创建了一个router路由实例。代码实现如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">r, err <span style="color:#555">:=</span> <span style="color:#c0f">createRouter</span>(job.Eng, job.<span style="color:#c0f">GetenvBool</span>(<span style="color:#c30">&#34;Logging&#34;</span>), job.<span style="color:#c0f">GetenvBool</span>(<span style="color:#c30">&#34;EnableCors&#34;</span>), job.<span style="color:#c0f">Getenv</span>(<span style="color:#c30">&#34;Version&#34;</span>))
+<span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+    <span style="color:#069;font-weight:bold">return</span> err
+}</code></pre></div>
+<p>createRouter的实现位于<a href="https://github.com/docker/docker/blob/v1.2.0/api/server/server.go#L1094-L1171">./docker/api/server/server.go#L1094</a>。</p>
+
+<p>创建router路由实例是一个重要的环节，路由实例的作用是：负责Docker Server对请求进行路由以及分发。实现过程中，主要两个步骤：第一，创建全新的router路由实例；第二，为router实例添加路由记录。</p>
+
+<h3 id="5-1-1-创建空路由实例"><strong>5.1.1 创建空路由实例</strong></h3>
+
+<p>实质上，createRouter通过包gorilla/mux实现了一个功能强大的路由器和分发器。如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">r <span style="color:#555">:=</span> mux.<span style="color:#c0f">NewRouter</span>()</code></pre></div>
+<p>NewRouter()函数返回了一个全新的router实例r。在创建Router实例时，给Router对象的两个属性进行赋值，这两个属性为nameRoutes和KeepContext。其中namedRoutes属性为一个map类型，其中key为string类型，value为Route路由记录类型；另外，KeepContext属性为false，表示Docker Server在处理完请求之后，就清除请求的内容，不对请求做存储操作。代码位于<a href="https://github.com/docker/docker/blob/v1.2.0/vendor/src/github.com/gorilla/mux/mux.go#L16-L18">./docker/vendor/src/github.com/gorilla/mux/mux.go#L16</a>，如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> <span style="color:#c0f">NewRouter</span>() <span style="color:#555">*</span>Router {
+    <span style="color:#069;font-weight:bold">return</span> <span style="color:#555">&amp;</span>Router{namedRoutes: <span style="color:#366">make</span>(<span style="color:#069;font-weight:bold">map</span>[<span style="color:#078;font-weight:bold">string</span>]<span style="color:#555">*</span>Route), KeepContext: <span style="color:#069;font-weight:bold">false</span>}
+}</code></pre></div>
+<p>可见，以上代码返回的类型为mux.Router。mux.Router会通过一系列已经注册过的路由记录，来为接受的请求做匹配，首先通过请求的URL或者其他条件，找到相应的路由记录，并调用这条路由记录中的执行Handler。mux.Router有以下这些特性：</p>
+
+<ul>
+<li>请求可以基于URL 的主机名、路径、路径前缀、shemes、请求头和请求值、HTTP请求方法类型或者使用自定义的匹配规则；</li>
+<li>URL主机名和路径可以拥有一个正则表达式来表示；</li>
+<li>注册的URL可以被直接运用，也可以被保留，这样可以保证维护资源的使用；</li>
+<li>路由记录可以被用以子路由器：如果父路由记录匹配，则嵌套记录只会被用来测试。当设计一个组内的路由记录共享相同的匹配条件时，如主机名、路劲前缀或者其他重复的属性，子路由的方式很有帮助</li>
+<li>mux.Router实现了http.Handler接口，故和标准的http.ServeMux兼容。</li>
+</ul>
+
+<h3 id="5-1-2-添加路由记录"><strong>5.1.2 添加路由记录</strong></h3>
+
+<p>Router路由实例r创建完毕，下一步工作是为Router实例r添加所需要的路由记录。路由记录存储着用来匹配请求的信息，包括对请求的匹配规则，以及匹配之后的Handler执行入口。</p>
+
+<p>回到<a href="https://github.com/docker/docker/blob/v1.2.0/api/server/server.go#L1094-L1171">createRouter</a>实现代码中，首先判断Docker Daemon的启动过程中有没有开启DEBUG模式。通过docker可执行文件启动Docker Daemon，解析flag参数时，若flDebug的值为false，则说明不需要配置DEBUG环境；若flDebug的值为true，则说明需要为Docker Daemon添加DEBUG功能。具体的代码实现如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">if</span> os.<span style="color:#c0f">Getenv</span>(<span style="color:#c30">&#34;DEBUG&#34;</span>) <span style="color:#555">!=</span> <span style="color:#c30">&#34;&#34;</span> {
+    <span style="color:#c0f">AttachProfiler</span>(r)
+}</code></pre></div>
+<p>AttachProiler&reg;的功能是为路由实例r添加与DEBUG相关的路由记录，具体实现位于<a href="https://github.com/docker/docker/blob/v1.2.0/api/server/server.go#L1083-L1092">./docker/api/server/server.go#L1083</a>，如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> <span style="color:#c0f">AttachProfiler</span>(router <span style="color:#555">*</span>mux.Router) {
+    router.<span style="color:#c0f">HandleFunc</span>(<span style="color:#c30">&#34;/debug/vars&#34;</span>, expvarHandler)
+    router.<span style="color:#c0f">HandleFunc</span>(<span style="color:#c30">&#34;/debug/pprof/&#34;</span>, pprof.Index)
+    router.<span style="color:#c0f">HandleFunc</span>(<span style="color:#c30">&#34;/debug/pprof/cmdline&#34;</span>, pprof.Cmdline)
+    router.<span style="color:#c0f">HandleFunc</span>(<span style="color:#c30">&#34;/debug/pprof/profile&#34;</span>, pprof.Profile)
+    router.<span style="color:#c0f">HandleFunc</span>(<span style="color:#c30">&#34;/debug/pprof/symbol&#34;</span>, pprof.Symbol)
+    router.<span style="color:#c0f">HandleFunc</span>(<span style="color:#c30">&#34;/debug/pprof/heap&#34;</span>, pprof.<span style="color:#c0f">Handler</span>(<span style="color:#c30">&#34;heap&#34;</span>).ServeHTTP)
+    router.<span style="color:#c0f">HandleFunc</span>(<span style="color:#c30">&#34;/debug/pprof/goroutine&#34;</span>, pprof.<span style="color:#c0f">Handler</span>(<span style="color:#c30">&#34;goroutine&#34;</span>).ServeHTTP)
+    router.<span style="color:#c0f">HandleFunc</span>(<span style="color:#c30">&#34;/debug/pprof/threadcreate&#34;</span>, pprof.<span style="color:#c0f">Handler</span>(<span style="color:#c30">&#34;threadcreate&#34;</span>).ServeHTTP)
+}</code></pre></div>
+<p>分析以上源码，可以发现Docker Server使用两个包来完成DEBUG相关的工作：expvar和pprof。包expvar为公有变量提供标准化的接口，使得这些公有变量可以通过HTTP的形式在”/debug/vars”这个URL下被访问，传输时格式为JSON。包pprof将Docker Server运行时的分析数据通过”/debug/pprof/”这个URL向外暴露。这些运行时信息包括以下内容：可得的信息列表、正在运行的命令行信息、CPU信息、程序函数引用信息、ServeHTTP这个函数三部分信息使用情况（堆使用、goroutine使用和thread使用）。</p>
+
+<p>回到<a href="https://github.com/docker/docker/blob/v1.2.0/api/server/server.go#L1094-L1171">createRouter函数实现</a>中，完成DEBUG功能的所有工作之后，Docker Docker创建了一个map类型的对象m，用于初始化路由实例r的路由记录。简化的m对象，代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">m <span style="color:#555">:=</span> <span style="color:#069;font-weight:bold">map</span>[<span style="color:#078;font-weight:bold">string</span>]<span style="color:#069;font-weight:bold">map</span>[<span style="color:#078;font-weight:bold">string</span>]HttpApiFunc{
+    <span style="color:#c30">&#34;GET&#34;</span>: {
+        <span style="color:#a00;background-color:#faa">……</span>
+        <span style="color:#c30">&#34;/images/{name:.*}/get&#34;</span>:           getImagesGet,
+        <span style="color:#a00;background-color:#faa">……</span>
+    },
+    <span style="color:#c30">&#34;POST&#34;</span>: {
+        <span style="color:#a00;background-color:#faa">……</span>
+        <span style="color:#c30">&#34;/containers/{name:.*}/copy&#34;</span>:    postContainersCopy,
+    },
+    <span style="color:#c30">&#34;DELETE&#34;</span>: {
+        <span style="color:#c30">&#34;/containers/{name:.*}&#34;</span>: deleteContainers,
+        <span style="color:#c30">&#34;/images/{name:.*}&#34;</span>:     deleteImages,
+    },
+    <span style="color:#c30">&#34;OPTIONS&#34;</span>: {
+        <span style="color:#c30">&#34;&#34;</span>: optionsHandler,
+    },
+}</code></pre></div>
+<p>对象m的类型为map，其中key为string类型，代表HTTP的请求类型，如”GET”，”POST”，”DELETE”等，value为另一个map类型，该map代表的是URL与执行Handler的映射。在第二个map类型中，key为string类型，代表是的请求URL，value为HttpApiFunc类型，代表具体的执行Handler。其中HttpApiFunc类型的定义如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">type</span> HttpApiFunc <span style="color:#069;font-weight:bold">func</span>(eng <span style="color:#555">*</span>engine.Engine, version version.Version, w http.ResponseWriter, r <span style="color:#555">*</span>http.Request, vars <span style="color:#069;font-weight:bold">map</span>[<span style="color:#078;font-weight:bold">string</span>]<span style="color:#078;font-weight:bold">string</span>) <span style="color:#078;font-weight:bold">error</span></code></pre></div>
+<p>完成对象m的定义，随后Docker Server通过该对象m来添加路由实例r的路由记录。对象m的请求方法，请求URL和请求处理Handler这三样内容可以为对象r构建一条路由记录。实现代码。如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">for</span> method, routes <span style="color:#555">:=</span> <span style="color:#069;font-weight:bold">range</span> m {
+    <span style="color:#069;font-weight:bold">for</span> route, fct <span style="color:#555">:=</span> <span style="color:#069;font-weight:bold">range</span> routes {
+        log.<span style="color:#c0f">Debugf</span>(<span style="color:#c30">&#34;Registering %s, %s&#34;</span>, method, route)
+        localRoute <span style="color:#555">:=</span> route
+        localFct <span style="color:#555">:=</span> fct
+        localMethod <span style="color:#555">:=</span> method
+
+        f <span style="color:#555">:=</span> <span style="color:#c0f">makeHttpHandler</span>(eng, logging, localMethod, localRoute, localFct, enableCors, version.<span style="color:#c0f">Version</span>(dockerVersion))
+
+        <span style="color:#069;font-weight:bold">if</span> localRoute <span style="color:#555">==</span> <span style="color:#c30">&#34;&#34;</span> {
+            r.<span style="color:#c0f">Methods</span>(localMethod).<span style="color:#c0f">HandlerFunc</span>(f)
+        } <span style="color:#069;font-weight:bold">else</span> {
+            r.<span style="color:#c0f">Path</span>(<span style="color:#c30">&#34;/v{version:[0-9.]+}&#34;</span> <span style="color:#555">+</span> localRoute).<span style="color:#c0f">Methods</span>(localMethod).<span style="color:#c0f">HandlerFunc</span>(f)
+         r.<span style="color:#c0f">Path</span>(localRoute).<span style="color:#c0f">Methods</span>(localMethod).<span style="color:#c0f">HandlerFunc</span>(f)
+        }
+    }
+}</code></pre></div>
+<p>以上代码，在第一层循环中，按HTTP请求方法划分，获得请求方法各自的路由记录，第二层循环，按匹配请求的URL进行划分，获得与URL相对应的执行Handler。在嵌套循环中，通过makeHttpHandler返回一个执行的函数f。在返回的这个函数中，涉及了logging信息，CORS信息（跨域资源共享协议），以及版本信息。以下举例说明makeHttpHandler的实现，从对象m可以看到，对于”GET”请求，请求URL为”/info”，则请求Handler为”getInfo”。执行makeHttpHandler的具体代码实现如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> <span style="color:#c0f">makeHttpHandler</span>(eng <span style="color:#555">*</span>engine.Engine, logging <span style="color:#078;font-weight:bold">bool</span>, localMethod <span style="color:#078;font-weight:bold">string</span>, localRoute <span style="color:#078;font-weight:bold">string</span>, handlerFunc HttpApiFunc, enableCors <span style="color:#078;font-weight:bold">bool</span>, dockerVersion version.Version) http.HandlerFunc {
+    <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">func</span>(w http.ResponseWriter, r <span style="color:#555">*</span>http.Request) {
+        <span style="color:#09f;font-style:italic">// log the request
+</span><span style="color:#09f;font-style:italic"></span>        log.<span style="color:#c0f">Debugf</span>(<span style="color:#c30">&#34;Calling %s %s&#34;</span>, localMethod, localRoute)
+
+        <span style="color:#069;font-weight:bold">if</span> logging {
+            log.<span style="color:#c0f">Infof</span>(<span style="color:#c30">&#34;%s %s&#34;</span>, r.Method, r.RequestURI)
+        }
+
+        <span style="color:#069;font-weight:bold">if</span> strings.<span style="color:#c0f">Contains</span>(r.Header.<span style="color:#c0f">Get</span>(<span style="color:#c30">&#34;User-Agent&#34;</span>), <span style="color:#c30">&#34;Docker-Client/&#34;</span>) {
+            userAgent <span style="color:#555">:=</span> strings.<span style="color:#c0f">Split</span>(r.Header.<span style="color:#c0f">Get</span>(<span style="color:#c30">&#34;User-Agent&#34;</span>), <span style="color:#c30">&#34;/&#34;</span>)
+            <span style="color:#069;font-weight:bold">if</span> <span style="color:#366">len</span>(userAgent) <span style="color:#555">==</span> <span style="color:#f60">2</span> <span style="color:#555">&amp;&amp;</span> !dockerVersion.<span style="color:#c0f">Equal</span>(version.<span style="color:#c0f">Version</span>(userAgent[<span style="color:#f60">1</span>])) {
+                log.<span style="color:#c0f">Debugf</span>(<span style="color:#c30">&#34;Warning: client and server don&#39;t have the same version (client: %s, server: %s)&#34;</span>, userAgent[<span style="color:#f60">1</span>], dockerVersion)
+            }
+        }
+        version <span style="color:#555">:=</span> version.<span style="color:#c0f">Version</span>(mux.<span style="color:#c0f">Vars</span>(r)[<span style="color:#c30">&#34;version&#34;</span>])
+        <span style="color:#069;font-weight:bold">if</span> version <span style="color:#555">==</span> <span style="color:#c30">&#34;&#34;</span> {
+            version = api.APIVERSION
+        }
+        <span style="color:#069;font-weight:bold">if</span> enableCors {
+            <span style="color:#c0f">writeCorsHeaders</span>(w, r)
+        }
+
+        <span style="color:#069;font-weight:bold">if</span> version.<span style="color:#c0f">GreaterThan</span>(api.APIVERSION) {
+            http.<span style="color:#c0f">Error</span>(w, fmt.<span style="color:#c0f">Errorf</span>(<span style="color:#c30">&#34;client and server don&#39;t have same version (client : %s, server: %s)&#34;</span>, version, api.APIVERSION).<span style="color:#c0f">Error</span>(), http.StatusNotFound)
+            <span style="color:#069;font-weight:bold">return</span>
+        }
+
+        <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> <span style="color:#c0f">handlerFunc</span>(eng, version, w, r, mux.<span style="color:#c0f">Vars</span>(r)); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+            log.<span style="color:#c0f">Errorf</span>(<span style="color:#c30">&#34;Handler for %s %s returned error: %s&#34;</span>, localMethod, localRoute, err)
+            <span style="color:#c0f">httpError</span>(w, err)
+        }
+    }
+}</code></pre></div>
+<p>可见makeHttpHandler的执行直接返回一个函数func(w http.ResponseWriter, r *http.Request) 。在这个func函数的实现中，判断makeHttpHandler传入的logging参数，若为true，则将该Handler的执行通过日志显示，另外通过makeHttpHandler传入的enableCors参数判断是否在HTTP请求的头文件中添加跨域资源共享信息，若为true，则通过writeCorsHeaders函数向response中添加有关CORS的HTTP Header，代码实现位于<a href="https://github.com/docker/docker/blob/v1.2.0/api/server/server.go#L1022-L1026">./docker/api/server/server.go#L1022</a>，如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> <span style="color:#c0f">writeCorsHeaders</span>(w http.ResponseWriter, r <span style="color:#555">*</span>http.Request) {
+    w.<span style="color:#c0f">Header</span>().<span style="color:#c0f">Add</span>(<span style="color:#c30">&#34;Access-Control-Allow-Origin&#34;</span>, <span style="color:#c30">&#34;*&#34;</span>)
+    w.<span style="color:#c0f">Header</span>().<span style="color:#c0f">Add</span>(<span style="color:#c30">&#34;Access-Control-Allow-Headers&#34;</span>, <span style="color:#c30">&#34;Origin, X-Requested-With, Content-Type, Accept&#34;</span>)
+    w.<span style="color:#c0f">Header</span>().<span style="color:#c0f">Add</span>(<span style="color:#c30">&#34;Access-Control-Allow-Methods&#34;</span>, <span style="color:#c30">&#34;GET, POST, DELETE, PUT, OPTIONS&#34;</span>)
+}</code></pre></div>
+<p>最为重要的执行部分位于handlerFunc(eng, version, w, r, mux.Vars&reg;)，如以下代码：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> <span style="color:#c0f">handlerFunc</span>(eng, version, w, r, mux.<span style="color:#c0f">Vars</span>(r)); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+    log.<span style="color:#c0f">Errorf</span>(<span style="color:#c30">&#34;Handler for %s %s returned error: %s&#34;</span>, localMethod, localRoute, err)
+    <span style="color:#c0f">httpError</span>(w, err)
+}</code></pre></div>
+<p>对于”GET”请求类型，”/info”请求URL的请求，由于Handler名为getInfo，也就是说handlerFunc这个形参的值为getInfo，故执行部分直接运行getInfo(eng, version, w, r, mux.Vars&reg;)，而getInfo的具体实现位于<a href="https://github.com/docker/docker/blob/v1.2.0/api/server/server.go#L269-L273">./docker/api/server/serve.go#L269</a>，如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> <span style="color:#c0f">getInfo</span>(eng <span style="color:#555">*</span>engine.Engine, version version.Version, w http.ResponseWriter, r <span style="color:#555">*</span>http.Request, vars <span style="color:#069;font-weight:bold">map</span>[<span style="color:#078;font-weight:bold">string</span>]<span style="color:#078;font-weight:bold">string</span>) <span style="color:#078;font-weight:bold">error</span> {
+    w.<span style="color:#c0f">Header</span>().<span style="color:#c0f">Set</span>(<span style="color:#c30">&#34;Content-Type&#34;</span>, <span style="color:#c30">&#34;application/json&#34;</span>)
+    eng.<span style="color:#c0f">ServeHTTP</span>(w, r)
+    <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>
+}</code></pre></div>
+<p>以上makeHttpHandler的执行已经完毕，返回func函数，作为指定URL对应的执行Handler。</p>
+
+<p>创建完处理函数Handler，需要向路由实例中添加新的路由记录。如果URL信息为空，则直接为该HTTP请求方法类型添加路由记录；若URL不为空，则为请求URL路径添加新的路由记录。需要额外注意的是，在URL不为空，为路由实例r添加路由记录时，考虑了API版本的问题，通过r.Path(&ldquo;/v{version:[0-9.]+}&rdquo; + localRoute).Methods(localMethod).HandlerFunc(f)来实现。</p>
+
+<p>至此，mux.Router实例r的两部分工作工作已经全部完成：创建空的路由实例r，为r添加相应的路由记录，最后返回路由实例r。</p>
+
+<h2 id="5-2-创建listener监听实例"><strong>5.2 创建listener监听实例</strong></h2>
+
+<p>路由模块，完成了请求的路由与分发这一重要部分，属于<a href="https://github.com/docker/docker/blob/v1.2.0/api/server/server.go#L1247-L1335">ListenAndServe实现</a>中的第一个重要工作。对于请求的监听功能，同样需要模块来完成。而在<a href="https://github.com/docker/docker/blob/v1.2.0/api/server/server.go#L1247-L1335">ListenAndServe实现</a>中，第二个重要的工作就是创建Listener。Listener是一种面向流协议的通用网络监听模块。</p>
+
+<p>在创建Listener之前，先判断Docker Server允许的协议，若协议为fd形式，则直接通过ServeFd来服务请求；若协议不为fd形式，则继续往下执行。</p>
+
+<p>在程序执行过程中，需要判断”serveapi”这个job的环境中”BufferRequests”的值，是否为真，若为真，则通过包listenbuffer创建一个Listener的实例l，否则的话直接通过包net创建Listener实例l。具体的代码位于<a href="https://github.com/docker/docker/blob/v1.2.0/api/server/server.go#L1269-L1273">./docker/api/server/server.go#L1269</a>，如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">if</span> job.<span style="color:#c0f">GetenvBool</span>(<span style="color:#c30">&#34;BufferRequests&#34;</span>) {
+    l, err = listenbuffer.<span style="color:#c0f">NewListenBuffer</span>(proto, addr, activationLock)
+} <span style="color:#069;font-weight:bold">else</span> {
+    l, err = net.<span style="color:#c0f">Listen</span>(proto, addr)
+}</code></pre></div>
+<p>由于在mainDaemon()中创建”serveapi”这个job之后，给job添加环境变量时，已经给”BufferRequets”赋值为true，故使用包listenbuffer创建listener实例。</p>
+
+<p>Listenbuffer的作用是：让Docker Server可以立即监听指定协议地址上的请求，但是将这些请求暂时先缓存下来，等Docker Daemon全部启动完毕之后，才让Docker Server开始接受这些请求。这样设计有一个很大的好处，那就是可以保证在Docker Daemon还没有完全启动完毕之前，接收并缓存尽可能多的用户请求。</p>
+
+<p>若协议的类型为TCP，另外job中环境变量Tls或者TlsVerify有一个为真，则说明Docker Server需要支持HTTPS服务，需要为Docker Server配置安全传输层协议（TLS）的支持。为实现TLS协议，首先需要建立一个tls.Config类型实例tlsConfig，然后在tlsConfig中加载证书，认证信息等，最终通过包tls中的NewListener函数，创建出适应于接收HTTPS协议请求的Listener实例l，代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">l = tls.<span style="color:#c0f">NewListener</span>(l, tlsConfig)</code></pre></div>
+<p>至此，创建网络监听的Listener部分已经全部完成。</p>
+
+<h2 id="5-3-创建http-server"><strong>5.3 创建http.Server</strong></h2>
+
+<p>Docker Server同样需要创建一个Server对象来运行HTTP服务端。在<a href="https://github.com/docker/docker/blob/v1.2.0/api/server/server.go#L1247-L1335">ListenAndServe实现</a>中第三个重要的工作就是创建http.Server：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">httpSrv <span style="color:#555">:=</span> http.Server{Addr: addr, Handler: r}</code></pre></div>
+<p>其中addr为需要监听的地址，r为mux.Router路由实例。</p>
+
+<h2 id="5-4-启动api服务"><strong>5.4 启动API服务</strong></h2>
+
+<p>创建http.Server实例之后，Docker Server立即启动API服务，使Docker Server开始在Listener监听实例l上接受请求，并对于每一个请求都生成一个新的goroutine来做专属服务。对于每一个请求，goroutine会读取请求，查询路由表中的路由记录项，找到匹配的路由记录，最终调用路由记录中的执行Handler，执行完毕后，goroutine对请求返回响应信息。代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">return</span> httpSrv.<span style="color:#c0f">Serve</span>(l)</code></pre></div>
+<p>至此，ListenAndServer的所有流程已经分析完毕，Docker Server已经开始针对不同的协议，服务API请求。</p>
+
+<h1 id="6-总结"><strong>6. 总结</strong></h1>
+
+<p>Docker Server作为Docker Daemon架构中请求的入口，接管了所有Docker Daemon对外的通信。通信API的规范性，通信过程的安全性，服务请求的并发能力，往往都是Docker用户最为关心的内容。本文基于源码，分析了Docker Server大部分的细节实现。希望Docker用户可以初探Docker Server的设计理念，并且可以更好的利用Docker Server创造更大的价值。</p>
+
+<h1 id="7-参考文献"><strong>7. 参考文献</strong></h1>
+
+<ol>
+<li><a href="http://guzalexander.com/2013/12/06/golang-channels-tutorial.html">Golang channels tutorial</a></li>
+<li><a href="http://www.gorillatoolkit.org/pkg/mux">Package mux</a></li>
+<li><a href="http://docs.studygolang.com/pkg/expvar/">Package expvar</a></li>
+<li><a href="http://docs.studygolang.com/pkg/net/http/pprof/">Package pprof</a></li>
+</ol>
+                        </div>
+                        
+                        
+                        
+                        
+                        
+                        
+
+                        
+                        <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+                        <script src="https://unpkg.com/gitalk@latest/dist/gitalk.min.js"></script> 
+                        <script type="text/javascript" src="/assets/js/md5.min.js"></script>
+                        <div id="gitalk-container"></div>     
+                        <script type="text/javascript">
+                            var gitalk = new Gitalk({
+                              clientID: '835183d2dcbd1167ac28', 
+                            
+                              clientSecret: 'd873919fac3cc76921ee0800172c2279bc612f8d', 
+                            
+                              repo: 'Sel-Website-talk',
+                              owner: 'Peeknut',
+                              admin: ['Peeknut','Rachel-Shao'],
+                              id: location.href.split("/").pop().substring(0, 49),      
+                              distractionFreeMode: false  
+                            })
+                            gitalk.render('gitalk-container')
+                        </script> 
+                        
+
+                    </div>
+                    
+
+                    
+
+                    
+
+                    <div class="col-md-3">
+
+                        
+
+                        
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+      <h3 class="panel-title">搜索栏</h3>
+      
+    </div>
+
+    <div class="panel-body">
+        
+        <div class="search" id="search">
+            <div class="input-group">
+                <input type="text" name="q" class="form-control" placeholder="请输入文章标题或摘要..." id="search-key">
+                <input type="hidden" name="sitesearch" value="https://Congrool.github.io/">
+                <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main" onclick="search()"><i class="fas fa-search"></i></button>
+                </span>
+            </div>
+            <h1 id="search-tip" style="color: red;text-align: center;display: none;font-size: medium;">搜索中，请稍后 ...</h1>
+        </div>
+        <script type="text/javascript">
+            
+            window.onload = function() {
+                      document.onkeydown = function(ev) {
+                        var event = ev || event
+                        if (event.keyCode == 13) {
+                          search()
+                        }
+                      }
+                    }
+            
+            function search() {
+                    
+                      key = document.getElementById("search-key").value;
+                      if (key === "") {
+                        
+                        return;
+                      }
+                      key = key.toLowerCase();
+                      document.getElementById("search-key").value = "";
+                  
+                      
+                      document.getElementById("search-tip").innerText = "搜索中，请稍后 ...";
+                      document.getElementById("search-tip").style.display = "block";
+                  
+                      
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      var childs = el.childNodes;
+                      for (var i = childs.length - 1; i >= 0; i--) {
+                        el.removeChild(childs[i]);
+                      }
+                  
+                      
+                      xmltext = new XMLHttpRequest;
+                      xmltext.open("GET", "/index.xml", false);
+                      xmltext.send();
+                      resp = xmltext.responseXML;
+                      
+                      items = resp.getElementsByTagName("item");
+                      
+                      var i = 0;
+                      haveResult = false;
+                      while (i < items.length) {
+                        txt = items[i].getElementsByTagName("title")[0].innerHTML + items[i].getElementsByTagName("description")[0].innerHTML
+                        txt = txt.toLowerCase();
+                        if (txt.indexOf(key) > -1) {
+                          haveResult = true;
+                          title = items[i].getElementsByTagName("title")[0].innerHTML;
+                          link = items[i].getElementsByTagName("link")[0].innerHTML;
+                          time = items[i].getElementsByTagName("pubDate")[0].innerHTML;
+                          mark = items[i].getElementsByTagName("description")[0].innerHTML;
+                          time = time.slice(0, -5);
+                          addItem(title, link, time, mark)
+                        }
+                        i++;
+                      }
+                      if (!haveResult) {
+                        document.getElementById("search-tip").innerText = "搜索完毕，未发现结果 ...";
+                        document.getElementById("search-tip").style.display = "block";
+                      }
+
+                      
+                      var el = document.getElementById("blog-head");
+                      el.innerHTML="Blogs"
+                    }
+                  
+                    
+                    function addItem(title, link, time, mark) {
+                      document.getElementById("search-tip").style.display = "none";
+                      tmpl = "<article class=\"post\" style=\"border-bottom: 1px solid #e6e6e6;\" >" +
+                        "<header class=\"post-header\">" +
+                        "<h1 class=\"post-title\"><a class=\"post-link\" href=\"" + link + "\" target=\"_blank\">" + title + "</a></h1>" +
+                        "<div class=\"post-meta\">" +
+                        " <span class=\"post-time\">" + time + "</span>" +
+                        "</div>" +
+                        " </header>" +
+                        "<div class=\"post-content\">" +
+                        "<div class=\"post-summary\">" + mark + "</div>" +
+                        "<div class=\"read-more\">" +
+                        "<a href=" + link + " class=\"read-more-link\" target=\"_blank\">阅读更多</a>" +
+                        "</div>" +
+                        " </div>" +
+                        "</article>"
+                      div = document.createElement("div")
+                      div.innerHTML = tmpl;
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      el.appendChild(div)
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+
+        </script>
+        
+    </div>
+</div>
+
+
+
+
+
+
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">归档栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="nav nav-pills nav-stacked">
+            
+            
+            <li>
+                <a href="/categories/bosh">bosh (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloud_controller_ng">cloud_controller_ng (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloudfoundry">cloudfoundry (15)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/containerd">containerd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/docker">docker (19)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/etcd">etcd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/haproxy">haproxy (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/healthmanager">healthmanager (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/karmada">karmada (4)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubeedge">kubeedge (5)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubernetes">kubernetes (14)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/network">network (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/openyurt">openyurt (2)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/service-mesh">service-mesh (4)</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+<div class="panel sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">标签栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="tag-cloud">
+            
+            
+            <li>
+                <a href="/tags/agent"><i class="fas fa-tags"></i> agent</a>
+            </li>
+            
+            <li>
+                <a href="/tags/apiserver"><i class="fas fa-tags"></i> apiserver</a>
+            </li>
+            
+            <li>
+                <a href="/tags/books"><i class="fas fa-tags"></i> books</a>
+            </li>
+            
+            <li>
+                <a href="/tags/bosh"><i class="fas fa-tags"></i> bosh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/ccng"><i class="fas fa-tags"></i> ccng</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cf-release"><i class="fas fa-tags"></i> cf-release</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cgroups"><i class="fas fa-tags"></i> cgroups</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudfoundry"><i class="fas fa-tags"></i> cloudfoundry</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudnative"><i class="fas fa-tags"></i> cloudnative</a>
+            </li>
+            
+            <li>
+                <a href="/tags/collector"><i class="fas fa-tags"></i> collector</a>
+            </li>
+            
+            <li>
+                <a href="/tags/containerd"><i class="fas fa-tags"></i> containerd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cri"><i class="fas fa-tags"></i> cri</a>
+            </li>
+            
+            <li>
+                <a href="/tags/dea"><i class="fas fa-tags"></i> dea</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker"><i class="fas fa-tags"></i> docker</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker-network"><i class="fas fa-tags"></i> docker-network</a>
+            </li>
+            
+            <li>
+                <a href="/tags/edgecomputing"><i class="fas fa-tags"></i> edgecomputing</a>
+            </li>
+            
+            <li>
+                <a href="/tags/etcd"><i class="fas fa-tags"></i> etcd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/gorouter"><i class="fas fa-tags"></i> gorouter</a>
+            </li>
+            
+            <li>
+                <a href="/tags/haproxy"><i class="fas fa-tags"></i> haproxy</a>
+            </li>
+            
+            <li>
+                <a href="/tags/healthmanager"><i class="fas fa-tags"></i> healthmanager</a>
+            </li>
+            
+            <li>
+                <a href="/tags/istio"><i class="fas fa-tags"></i> istio</a>
+            </li>
+            
+            <li>
+                <a href="/tags/karmada"><i class="fas fa-tags"></i> karmada</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubeedge"><i class="fas fa-tags"></i> kubeedge</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubelet"><i class="fas fa-tags"></i> kubelet</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubernetes"><i class="fas fa-tags"></i> kubernetes</a>
+            </li>
+            
+            <li>
+                <a href="/tags/libcontainer"><i class="fas fa-tags"></i> libcontainer</a>
+            </li>
+            
+            <li>
+                <a href="/tags/micro-service"><i class="fas fa-tags"></i> micro-service</a>
+            </li>
+            
+            <li>
+                <a href="/tags/namespace"><i class="fas fa-tags"></i> namespace</a>
+            </li>
+            
+            <li>
+                <a href="/tags/nats"><i class="fas fa-tags"></i> nats</a>
+            </li>
+            
+            <li>
+                <a href="/tags/news"><i class="fas fa-tags"></i> news</a>
+            </li>
+            
+            <li>
+                <a href="/tags/openyurt"><i class="fas fa-tags"></i> openyurt</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pipework"><i class="fas fa-tags"></i> pipework</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pouch"><i class="fas fa-tags"></i> pouch</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runc"><i class="fas fa-tags"></i> runc</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runtime"><i class="fas fa-tags"></i> runtime</a>
+            </li>
+            
+            <li>
+                <a href="/tags/security"><i class="fas fa-tags"></i> security</a>
+            </li>
+            
+            <li>
+                <a href="/tags/serverless"><i class="fas fa-tags"></i> serverless</a>
+            </li>
+            
+            <li>
+                <a href="/tags/service-mesh"><i class="fas fa-tags"></i> service-mesh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/syslog_aggregator"><i class="fas fa-tags"></i> syslog_aggregator</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+                        
+
+                    </div>
+                    
+
+                    
+
+                </div>
+                
+
+            </div>
+            
+        </div>
+        
+
+        <footer id="footer">
+    <div class="container">
+
+        
+        <div class="col-md-4 col-sm-6">
+            <h4></h4>
+
+            <p><strong>关于我们：<strong> <p>浙大SEL实验室</p><p>地址：杭州市浙大路38号曹光彪西楼405室</p><p><strong></strong>
+            <a href="/contact" class="btn btn-small btn-template-main" >跳转到关于</a>
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+        <div class="col-md-4 col-sm-6">
+
+             
+            <h4>最新博客</h4>
+            
+
+            <div class="blog-entries">
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/27/overview.png" class="img-responsive" alt="基于KubeEdge的边缘节点分组管理设计与实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">基于KubeEdge的边缘节点分组管理设计与实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/20/karmada-scheduler.png" class="img-responsive" alt="多云环境下的资源调度：karmada scheduler的框架和实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">多云环境下的资源调度：karmada scheduler的框架和实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">
+                          
+                            <img src="/img/blogs/19/karmada-arch.jpg" class="img-responsive" alt="多云环境下的成员集群管理，看看开源项目karmada是如何做到的">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">多云环境下的成员集群管理，看看开源项目karmada是如何做到的</a></h5>
+                    </div>
+                </div>
+                
+            </div>
+
+            <hr class="hidden-md hidden-lg">
+             
+
+        </div>
+        
+
+        
+        <div class="col-md-4 col-sm-6">
+
+          <h4></h4>
+
+            <p><strong>联系我们: 
+                                    <p>团队负责人：丁轶群 yiqunding@zju.edu.cn</p>
+                                    <p>网站维护人：刘佳文 839809484@qq.com</p>                
+    </strong>
+
+            
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+    </div>
+    
+</footer>
+
+
+
+
+
+
+
+<div id="copyright">
+    <div class="container">
+        <div class="col-md-12">
+            
+            <p class="pull-left">Copyright ©️ 2020 SEL Laboratory , ZJ University all rights reserved.</p>
+            
+            <p class="pull-right">
+               <a href="https://bootstrapious.com/p/universal-business-e-commerce-template">Bootstrapious</a>.
+              
+
+               <a href="https://github.com/devcows/hugo-universal-theme">DevCows</a>.
+            </p>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+    </div>
+    
+
+    
+
+
+<script src="/js/jquery.min.js"></script>
+<script src="/js/bootstrap.min.js"></script>
+
+
+
+<script src="/js/jquery.cookie.min.js"></script>
+<script src="/js/jquery.waypoints.min.js"></script>
+<script src="/js/jquery.counterup.min.js"></script>
+<script src="/js/jquery-parallax.js"></script>
+
+
+<script src="/js/front.js"></script>
+
+
+<script src="/js/owl.carousel.min.js"></script>
+
+
+
+  </body>
+</html>

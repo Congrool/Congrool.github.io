@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="robots" content="all,follow">
+  <meta name="googlebot" content="index,follow,snippet,archive">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <title>Blue-Green Deployments on Cloud Foundry (利用CloudFoundry实现蓝绿发布)</title>
+  <meta name="author" content="丁轶群" />
+  
+  
+  
+  
+  <meta name="keywords" content="cloudfoundry">
+  
+  
+  <meta name="description" content="Blue-Green Deployments on Cloud Foundry (利用CloudFoundry实现蓝绿发布)">
+
+  <meta name="generator" content="Hugo 0.68.3" />
+
+  
+  <link href='//fonts.googleapis.com/css?family=Roboto:400,100,100italic,300,300italic,500,700,800' rel='stylesheet' type='text/css'>
+
+  
+  
+  
+  
+  
+
+  <link href="/css/all.css" rel="stylesheet">
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+
+  
+  <link href="/css/animate.css" rel="stylesheet">
+
+  
+  
+    <link href="/css/style.default.css" rel="stylesheet" id="theme-stylesheet">
+  
+
+  
+  <link href="/css/custom.css" rel="stylesheet">
+
+  
+  
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+        <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  
+
+  
+  <link rel="shortcut icon" href="/img/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
+
+  
+  <link href="/css/owl.carousel.css" rel="stylesheet">
+  <link href="/css/owl.theme.css" rel="stylesheet">
+
+  
+  <link rel="alternate" href="https://Congrool.github.io/index.xml" type="application/rss+xml" title="浙大SEL实验室">
+
+  
+  
+  
+  
+  
+  
+  <meta property="og:updated_time" content="2014-12-02T19:25:20Z">
+  
+    
+    
+    <meta property="article:section" content="cloudfoundry">
+    <meta property="article:tag" content="cloudfoundry">
+    
+    
+    <meta property="article:published_time" content="2014-12-02T19:25:20Z">
+    <meta property="article:modified_time" content="2014-12-02T19:25:20Z">
+  
+
+  
+  <meta name="twitter:card" content="summary">
+  
+  <meta name="twitter:title" content="Blue-Green Deployments on Cloud Foundry (利用CloudFoundry实现蓝绿发布)">
+  
+  <meta name="twitter:description" content="Blue-Green Deployments on Cloud Foundry (利用CloudFoundry实现蓝绿发布)">
+  
+  
+</head>
+
+
+  <body>
+
+    <div id="all">
+
+        <header class="navbar-affixed-top" data-spy="affix" data-offset-top="62">
+    <div class="navbar navbar-default yamm" role="navigation" id="navbar" style="background-color:white;">    
+        <div class="container">
+            <div class="navbar-header">
+                <a class="navbar-brand home" href="/">
+                    <img src="/img/sel.png" alt="Blue-Green Deployments on Cloud Foundry (利用CloudFoundry实现蓝绿发布)" class="hidden-xs hidden-sm img-responsive">
+                    
+                    <span class="sr-only">Blue-Green Deployments on Cloud Foundry (利用CloudFoundry实现蓝绿发布) - </span>
+                </a>
+                <div class="navbar-buttons">
+                    <button type="button" class="navbar-toggle btn-template-main" data-toggle="collapse" data-target="#navigation">
+                      <span class="sr-only"></span>
+                        <i class="fas fa-align-justify"></i>
+                    </button>
+                </div>
+            </div>
+            
+
+            <div class="navbar-collapse collapse" id="navigation">
+                <ul class="nav navbar-nav navbar-right">
+                  
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/">主页</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/blog/">博客</a>
+                    
+                  </li>
+
+                  <li class="dropdown">
+                    
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">社区 <span class="caret"></span></a>
+                  <ul class="dropdown-menu">
+                    
+                      <li><a href="https://www.servicemesher.com/">ServiceMesh社区</a></li>
+                    
+                      <li><a href="">kubeedge社区</a></li>
+
+                      <li><a href="http://www.icsoft.zju.edu.cn/index.php">浙江大学智能计算与软件中心</a></li>
+                    
+                  </ul>
+
+                  <li class="dropdown">
+                    
+                    <a href="/archives/">归档</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/contact/">关于</a>
+                    
+                  </li>
+                  
+                </li>
+
+                
+                
+
+                
+                </ul>
+            </div>
+            
+
+            <div class="collapse clearfix" id="search">    
+                <form class="navbar-form" role="search">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search">
+                        <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main"><i class="fas fa-search"></i></button>
+                </span>
+                    </div>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+
+    
+</header>
+
+
+
+
+        <div id="heading-breadcrumbs">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h1>Blue-Green Deployments on Cloud Foundry (利用CloudFoundry实现蓝绿发布)</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+        <div id="content">
+            <div class="container">
+
+                <div class="row">
+
+                    
+
+                    <div class="col-md-9" id="blog-post">
+
+                        
+                          <p class="text-muted text-uppercase mb-small text-right">
+                             <a href="#">丁轶群</a>
+                             | 
+                            2014-12-02
+                          </p>
+                        
+
+                        <div id="post-content">
+                          <h1 id="前言"><strong>前言</strong></h1>
+
+<p>原文地址：<a href="http://www.mattstine.com/2013/07/10/blue-green-deployments-on-cloudfoundry/">Blue-Green Deployments on Cloud Foundry</a></p>
+
+<p>We’ll begin with a basic Spring application named ms-spr-demo. This app takes users to a simple web page announcing the ubiquitous “Hello World!” message. We’ll utilize the cf command-line interface to push the application:</p>
+
+<p><strong>这里先向CF PUSH一个很简单的打印“Hello World”的应用：</strong></p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">$ cf push --path build/libs/cf-demo.war  
+Name&gt; ms-spr-demo  
+
+Instances&gt; <span style="color:#f60">1</span>  
+
+Memory Limit&gt; 512M  
+
+Creating ms-spr-demo... OK  
+
+1: ms-spr-demo  
+2: none  
+Subdomain&gt; ms-spr-demo  
+
+1: cfapps.io  
+2: mattstine.com  
+3: none  
+Domain&gt; <span style="color:#f60">1</span>  
+
+Creating route ms-spr-demo.cfapps.io... OK  
+Binding ms-spr-demo.cfapps.io to ms-spr-demo... OK  
+
+Create services <span style="color:#069;font-weight:bold">for</span> application?&gt; n  
+
+Save configuration?&gt; y  
+
+Saving to manifest.yml... OK  
+Uploading ms-spr-demo... OK  
+Starting ms-spr-demo... OK  
+-----&gt; Downloaded app package <span style="color:#555">(</span>9.5M<span style="color:#555">)</span>  
+Installing java.  
+Downloading JDK...  
+Copying openjdk-1.7.0_25.tar.gz from the buildpack cache ...  
+Unpacking JDK to .jdk  
+Downloading Tomcat: apache-tomcat-7.0.41.tar.gz  
+Copying apache-tomcat-7.0.41.tar.gz from the buildpack cache ...  
+Unpacking Tomcat to .tomcat  
+Copying mysql-connector-java-5.1.12.jar from the buildpack cache ...  
+Copying postgresql-9.0-801.jdbc4.jar from the buildpack cache ...  
+Copying auto-reconfiguration-0.6.8.jar from the buildpack cache ...  
+-----&gt; Uploading droplet <span style="color:#555">(</span>48M<span style="color:#555">)</span>  
+-----&gt; Uploaded droplet  
+Checking ms-spr-demo...  
+Staging in progress...  
+Staging in progress...  
+Staging in progress...  
+Staging in progress...  
+Staging in progress...  
+Staging in progress...  
+Staging in progress...  
+  0/1 instances: <span style="color:#f60">1</span> starting  
+  0/1 instances: <span style="color:#f60">1</span> starting  
+  0/1 instances: <span style="color:#f60">1</span> starting  
+  0/1 instances: <span style="color:#f60">1</span> starting  
+  0/1 instances: <span style="color:#f60">1</span> starting  
+  0/1 instances: <span style="color:#f60">1</span> starting  
+  0/1 instances: <span style="color:#f60">1</span> starting  
+  0/1 instances: <span style="color:#f60">1</span> starting  
+  0/1 instances: <span style="color:#f60">1</span> starting  
+  1/1 instances: <span style="color:#f60">1</span> running  
+OK  </code></pre></div>
+<p>The end result of this <code>cf push</code> event is that an application is now serving requests at <code>http://ms-spr-demo.cfapps.io</code>. The following graphic shows the state of our system, with the CF Router sending traffic to our application:</p>
+
+<p><strong>这个应用的实例将被映射到 <code>http://ms-spr-demo.cfapps.io</code> 这个域名上，如下所示：</strong></p>
+
+<p><center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605616360/sel/CF-BG-1_nrswoh.png" alt="CF-BG-1" style="zoom:100%;" />
+</center>
+Next, we make a slight change to our application. Rather that saying “Hello World!” we decide to make it say “Goodbye World!” We build a new war file for the application. Rather than letting <code>cf</code> prompt us this time, we’ll make use of the <code>manifest.yml</code> file that we saved from our previous push. However, we’ll rename the application and provide a new route. Take a look:</p>
+
+<p><strong>接下来，我们对应用源码做了修改，使之打印“Goodbye World”，然后使用第一次部署时生成的<code>manifest.yml</code>来进行PUSH，不过，这一次我们将源码部署成一个新应用并映射了新域名：</strong></p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby"><span style="color:#555">---</span> <span style="color:#fc3">applications</span>: <span style="color:#555">-</span> <span style="color:#366">name</span>: ms<span style="color:#555">-</span>spr<span style="color:#555">-</span>demo<span style="color:#555">-</span>green   <span style="color:#fc3">memory</span>: <span style="color:#f60">512</span>M   <span style="color:#fc3">instances</span>: <span style="color:#f60">1</span>
+<span style="color:#fc3">url</span>: ms<span style="color:#555">-</span>spr<span style="color:#555">-</span>demo<span style="color:#555">-</span>green<span style="color:#555">.</span>cfapps<span style="color:#555">.</span>io   <span style="color:#fc3">path</span>: build<span style="color:#555">/</span>libs<span style="color:#555">/</span>cf<span style="color:#555">-</span>demo<span style="color:#555">.</span>war </code></pre></div>
+<p>As you can see, we’re calling our new application version <code>ms-spr-demo-green</code> and we’re mapping it to the URL <code>ms-spr-demo-green.cfapps.io</code>. Let’s push the application:</p>
+
+<p><strong>下面开始PUSH：</strong></p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby"><span style="color:#360">Using</span> manifest file manifest<span style="color:#555">.</span>yml  
+
+<span style="color:#360">Creating</span> ms<span style="color:#555">-</span>spr<span style="color:#555">-</span>demo<span style="color:#555">-</span>green<span style="color:#555">...</span> <span style="color:#360">OK</span>  
+
+<span style="color:#f60">1</span>: ms<span style="color:#555">-</span>spr<span style="color:#555">-</span>demo<span style="color:#555">-</span>green  
+<span style="color:#f60">2</span>: none  
+<span style="color:#360">Subdomain</span><span style="color:#555">&gt;</span> ms<span style="color:#555">-</span>spr<span style="color:#555">-</span>demo<span style="color:#555">-</span>green  
+
+<span style="color:#f60">1</span>: cfapps<span style="color:#555">.</span>io  
+<span style="color:#f60">2</span>: mattstine<span style="color:#555">.</span>com  
+<span style="color:#f60">3</span>: none  
+<span style="color:#360">Domain</span><span style="color:#555">&gt;</span> <span style="color:#f60">1</span>  
+
+<span style="color:#360">Creating</span> route ms<span style="color:#555">-</span>spr<span style="color:#555">-</span>demo<span style="color:#555">-</span>green<span style="color:#555">.</span>cfapps<span style="color:#555">.</span>io<span style="color:#555">...</span> <span style="color:#360">OK</span>  
+<span style="color:#360">Binding</span> ms<span style="color:#555">-</span>spr<span style="color:#555">-</span>demo<span style="color:#555">-</span>green<span style="color:#555">.</span>cfapps<span style="color:#555">.</span>io to ms<span style="color:#555">-</span>spr<span style="color:#555">-</span>demo<span style="color:#555">-</span>green<span style="color:#555">...</span> <span style="color:#360">OK</span>  
+<span style="color:#360">Uploading</span> ms<span style="color:#555">-</span>spr<span style="color:#555">-</span>demo<span style="color:#555">-</span>green<span style="color:#555">...</span> <span style="color:#360">OK</span>  
+<span style="color:#360">Starting</span> ms<span style="color:#555">-</span>spr<span style="color:#555">-</span>demo<span style="color:#555">-</span>green<span style="color:#555">...</span> <span style="color:#360">OK</span>  
+<span style="color:#555">-----&gt;</span> <span style="color:#360">Downloaded</span> app package (<span style="color:#f60">9</span><span style="color:#555">.</span><span style="color:#f60">5</span>M)  
+<span style="color:#360">Installing</span> java<span style="color:#555">.</span>  
+<span style="color:#360">Downloading</span> <span style="color:#360">JDK</span><span style="color:#555">...</span>  
+<span style="color:#360">Copying</span> openjdk<span style="color:#555">-</span><span style="color:#f60">1</span><span style="color:#555">.</span><span style="color:#f60">7</span><span style="color:#555">.</span><span style="color:#f60">0_25</span><span style="color:#555">.</span>tar<span style="color:#555">.</span>gz from the buildpack cache <span style="color:#555">...</span>  
+<span style="color:#360">Unpacking</span> <span style="color:#360">JDK</span> to <span style="color:#555">.</span>jdk  
+<span style="color:#360">Downloading</span> <span style="color:#fc3">Tomcat</span>: apache<span style="color:#555">-</span>tomcat<span style="color:#555">-</span><span style="color:#f60">7</span><span style="color:#555">.</span><span style="color:#f60">0</span><span style="color:#555">.</span><span style="color:#f60">41</span><span style="color:#555">.</span>tar<span style="color:#555">.</span>gz  
+<span style="color:#360">Copying</span> apache<span style="color:#555">-</span>tomcat<span style="color:#555">-</span><span style="color:#f60">7</span><span style="color:#555">.</span><span style="color:#f60">0</span><span style="color:#555">.</span><span style="color:#f60">41</span><span style="color:#555">.</span>tar<span style="color:#555">.</span>gz from the buildpack cache <span style="color:#555">...</span>  
+<span style="color:#360">Unpacking</span> <span style="color:#360">Tomcat</span> to <span style="color:#555">.</span>tomcat  
+<span style="color:#360">Copying</span> mysql<span style="color:#555">-</span>connector<span style="color:#555">-</span>java<span style="color:#555">-</span><span style="color:#f60">5</span><span style="color:#555">.</span><span style="color:#f60">1</span><span style="color:#555">.</span><span style="color:#f60">12</span><span style="color:#555">.</span>jar from the buildpack cache <span style="color:#555">...</span>  
+<span style="color:#360">Copying</span> postgresql<span style="color:#555">-</span><span style="color:#f60">9</span><span style="color:#555">.</span><span style="color:#f60">0</span><span style="color:#555">-</span><span style="color:#f60">801</span><span style="color:#555">.</span>jdbc4<span style="color:#555">.</span>jar from the buildpack cache <span style="color:#555">...</span>  
+<span style="color:#360">Copying</span> auto<span style="color:#555">-</span>reconfiguration<span style="color:#555">-</span><span style="color:#f60">0</span><span style="color:#555">.</span><span style="color:#f60">6</span><span style="color:#555">.</span><span style="color:#f60">8</span><span style="color:#555">.</span>jar from the buildpack cache <span style="color:#555">...</span>  
+<span style="color:#555">-----&gt;</span> <span style="color:#360">Uploading</span> droplet (<span style="color:#f60">48</span>M)  
+<span style="color:#555">-----&gt;</span> <span style="color:#360">Uploaded</span> droplet  
+<span style="color:#360">Checking</span> ms<span style="color:#555">-</span>spr<span style="color:#555">-</span>demo<span style="color:#555">-</span>green<span style="color:#555">...</span>  
+<span style="color:#360">Staging</span> <span style="color:#069;font-weight:bold">in</span> progress<span style="color:#555">...</span>  
+
+<span style="color:#360">Staging</span> <span style="color:#069;font-weight:bold">in</span> progress<span style="color:#555">...</span>  
+<span style="color:#360">Staging</span> <span style="color:#069;font-weight:bold">in</span> progress<span style="color:#555">...</span>  
+  <span style="color:#f60">0</span><span style="color:#555">/</span><span style="color:#f60">1</span> <span style="color:#fc3">instances</span>: <span style="color:#f60">1</span> starting  
+  <span style="color:#f60">0</span><span style="color:#555">/</span><span style="color:#f60">1</span> <span style="color:#fc3">instances</span>: <span style="color:#f60">1</span> starting  
+  <span style="color:#f60">0</span><span style="color:#555">/</span><span style="color:#f60">1</span> <span style="color:#fc3">instances</span>: <span style="color:#f60">1</span> starting  
+  <span style="color:#f60">1</span><span style="color:#555">/</span><span style="color:#f60">1</span> <span style="color:#fc3">instances</span>: <span style="color:#f60">1</span> running  
+<span style="color:#360">OK</span>  </code></pre></div>
+<p>We now have two instances of the application running, each of them using distinct routes:</p>
+
+<p><strong>PUSH完成之后，两个应用都运行在CF上并且按照下述方式分配域名：</strong></p>
+
+<p><center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605616360/sel/CF-BG-2_pwgfgp.png" alt="CF-BG-3" style="zoom:100%;" />
+</center></p>
+
+<p>Now it’s time for the magic to happen. We’ll map our original URL route (<code>ms-spr-demo.cfapps.io</code>) to our “green” instance. This is accomplished very simply by using <code>cf</code>:</p>
+
+<p><strong>这时，我们将老应用（蓝色）的域名ms-spr-demo.cfapps.io同时映射到新应用（绿色）上：</strong></p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell"> cf map --app ms-spr-demo-green --host ms-spr-demo --domain cfapps.io Binding ms-spr-demo.cfapps.io to ms-spr-demo-green... OK </code></pre></div>
+<p>The CF router immediately begins to load balance requests between each instance of the application, as shown here:</p>
+
+<p><strong>此时的域名映射如下图所示：</strong>
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605616360/sel/CF-BG-31_e1rpt9.png" alt="CF-BG-3" style="zoom:100%;" />
+</center></p>
+
+<p>Now our router will send requests to <code>ms-spr-demo.cfapps.io</code> to both instances of the application, while <code>ms-spr-demo-green.cfapps.io</code> only services the “green” instance. Once we determine that all is well, it’s time to stop routing requests to the “blue” instance. This is just as simple using <code>cf</code>:</p>
+
+<p><strong>这样，ms-spr-demo.cfapps.io将流量导向了蓝绿两个应用，而ms-spr-demo-green.cfapps.io则只将流量导向新部署的绿色应用。这也是我们对绿色应用进行测试和观察的好时机（我们还可以调节蓝色和绿色应用的实例数目来进行流量分配比），一旦我们能够确定绿色应用能够正常的对外服务，接可以将蓝色应用实例切断了：</strong></p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell"> cf unmap --url ms-spr-demo.cfapps.io --app ms-spr-demo Unbinding ms-spr-demo.cfapps.io from ms-spr-demo... OK </code></pre></div>
+<p>Our “blue” instance is now no longer receiving any web traffic:
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605616361/sel/CF-BG-4_vkjlr5.png" alt="CF-BG-4" style="zoom:100%;" />
+</center></p>
+
+<p>We can now decomission our “blue” instance, or we can leave it around for a period of time in case we decide we need to roll back our changes. The important thing is that our customers suffered absolutely no downtime!</p>
+
+<p><strong>这样，ms-spr-demo.cfapps.io ms-spr-demo-green.cfapps.io都将流量导向了绿色应用，我们可以删除旧的蓝色应用或者保留一段时间以防意外情况。最后，我们可以把ms-spr-demo-green.cfapps.io这个测试域名也删除。</strong> <strong>整个发布过程，用户没有感受到任何宕机或者服务重启。</strong></p>
+
+<p>附录 Martin Fowler大神提出的蓝绿发布：</p>
+
+<p>One particular practice associated with Continuous Delivery is <code>Blue-Green Deployments</code>. Martin Fowler describes these very well at the link provided, but I’ll summarize briefly here:</p>
+
+<ul>
+<li>Cut-over to a new software version is tricky, and must be quick in order to minimize downtime events.</li>
+<li>Blue-green deployments ensure the parallel existence of two, identical (as possible) production environments.</li>
+<li>At any given point, only one (e.g. blue) services production traffic.</li>
+<li>New deploys are made to the other (e.g. green) environment. Final smoke testing is performed here.</li>
+<li>When green is determined ready, we begin routing traffic to it.</li>
+<li>We then stop routing traffic to blue.</li>
+</ul>
+                        </div>
+                        
+                        
+                        
+                        
+                        
+                        
+
+                        
+                        <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+                        <script src="https://unpkg.com/gitalk@latest/dist/gitalk.min.js"></script> 
+                        <script type="text/javascript" src="/assets/js/md5.min.js"></script>
+                        <div id="gitalk-container"></div>     
+                        <script type="text/javascript">
+                            var gitalk = new Gitalk({
+                              clientID: '835183d2dcbd1167ac28', 
+                            
+                              clientSecret: 'd873919fac3cc76921ee0800172c2279bc612f8d', 
+                            
+                              repo: 'Sel-Website-talk',
+                              owner: 'Peeknut',
+                              admin: ['Peeknut','Rachel-Shao'],
+                              id: location.href.split("/").pop().substring(0, 49),      
+                              distractionFreeMode: false  
+                            })
+                            gitalk.render('gitalk-container')
+                        </script> 
+                        
+
+                    </div>
+                    
+
+                    
+
+                    
+
+                    <div class="col-md-3">
+
+                        
+
+                        
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+      <h3 class="panel-title">搜索栏</h3>
+      
+    </div>
+
+    <div class="panel-body">
+        
+        <div class="search" id="search">
+            <div class="input-group">
+                <input type="text" name="q" class="form-control" placeholder="请输入文章标题或摘要..." id="search-key">
+                <input type="hidden" name="sitesearch" value="https://Congrool.github.io/">
+                <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main" onclick="search()"><i class="fas fa-search"></i></button>
+                </span>
+            </div>
+            <h1 id="search-tip" style="color: red;text-align: center;display: none;font-size: medium;">搜索中，请稍后 ...</h1>
+        </div>
+        <script type="text/javascript">
+            
+            window.onload = function() {
+                      document.onkeydown = function(ev) {
+                        var event = ev || event
+                        if (event.keyCode == 13) {
+                          search()
+                        }
+                      }
+                    }
+            
+            function search() {
+                    
+                      key = document.getElementById("search-key").value;
+                      if (key === "") {
+                        
+                        return;
+                      }
+                      key = key.toLowerCase();
+                      document.getElementById("search-key").value = "";
+                  
+                      
+                      document.getElementById("search-tip").innerText = "搜索中，请稍后 ...";
+                      document.getElementById("search-tip").style.display = "block";
+                  
+                      
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      var childs = el.childNodes;
+                      for (var i = childs.length - 1; i >= 0; i--) {
+                        el.removeChild(childs[i]);
+                      }
+                  
+                      
+                      xmltext = new XMLHttpRequest;
+                      xmltext.open("GET", "/index.xml", false);
+                      xmltext.send();
+                      resp = xmltext.responseXML;
+                      
+                      items = resp.getElementsByTagName("item");
+                      
+                      var i = 0;
+                      haveResult = false;
+                      while (i < items.length) {
+                        txt = items[i].getElementsByTagName("title")[0].innerHTML + items[i].getElementsByTagName("description")[0].innerHTML
+                        txt = txt.toLowerCase();
+                        if (txt.indexOf(key) > -1) {
+                          haveResult = true;
+                          title = items[i].getElementsByTagName("title")[0].innerHTML;
+                          link = items[i].getElementsByTagName("link")[0].innerHTML;
+                          time = items[i].getElementsByTagName("pubDate")[0].innerHTML;
+                          mark = items[i].getElementsByTagName("description")[0].innerHTML;
+                          time = time.slice(0, -5);
+                          addItem(title, link, time, mark)
+                        }
+                        i++;
+                      }
+                      if (!haveResult) {
+                        document.getElementById("search-tip").innerText = "搜索完毕，未发现结果 ...";
+                        document.getElementById("search-tip").style.display = "block";
+                      }
+
+                      
+                      var el = document.getElementById("blog-head");
+                      el.innerHTML="Blogs"
+                    }
+                  
+                    
+                    function addItem(title, link, time, mark) {
+                      document.getElementById("search-tip").style.display = "none";
+                      tmpl = "<article class=\"post\" style=\"border-bottom: 1px solid #e6e6e6;\" >" +
+                        "<header class=\"post-header\">" +
+                        "<h1 class=\"post-title\"><a class=\"post-link\" href=\"" + link + "\" target=\"_blank\">" + title + "</a></h1>" +
+                        "<div class=\"post-meta\">" +
+                        " <span class=\"post-time\">" + time + "</span>" +
+                        "</div>" +
+                        " </header>" +
+                        "<div class=\"post-content\">" +
+                        "<div class=\"post-summary\">" + mark + "</div>" +
+                        "<div class=\"read-more\">" +
+                        "<a href=" + link + " class=\"read-more-link\" target=\"_blank\">阅读更多</a>" +
+                        "</div>" +
+                        " </div>" +
+                        "</article>"
+                      div = document.createElement("div")
+                      div.innerHTML = tmpl;
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      el.appendChild(div)
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+
+        </script>
+        
+    </div>
+</div>
+
+
+
+
+
+
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">归档栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="nav nav-pills nav-stacked">
+            
+            
+            <li>
+                <a href="/categories/bosh">bosh (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloud_controller_ng">cloud_controller_ng (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloudfoundry">cloudfoundry (15)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/containerd">containerd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/docker">docker (19)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/etcd">etcd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/haproxy">haproxy (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/healthmanager">healthmanager (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/karmada">karmada (4)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubeedge">kubeedge (5)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubernetes">kubernetes (14)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/network">network (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/openyurt">openyurt (2)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/service-mesh">service-mesh (4)</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+<div class="panel sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">标签栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="tag-cloud">
+            
+            
+            <li>
+                <a href="/tags/agent"><i class="fas fa-tags"></i> agent</a>
+            </li>
+            
+            <li>
+                <a href="/tags/apiserver"><i class="fas fa-tags"></i> apiserver</a>
+            </li>
+            
+            <li>
+                <a href="/tags/books"><i class="fas fa-tags"></i> books</a>
+            </li>
+            
+            <li>
+                <a href="/tags/bosh"><i class="fas fa-tags"></i> bosh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/ccng"><i class="fas fa-tags"></i> ccng</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cf-release"><i class="fas fa-tags"></i> cf-release</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cgroups"><i class="fas fa-tags"></i> cgroups</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudfoundry"><i class="fas fa-tags"></i> cloudfoundry</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudnative"><i class="fas fa-tags"></i> cloudnative</a>
+            </li>
+            
+            <li>
+                <a href="/tags/collector"><i class="fas fa-tags"></i> collector</a>
+            </li>
+            
+            <li>
+                <a href="/tags/containerd"><i class="fas fa-tags"></i> containerd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cri"><i class="fas fa-tags"></i> cri</a>
+            </li>
+            
+            <li>
+                <a href="/tags/dea"><i class="fas fa-tags"></i> dea</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker"><i class="fas fa-tags"></i> docker</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker-network"><i class="fas fa-tags"></i> docker-network</a>
+            </li>
+            
+            <li>
+                <a href="/tags/edgecomputing"><i class="fas fa-tags"></i> edgecomputing</a>
+            </li>
+            
+            <li>
+                <a href="/tags/etcd"><i class="fas fa-tags"></i> etcd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/gorouter"><i class="fas fa-tags"></i> gorouter</a>
+            </li>
+            
+            <li>
+                <a href="/tags/haproxy"><i class="fas fa-tags"></i> haproxy</a>
+            </li>
+            
+            <li>
+                <a href="/tags/healthmanager"><i class="fas fa-tags"></i> healthmanager</a>
+            </li>
+            
+            <li>
+                <a href="/tags/istio"><i class="fas fa-tags"></i> istio</a>
+            </li>
+            
+            <li>
+                <a href="/tags/karmada"><i class="fas fa-tags"></i> karmada</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubeedge"><i class="fas fa-tags"></i> kubeedge</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubelet"><i class="fas fa-tags"></i> kubelet</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubernetes"><i class="fas fa-tags"></i> kubernetes</a>
+            </li>
+            
+            <li>
+                <a href="/tags/libcontainer"><i class="fas fa-tags"></i> libcontainer</a>
+            </li>
+            
+            <li>
+                <a href="/tags/micro-service"><i class="fas fa-tags"></i> micro-service</a>
+            </li>
+            
+            <li>
+                <a href="/tags/namespace"><i class="fas fa-tags"></i> namespace</a>
+            </li>
+            
+            <li>
+                <a href="/tags/nats"><i class="fas fa-tags"></i> nats</a>
+            </li>
+            
+            <li>
+                <a href="/tags/news"><i class="fas fa-tags"></i> news</a>
+            </li>
+            
+            <li>
+                <a href="/tags/openyurt"><i class="fas fa-tags"></i> openyurt</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pipework"><i class="fas fa-tags"></i> pipework</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pouch"><i class="fas fa-tags"></i> pouch</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runc"><i class="fas fa-tags"></i> runc</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runtime"><i class="fas fa-tags"></i> runtime</a>
+            </li>
+            
+            <li>
+                <a href="/tags/security"><i class="fas fa-tags"></i> security</a>
+            </li>
+            
+            <li>
+                <a href="/tags/serverless"><i class="fas fa-tags"></i> serverless</a>
+            </li>
+            
+            <li>
+                <a href="/tags/service-mesh"><i class="fas fa-tags"></i> service-mesh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/syslog_aggregator"><i class="fas fa-tags"></i> syslog_aggregator</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+                        
+
+                    </div>
+                    
+
+                    
+
+                </div>
+                
+
+            </div>
+            
+        </div>
+        
+
+        <footer id="footer">
+    <div class="container">
+
+        
+        <div class="col-md-4 col-sm-6">
+            <h4></h4>
+
+            <p><strong>关于我们：<strong> <p>浙大SEL实验室</p><p>地址：杭州市浙大路38号曹光彪西楼405室</p><p><strong></strong>
+            <a href="/contact" class="btn btn-small btn-template-main" >跳转到关于</a>
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+        <div class="col-md-4 col-sm-6">
+
+             
+            <h4>最新博客</h4>
+            
+
+            <div class="blog-entries">
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/27/overview.png" class="img-responsive" alt="基于KubeEdge的边缘节点分组管理设计与实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">基于KubeEdge的边缘节点分组管理设计与实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/20/karmada-scheduler.png" class="img-responsive" alt="多云环境下的资源调度：karmada scheduler的框架和实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">多云环境下的资源调度：karmada scheduler的框架和实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">
+                          
+                            <img src="/img/blogs/19/karmada-arch.jpg" class="img-responsive" alt="多云环境下的成员集群管理，看看开源项目karmada是如何做到的">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">多云环境下的成员集群管理，看看开源项目karmada是如何做到的</a></h5>
+                    </div>
+                </div>
+                
+            </div>
+
+            <hr class="hidden-md hidden-lg">
+             
+
+        </div>
+        
+
+        
+        <div class="col-md-4 col-sm-6">
+
+          <h4></h4>
+
+            <p><strong>联系我们: 
+                                    <p>团队负责人：丁轶群 yiqunding@zju.edu.cn</p>
+                                    <p>网站维护人：刘佳文 839809484@qq.com</p>                
+    </strong>
+
+            
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+    </div>
+    
+</footer>
+
+
+
+
+
+
+
+<div id="copyright">
+    <div class="container">
+        <div class="col-md-12">
+            
+            <p class="pull-left">Copyright ©️ 2020 SEL Laboratory , ZJ University all rights reserved.</p>
+            
+            <p class="pull-right">
+               <a href="https://bootstrapious.com/p/universal-business-e-commerce-template">Bootstrapious</a>.
+              
+
+               <a href="https://github.com/devcows/hugo-universal-theme">DevCows</a>.
+            </p>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+    </div>
+    
+
+    
+
+
+<script src="/js/jquery.min.js"></script>
+<script src="/js/bootstrap.min.js"></script>
+
+
+
+<script src="/js/jquery.cookie.min.js"></script>
+<script src="/js/jquery.waypoints.min.js"></script>
+<script src="/js/jquery.counterup.min.js"></script>
+<script src="/js/jquery-parallax.js"></script>
+
+
+<script src="/js/front.js"></script>
+
+
+<script src="/js/owl.carousel.min.js"></script>
+
+
+
+  </body>
+</html>

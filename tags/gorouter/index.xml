@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>gorouter on 浙大SEL实验室</title>
+    <link>https://Congrool.github.io/tags/gorouter/</link>
+    <description>Recent content in gorouter on 浙大SEL实验室</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Fri, 21 Nov 2014 13:04:13 +0000</lastBuildDate>
+    
+	<atom:link href="https://Congrool.github.io/tags/gorouter/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>Cloud Foundry中gorouter对StickySession的支持</title>
+      <link>https://Congrool.github.io/blog/2014/11/21/cloud-foundry%E4%B8%ADgorouter%E5%AF%B9stickysession%E7%9A%84%E6%94%AF%E6%8C%81/</link>
+      <pubDate>Fri, 21 Nov 2014 13:04:13 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2014/11/21/cloud-foundry%E4%B8%ADgorouter%E5%AF%B9stickysession%E7%9A%84%E6%94%AF%E6%8C%81/</guid>
+      <description>&lt;h1 id=&#34;前言&#34;&gt;前言&lt;/h1&gt;
+
+&lt;p&gt;Cloud Foundry作为业界出众的PaaS平台，在应用的可扩展性方面做得非常优秀。&lt;/p&gt;
+
+&lt;p&gt;具体来讲，在一个应用需要横向伸展的时候，Cloud Foundry可以轻松地帮助用户做好伸展工作，也就是创建出一个应用的多个实例，多个实例地位相等，多个实例共同为用户服务，多个实例共同分担访问压力。&lt;/p&gt;
+
+&lt;p&gt;大致来说，可以认为是共同分担访问压力，但是也不是针对所有该应用的访问，都进行均衡，分发到不同的应用实例处。譬如：当Cloud Foundry的访问用户访问应用时，第一次的访问，gorouter会将请求分发到应用的某个实例处，但是如果该用户之后的访问都是有状态的，不希望之后的访问会被分发到该应用的其他实例处。针对以上这种情况，Cloud Foundry提供了自己的解决方案，使用StickySession的方式，保证请求依旧分发给指定的应用实例。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>Cloud Foundry中gorouter源码分析</title>
+      <link>https://Congrool.github.io/blog/2014/05/07/cloud-foundry%E4%B8%ADgorouter%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/</link>
+      <pubDate>Wed, 07 May 2014 10:20:09 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2014/05/07/cloud-foundry%E4%B8%ADgorouter%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/</guid>
+      <description>&lt;p&gt;在Cloud Foundry v1版本中，router作为路由节点，转发所有进入Cloud Foundry的请求。由于开发语言为ruby，故router接受并处理并发请求的能力受到语言层的限制。虽然在v1版本中，router曾经有过一定的优化，采用lua脚本代替原先的ruby脚本，由lua来分析请求，使得一部分请求不再经过ruby代码，而直接去DEA访问应用，但是，一旦router暴露在大量的访问请求下，性能依旧是不尽如人意.&lt;/p&gt;
+
+&lt;p&gt;为了提高Cloud Foundry router的可用性，Cloud Foundry开源社区不久前推出了gorouter。gorouter采用现阶段比较新颖的go作为编程语言，并重新设计了原有的组件架构。由于go语言本身的特性，gorouter处理并发请求的能力大大超过了router，甚至在同种实验环境下，性能是原先router的20倍左右。&lt;/p&gt;</description>
+    </item>
+    
+  </channel>
+</rss>

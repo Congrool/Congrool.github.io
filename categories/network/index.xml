@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>network on 浙大SEL实验室</title>
+    <link>https://Congrool.github.io/categories/network/</link>
+    <description>Recent content in network on 浙大SEL实验室</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Wed, 14 Mar 2018 11:23:35 +0000</lastBuildDate>
+    
+	<atom:link href="https://Congrool.github.io/categories/network/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>技术干货|深入理解flannel</title>
+      <link>https://Congrool.github.io/blog/2018/03/14/%E6%8A%80%E6%9C%AF%E5%B9%B2%E8%B4%A7%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3flannel/</link>
+      <pubDate>Wed, 14 Mar 2018 11:23:35 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2018/03/14/%E6%8A%80%E6%9C%AF%E5%B9%B2%E8%B4%A7%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3flannel/</guid>
+      <description>&lt;blockquote&gt;
+&lt;p&gt;&lt;em&gt;根据官网的描述，flannel是一个专为kubernetes定制的三层网络解决方案，主要用于解决容器的跨主机通信问题。&lt;/em&gt;&lt;/p&gt;
+&lt;/blockquote&gt;</description>
+    </item>
+    
+  </channel>
+</rss>

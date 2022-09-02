@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="robots" content="all,follow">
+  <meta name="googlebot" content="index,follow,snippet,archive">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <title>Docker源码分析（六）：Docker Daemon网络</title>
+  <meta name="author" content="孙宏亮" />
+  
+  
+  
+  
+  <meta name="keywords" content="Docker">
+  
+  
+  <meta name="description" content="摘要：Docker的容器特性和镜像特性已然为Docker实践者带来了诸多效益，然而Docker的网络特性却不能让用户满意。本文从Docker的网络模式入手，分析了Docker Daemon创建网络环境的详细流程，其中着重于分析Docker桥接模式的创建，为之后Docker Container创建网络环境做铺垫。">
+
+  <meta name="generator" content="Hugo 0.68.3" />
+
+  
+  <link href='//fonts.googleapis.com/css?family=Roboto:400,100,100italic,300,300italic,500,700,800' rel='stylesheet' type='text/css'>
+
+  
+  
+  
+  
+  
+
+  <link href="/css/all.css" rel="stylesheet">
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+
+  
+  <link href="/css/animate.css" rel="stylesheet">
+
+  
+  
+    <link href="/css/style.default.css" rel="stylesheet" id="theme-stylesheet">
+  
+
+  
+  <link href="/css/custom.css" rel="stylesheet">
+
+  
+  
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+        <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  
+
+  
+  <link rel="shortcut icon" href="/img/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
+
+  
+  <link href="/css/owl.carousel.css" rel="stylesheet">
+  <link href="/css/owl.theme.css" rel="stylesheet">
+
+  
+  <link rel="alternate" href="https://Congrool.github.io/index.xml" type="application/rss+xml" title="浙大SEL实验室">
+
+  
+  
+  
+  
+  
+  
+  <meta property="og:updated_time" content="2015-01-05T10:52:28Z">
+  
+    
+    
+    <meta property="article:section" content="Docker">
+    <meta property="article:tag" content="Docker">
+    
+    
+    <meta property="article:published_time" content="2015-01-05T10:52:28Z">
+    <meta property="article:modified_time" content="2015-01-05T10:52:28Z">
+  
+
+  
+  <meta name="twitter:card" content="summary">
+  
+  <meta name="twitter:title" content="Docker源码分析（六）：Docker Daemon网络">
+  
+  <meta name="twitter:description" content="摘要：Docker的容器特性和镜像特性已然为Docker实践者带来了诸多效益，然而Docker的网络特性却不能让用户满意。本文从Docker的网络模式入手，分析了Docker Daemon创建网络环境的详细流程，其中着重于分析Docker桥接模式的创建，为之后Docker Container创建网络环境做铺垫。">
+  
+  
+</head>
+
+
+  <body>
+
+    <div id="all">
+
+        <header class="navbar-affixed-top" data-spy="affix" data-offset-top="62">
+    <div class="navbar navbar-default yamm" role="navigation" id="navbar" style="background-color:white;">    
+        <div class="container">
+            <div class="navbar-header">
+                <a class="navbar-brand home" href="/">
+                    <img src="/img/sel.png" alt="Docker源码分析（六）：Docker Daemon网络" class="hidden-xs hidden-sm img-responsive">
+                    
+                    <span class="sr-only">Docker源码分析（六）：Docker Daemon网络 - </span>
+                </a>
+                <div class="navbar-buttons">
+                    <button type="button" class="navbar-toggle btn-template-main" data-toggle="collapse" data-target="#navigation">
+                      <span class="sr-only"></span>
+                        <i class="fas fa-align-justify"></i>
+                    </button>
+                </div>
+            </div>
+            
+
+            <div class="navbar-collapse collapse" id="navigation">
+                <ul class="nav navbar-nav navbar-right">
+                  
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/">主页</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/blog/">博客</a>
+                    
+                  </li>
+
+                  <li class="dropdown">
+                    
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">社区 <span class="caret"></span></a>
+                  <ul class="dropdown-menu">
+                    
+                      <li><a href="https://www.servicemesher.com/">ServiceMesh社区</a></li>
+                    
+                      <li><a href="">kubeedge社区</a></li>
+
+                      <li><a href="http://www.icsoft.zju.edu.cn/index.php">浙江大学智能计算与软件中心</a></li>
+                    
+                  </ul>
+
+                  <li class="dropdown">
+                    
+                    <a href="/archives/">归档</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/contact/">关于</a>
+                    
+                  </li>
+                  
+                </li>
+
+                
+                
+
+                
+                </ul>
+            </div>
+            
+
+            <div class="collapse clearfix" id="search">    
+                <form class="navbar-form" role="search">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search">
+                        <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main"><i class="fas fa-search"></i></button>
+                </span>
+                    </div>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+
+    
+</header>
+
+
+
+
+        <div id="heading-breadcrumbs">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h1>Docker源码分析（六）：Docker Daemon网络</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+        <div id="content">
+            <div class="container">
+
+                <div class="row">
+
+                    
+
+                    <div class="col-md-9" id="blog-post">
+
+                        
+                          <p class="text-muted text-uppercase mb-small text-right">
+                             <a href="#">孙宏亮</a>
+                             | 
+                            2015-01-05
+                          </p>
+                        
+
+                        <div id="post-content">
+                          <p><strong>摘要:</strong> Docker的容器特性和镜像特性已然为Docker实践者带来了诸多效益，然而Docker的网络特性却不能让用户满意。本文从Docker的网络模式入手，分析了Docker Daemon创建网络环境的详细流程，其中着重于分析Docker桥接模式的创建，为之后Docker Container创建网络环境做铺垫。</p>
+
+<h1 id="前言"><strong>前言</strong></h1>
+
+<p>Docker作为一个开源的轻量级虚拟化容器引擎技术，已然给云计算领域带来了新的发展模式。Docker借助容器技术彻底释放了轻量级虚拟化技术的威力，让容器的伸缩、应用的运行都变得前所未有的方便与高效。同时，Docker借助强大的镜像技术，让应用的分发、部署与管理变得史无前例的便捷。然而，Docker毕竟是一项较为新颖的技术，在Docker的世界中，用户并非一劳永逸，其中最为典型的便是Docker的网络问题。</p>
+
+<p>毋庸置疑，对于Docker管理者和开发者而言，如何有效、高效的管理Docker容器之间的交互以及Docker容器的网络一直是一个巨大的挑战。目前，云计算领域中，绝大多数系统都采取分布式技术来设计并实现。然而，在原生态的Docker世界中，Docker的网络却是不具备跨宿主机能力的，这也或多或少滞后了Docker在云计算领域的高速发展。</p>
+
+<p>工业界中，Docker的网络问题的解决势在必行，在此环境下，很多IT企业都开发了各自的新产品来帮助完善Docker的网络。这些企业中不乏像Google一样的互联网翘楚企业，同时也有不少初创企业率先出击，在最前沿不懈探索。这些新产品中有，Google推出的容器管理和编排开源项目Kubernetes，Zett.io公司开发的通过虚拟网络连接跨宿主机容器的工具Weave，CoreOS团队针对Kubernetes设计的网络覆盖工具Flannel，Docker官方的工程师Jérôme Petazzoni自己设计的SDN网络解决方案Pipework，以及SocketPlane项目等。</p>
+
+<p>对于Docker管理者与开发者而言，Docker的跨宿主机通信能力固然重要，但Docker自身的网络架构也同样重要。只有深入了解Docker自身的网络设计与实现，才能在这基础上扩展Docker的跨宿主机能力。</p>
+
+<p>Docker自身的网络主要包含两部分：Docker Daemon的网络配置，Docker Container的网络配置。本文主要分析Docker Daemon的网络。</p>
+
+<h1 id="docker-daemon网络分析内容安排"><strong>Docker Daemon网络分析内容安排</strong></h1>
+
+<p>本文从源码的角度，分析Docker Daemon在启动过程中，为Docker配置的网络环境，章节安排如下：</p>
+
+<ol>
+<li>Docker Daemon网络配置；</li>
+<li>运行Docker Daemon网络初始化任务；</li>
+<li>创建Docker网桥。</li>
+</ol>
+
+<p>本文为《Docker源码分析系列》第六篇——Docker Daemon网络篇，第七篇将安排Docker Container网络篇。</p>
+
+<h1 id="docker-daemon网络配置"><strong>Docker Daemon网络配置</strong></h1>
+
+<p>Docker环境中，Docker管理员完全有权限配置Docker Daemon运行过程中的网络模式。 关于Docker的网络模式，大家最熟知的应该就是“桥接”的模式。下图为桥接模式下，Docker的网络环境拓扑图（包括Docker Daemon网络环境和Docker Container网络环境）：</p>
+
+<p><center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605702985/sel/17_emmdxy.jpg" alt="17" style="zoom:50%;" />
+</center>
+<center> 图3.1 Docker网络桥接示意图</center></p>
+
+<p>然而，“桥接”是Docker网络模式中最为常用的模式。除此之外，Docker还为用户提供了更多的可选项，下文将对此一一说来。</p>
+
+<h2 id="docker-daemon网络配置接口"><strong>Docker Daemon网络配置接口</strong></h2>
+
+<p>Docker Daemon每次启动的过程中，都会初始化自身的网络环境，这样的网络环境最终为Docker Container提供网络通信服务。</p>
+
+<p>Docker管理员配置Docker的网络环境，可以在Docker Daemon启动时，通过Docker提供的接口来完成。换言之，可以使用docker二进制可执行文件，运行docker -d并添加相应的flag参数来完成。</p>
+
+<p>其中涉及的flag参数有EnableIptables、EnableIpForward、BridgeIface、BridgeIP以及InterContainerCommunication。该五个参数的定义位于<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/config.go#L51-L52">./docker/daemon/config.go</a>，具体代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">flag.<span style="color:#c0f">BoolVar</span>(<span style="color:#555">&amp;</span>config.EnableIptables, []<span style="color:#078;font-weight:bold">string</span>{<span style="color:#c30">&#34;#iptables&#34;</span>, <span style="color:#c30">&#34;-iptables&#34;</span>}, <span style="color:#069;font-weight:bold">true</span>, <span style="color:#c30">&#34;Enable Docker&#39;s addition of iptables rules&#34;</span>)
+flag.<span style="color:#c0f">BoolVar</span>(<span style="color:#555">&amp;</span>config.EnableIpForward, []<span style="color:#078;font-weight:bold">string</span>{<span style="color:#c30">&#34;#ip-forward&#34;</span>, <span style="color:#c30">&#34;-ip-forward&#34;</span>}, <span style="color:#069;font-weight:bold">true</span>, <span style="color:#c30">&#34;Enable net.ipv4.ip_forward&#34;</span>)
+flag.<span style="color:#c0f">StringVar</span>(<span style="color:#555">&amp;</span>config.BridgeIP, []<span style="color:#078;font-weight:bold">string</span>{<span style="color:#c30">&#34;#bip&#34;</span>, <span style="color:#c30">&#34;-bip&#34;</span>}, <span style="color:#c30">&#34;&#34;</span>, <span style="color:#c30">&#34;Use this CIDR notation address for the network bridge&#39;s IP, not compatible with -b&#34;</span>)
+flag.<span style="color:#c0f">StringVar</span>(<span style="color:#555">&amp;</span>config.BridgeIface, []<span style="color:#078;font-weight:bold">string</span>{<span style="color:#c30">&#34;b&#34;</span>, <span style="color:#c30">&#34;-bridge&#34;</span>}, <span style="color:#c30">&#34;&#34;</span>, <span style="color:#c30">&#34;Attach containers to a pre-existing network bridge\nuse &#39;none&#39; to disable container networking&#34;</span>)
+flag.<span style="color:#c0f">BoolVar</span>(<span style="color:#555">&amp;</span>config.InterContainerCommunication, []<span style="color:#078;font-weight:bold">string</span>{<span style="color:#c30">&#34;#icc&#34;</span>, <span style="color:#c30">&#34;-icc&#34;</span>}, <span style="color:#069;font-weight:bold">true</span>, <span style="color:#c30">&#34;Enable inter-container communication&#34;</span>)</code></pre></div>
+<p>以下介绍这5个flag的作用：</p>
+
+<ul>
+<li>EnableIptables：确保Docker对于宿主机上的iptables规则拥有添加权限；</li>
+<li>EnableIpForward：确保net.ipv4.ip_forward可以使用，使得多网络接口设备模式下，数据报可以在网络设备之间转发；</li>
+<li>BridgeIP：在Docker Daemon启动过程中，为网络环境中的网桥配置CIDR网络地址；</li>
+<li>BridgeIface：为Docker网络环境指定具体的通信网桥，若BridgeIface的值为”none”，则说明不需要为Docker Container创建网桥服务，关闭Docker Container的网络能力；</li>
+<li>InterContainerCommunication：确保Docker容器之间可以完成通信。</li>
+</ul>
+
+<p>除了Docker会使用到的5个flag参数之外，Docker在创建网络环境时，还使用一个DefaultIP变量，如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">opts.<span style="color:#c0f">IPVar</span>(<span style="color:#555">&amp;</span>config.DefaultIp, []<span style="color:#078;font-weight:bold">string</span>{<span style="color:#c30">&#34;#ip&#34;</span>, <span style="color:#c30">&#34;-ip&#34;</span>}, <span style="color:#c30">&#34;0.0.0.0&#34;</span>, <span style="color:#c30">&#34;Default IP address to use when binding container ports&#34;</span>)</code></pre></div>
+<p>该变量的作用是：当绑定容器的端口时，将DefaultIp作为默认使用的IP地址。</p>
+
+<p>具备了以上Docker Daemon的网络背景知识，以下着重举例分析使用BridgeIP和BridgeIface，在启动Docker Daemon时进行网络配置：</p>
+
+<p><img src="https://res.cloudinary.com/rachel725/image/upload/v1605705210/sel/18_sbcq6r.png" alt="18" /></p>
+
+<p>深入理解BridgeIface与BridgeIP，并熟练使用相应的flag参数，即做到了如何配置Docker Daemon的网络环境。需要特别注意的是，Docker Daemon的网络与Docker Container的网络存在很大的区别。Docker Daemon为Docker Container创建网络的大环境，Docker Container的网络需要Docker Daemon的网络提供支持，但不唯一。举一个形象的例子，Docker Daemon可以创建docker0网桥，为之后Docker Container的桥接模式提供支持，然而Docker Container仍然可以根据用户需求创建自身网络，其中Docker Container的网络可以是桥接模式的网络，同时也可以直接共享使用宿主机的网络接口，另外还有其他模式，会在《Docker源码分析》系列的第七篇——Docker Container网络篇中详细介绍。</p>
+
+<h2 id="docker-daemon网络初始化"><strong>Docker Daemon网络初始化</strong></h2>
+
+<p>正如上一节所言，Docker管理员可以通过与网络相关的flag参数BridgeIface与BridgeIP，来为Docker Daemon创建网路环境。最简单的，Docker管理员通过执行”docker -d”就已经完成了运行Docker Daemon，而Docker Daemon在启动的时候，根据以上两个flag参数的值，创建相应的网络环境。</p>
+
+<p>Docker Daemon网络初始化流程图如下：
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605705380/sel/19_wgpy5h.jpg" alt="19" style="zoom:50%;" />
+</center></p>
+
+<p><center> 图 3.2 Docker Daemon网络初始化流程图 </center></p>
+
+<p>Docker Daemon网络初始化的流程总体而言，主要是根据解析flag参数来决定到底建立哪种类型的网络环境。从流程图中可知，Docker Daemon创建网络环境时有两个分支，不难发现分支代表的分别是：为Docker创建一个网络驱动、以及对Docker的网络不做任何的操作。</p>
+
+<p>以下参照Docker Daemon网络初始化流程图具体分析实现步骤。</p>
+
+<h3 id="启动docker-daemon传递flag参数"><strong>启动Docker Daemon传递flag参数</strong></h3>
+
+<p>用户启动Docker Daemon，并在命令行中选择性的传入所需要的flag参数。</p>
+
+<h3 id="解析网络flag参数"><strong>解析网络flag参数</strong></h3>
+
+<p>flag包对命令行中的flag参数进行解析，其中和Docker Daemon网络配置相关的flag参数有5个，分别是：EnableIptables、EnableIpForward、BridgeIP、BridgeIface以及InterContanierCommunication，各个flag参数的作用上文已有介绍。</p>
+
+<h3 id="预处理flag参数"><strong>预处理flag参数</strong></h3>
+
+<p>预处理与网络配置相关的flag参数信息，包括检测配置信息的兼容性、以及判断是否创建Docker网络环境。</p>
+
+<p>首先检验是否会出现彼此不兼容的配置信息，源码位于<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/daemon.go#L679-L685">./docker/daemon/daemon.go#L679-L685</a>。</p>
+
+<p>这部分的兼容信息有两种。第一种是BridgeIP和BridgeIface配置信息的兼容性，具体表现为用户启动Docker Daemon时，若同时指定了BridgeIP和BridgIface的值，则出现兼容问题。原因为这两者属于互斥对，换言之，若用户指定了新建网桥的设备名，那么该网桥已经存在，无需指定网桥的IP地址BridgeIP；若用户指定了新建网桥的网络IP地址BridgeIP，那么该网桥肯定还没有新建成功，则Docker Daemon在新建网桥时使用默认网桥名“docker0”。具体如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// Check for mutually incompatible config options
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">if</span> config.BridgeIface <span style="color:#555">!=</span> <span style="color:#c30">&#34;&#34;</span> <span style="color:#555">&amp;&amp;</span> config.BridgeIP <span style="color:#555">!=</span> <span style="color:#c30">&#34;&#34;</span> {
+    <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>, fmt.<span style="color:#c0f">Errorf</span>(<span style="color:#c30">&#34;You specified -b &amp; --bip, mutually exclusive options. Please specify only one.&#34;</span>)
+}</code></pre></div>
+<p>第二种是EnableIptables和InterContainerCommunication配置的兼容性，具体是指不能同时指定这两个flag参数为false。原因很简单，如果指定InterContainerCommunication为false，则说明Docker Daemon不允许创建的Docker容器之间互相进行通信。但是为了达到以上目的，Docker正是使用iptables过滤规则。因此，再次设定EnableIptables为false，关闭iptables的使用，即出现了自相矛盾的结果。代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">if</span> !config.EnableIptables <span style="color:#555">&amp;&amp;</span> !config.InterContainerCommunication {
+    <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>, fmt.<span style="color:#c0f">Errorf</span>(<span style="color:#c30">&#34;You specified --iptables=false with --icc=false. ICC uses iptables to function. Please set --icc or --iptables to true.&#34;</span>)
+    }</code></pre></div>
+<p>检验完系统配置信息的兼容性问题，Docker Daemon接着会判断是否需要为Docker Daemon配置网络环境。判断的依据为BridgeIface的值是否与DisableNetworkBridge的值相等，DisableNetworkBridge在<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/config.go#L13">./docker/daemon/config.go#L13</a>中被定义为const量，值为字符串”none”。因此，若BridgeIface为”none”，则DisableNetwork为true，最终Docker Daemon不会创建网络环境；若BridgeIface不为”none”，则DisableNetwork为false，最终Docker Daemon需要创建网络环境（桥接模式）。</p>
+
+<h3 id="确定docker网络模式"><strong>确定Docker网络模式</strong></h3>
+
+<p>Docker网络模式由配置信息DisableNetwork决定。由于在上一环节已经得出DisableNetwork的值，故这一环节可以确定Docker网络模式。该部分的源码实现位于<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/daemon.go#L792-L805">./docker/daemon/daemon.go#L792-L805</a>，如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">if</span> !config.DisableNetwork {
+    job <span style="color:#555">:=</span> eng.<span style="color:#c0f">Job</span>(<span style="color:#c30">&#34;init_networkdriver&#34;</span>)
+
+    job.<span style="color:#c0f">SetenvBool</span>(<span style="color:#c30">&#34;EnableIptables&#34;</span>, config.EnableIptables)
+    job.<span style="color:#c0f">SetenvBool</span>(<span style="color:#c30">&#34;InterContainerCommunication&#34;</span>, config.InterContainerCommunication)
+    job.<span style="color:#c0f">SetenvBool</span>(<span style="color:#c30">&#34;EnableIpForward&#34;</span>, config.EnableIpForward)
+    job.<span style="color:#c0f">Setenv</span>(<span style="color:#c30">&#34;BridgeIface&#34;</span>, config.BridgeIface)
+    job.<span style="color:#c0f">Setenv</span>(<span style="color:#c30">&#34;BridgeIP&#34;</span>, config.BridgeIP)
+    job.<span style="color:#c0f">Setenv</span>(<span style="color:#c30">&#34;DefaultBindingIP&#34;</span>, config.DefaultIp.<span style="color:#c0f">String</span>())
+
+    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> job.<span style="color:#c0f">Run</span>(); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>, err
+    }
+}</code></pre></div>
+<p>若DisableNetwork为false，则说明需要创建网络环境，具体的模式为创建Docker网桥模式。创建网络环境的步骤为：</p>
+
+<ol>
+<li>创建名为”init_networkdriver”的job；</li>
+<li>为该job配置环境变量，设置的环境变量有EnableIptables、InterContainerCommunication、EnableIpForward、BridgeIface、BridgeIP以及DefaultBindingIP；</li>
+<li>运行job。</li>
+</ol>
+
+<p>运行”init_network”即为创建Docker网桥，这部分内容将会在下一节详细分析。</p>
+
+<p>若DisableNetwork为true。则说明不需要创建网络环境，网络模式属于none模式。</p>
+
+<p>以上便是Docker Daemon网络初始化的所有流程。</p>
+
+<h2 id="创建docker网桥"><strong>创建Docker网桥</strong></h2>
+
+<p>Docker的网络往往是Docker开发者最常提起的话题。而Docker网络中最常使用的模式为bridge桥接模式。本小节将详细分析创建Docker网桥的创建流程。</p>
+
+<p>创建Docker网桥的实现通过”init_network”这个job的运行来完成。”init_network”的实现为InitDriver函数，位于<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/networkdriver/bridge/driver.go#L79">./docker/daemon/networkdriver/bridge/driver.go#L79</a>，运行流程如下：</p>
+
+<p><center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605707027/sel/20_esuvnz.jpg" alt="20" style="zoom:55%;" />
+</center>
+<center>图3.3 Docker Daemon创建网桥流程图</center></p>
+
+<h3 id="提取环境变量"><strong>提取环境变量</strong></h3>
+
+<p>在InitDriver函数的实现过程中，Docker首先提取”init_networkdriver”这个job的环境变量。这样的环境变量共有6个，各自的作用在上文已经详细说明。具体的实现代码为：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">var</span> (
+    network        <span style="color:#555">*</span>net.IPNet
+    enableIPTables = job.<span style="color:#c0f">GetenvBool</span>(<span style="color:#c30">&#34;EnableIptables&#34;</span>)
+    icc            = job.<span style="color:#c0f">GetenvBool</span>(<span style="color:#c30">&#34;InterContainerCommunication&#34;</span>)
+    ipForward      = job.<span style="color:#c0f">GetenvBool</span>(<span style="color:#c30">&#34;EnableIpForward&#34;</span>)
+    bridgeIP       = job.<span style="color:#c0f">Getenv</span>(<span style="color:#c30">&#34;BridgeIP&#34;</span>)
+)
+
+<span style="color:#069;font-weight:bold">if</span> defaultIP <span style="color:#555">:=</span> job.<span style="color:#c0f">Getenv</span>(<span style="color:#c30">&#34;DefaultBindingIP&#34;</span>); defaultIP <span style="color:#555">!=</span> <span style="color:#c30">&#34;&#34;</span> {
+    defaultBindingIP = net.<span style="color:#c0f">ParseIP</span>(defaultIP)
+}
+
+bridgeIface = job.<span style="color:#c0f">Getenv</span>(<span style="color:#c30">&#34;BridgeIface&#34;</span>)</code></pre></div>
+<h3 id="确定docker网桥设备名"><strong>确定Docker网桥设备名</strong></h3>
+
+<p>提取job的环境变量之后，Docker随即确定最终使用网桥设备的名称。为此，Docker首先创建了一个名为usingDefaultBridge的bool变量，含义为是否使用默认的网桥设备，默认值为false。接着，若环境变量中bridgeIface的值为空，则说明用户启动Docker时，没有指定特定的网桥设备名，因此Docker首先将usingDefaultBridge置为true，然后使用默认的网桥设备名DefaultNetworkBridge，即docker0；若bridgeIface的值不为空，则判断条件不成立，继续往下执行。这部分的代码实现为：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">usingDefaultBridge <span style="color:#555">:=</span> <span style="color:#069;font-weight:bold">false</span>
+<span style="color:#069;font-weight:bold">if</span> bridgeIface <span style="color:#555">==</span> <span style="color:#c30">&#34;&#34;</span> {
+    usingDefaultBridge = <span style="color:#069;font-weight:bold">true</span>
+    bridgeIface = DefaultNetworkBridge
+}</code></pre></div>
+<h3 id="查找bridgeiface网桥设备"><strong>查找bridgeIface网桥设备</strong></h3>
+
+<p>确定Docker网桥设备名bridgeIface之后，Docker首先通过bridgeIface设备名在宿主机上查找该设备是否真实存在。若存在，则返回该网桥设备的IP地址，若不存在，则返回nil。实现代码位于<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/networkdriver/bridge/driver.go#L99">./docker/daemon/networkdriver/bridge/driver.go#L99</a>，如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">addr, err <span style="color:#555">:=</span> networkdriver.<span style="color:#c0f">GetIfaceAddr</span>(bridgeIface)</code></pre></div>
+<p>GetIfaceAddr的实现位于<code>./docker/daemon/networkdriver/utils.go</code>，实现步骤为：首先通过Golang中net包的InterfaceByName方法获取名为bridgeIface的网桥设备，会得出以下结果：</p>
+
+<ul>
+<li>若名为bridgeIface的网桥设备不存在，直接返回error；</li>
+<li>若名为bridgeIface的网桥设备存在，返回该网桥设备的IP地址。</li>
+</ul>
+
+<p>需要强调的是：GetIfaceAddr函数返回error，说明当前宿主机上不存在名为bridgeIface的网桥设备。而这样的结果会有两种不同的情况：第一，用户指定了bridgeIface，那么usingDefaultBridge为false，而该bridgeIface网桥设备在宿主机上不存在；第二，用户没有指定bridgeIface，那么usingDefaultBridge为true，bridgeIface名为docker0，而docker0网桥在宿主机上也不存在。</p>
+
+<p>当然，若GetIfaceAddr函数返回的是一个IP地址，则说明当前宿主机上存在名为bridgeIface的网桥设备。这样的结果同样会有两种不同的情况：第一，用户指定了bridgeIface，那么usingDefaultBridge为false，而该bridgeIface网桥设备在宿主机上已经存在；第二，用户没有指定bridgeIface，那么usingDefaultBridge为true，bridgeIface名为docker0，而docker0网桥在宿主机上也已经存在。第二种情况一般是：用户在宿主机上第一次启动Docker Daemon时，创建了默认网桥设备docker0，而后docker0网桥设备一直存在于宿主机上，故之后在不指定网桥设备的情况下，重启Docker Daemon，会出现docker0已经存在的情况。</p>
+
+<p>以下两小节将分别从bridgeIface已创建与bridgeIface未创建两种不同的情况分析。</p>
+
+<h3 id="bridgeiface已创建的情况"><strong>bridgeIface已创建的情况</strong></h3>
+
+<p>Docker Daemon所在宿主机上bridgeIface的网桥设备存在时，Docker Daemon仍然需要验证用户在配置信息中是否为网桥设备指定了IP地址。 用户启动Docker Daemon时，假如没有指定bridgeIP参数信息，则Docker Daemon使用名为bridgeIface的原有的IP地址。 当用户指定了bridgeIP参数信息时，则需要验证：指定的bridgeIP参数信息与bridgeIface网桥设备原有的IP地址信息是否匹配。若两者匹配，则验证通过，继续往下执行；若两者不匹配，则验证不通过，抛出错误，显示“bridgeIP与已有网桥配置信息不匹配”。该部分内容位于<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/networkdriver/bridge/driver.go#L119-L129">./docker/daemon/networkdriver/bridge/driver.go#L119-L129</a>，代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">network = addr.(<span style="color:#555">*</span>net.IPNet)
+<span style="color:#09f;font-style:italic">// validate that the bridge ip matches the ip specified by BridgeIP
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">if</span> bridgeIP <span style="color:#555">!=</span> <span style="color:#c30">&#34;&#34;</span> {
+    bip, _, err <span style="color:#555">:=</span> net.<span style="color:#c0f">ParseCIDR</span>(bridgeIP)
+    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        <span style="color:#069;font-weight:bold">return</span> job.<span style="color:#c0f">Error</span>(err)
+    }
+    <span style="color:#069;font-weight:bold">if</span> !network.IP.<span style="color:#c0f">Equal</span>(bip) {
+        <span style="color:#069;font-weight:bold">return</span> job.<span style="color:#c0f">Errorf</span>(<span style="color:#c30">&#34;bridge ip (%s) does not match existing bridge configuration %s&#34;</span>, network.IP, bip)
+    }
+}</code></pre></div>
+<h3 id="bridgeiface未创建的情况"><strong>bridgeIface未创建的情况</strong></h3>
+
+<p>Docker Daemon所在宿主机上bridgeIface的网桥设备未创建时，上文已经介绍将存在两种情况：</p>
+
+<ul>
+<li>用户指定的bridgeIface未创建；</li>
+<li>用户未指定bridgeIface，而docker0暂未创建。</li>
+</ul>
+
+<p>当用户指定的bridgeIface不存在于宿主机时，即没有使用Docker的默认网桥设备名docker0，Docker打印日志信息“指定网桥设备未找到”，并返回网桥未找到的错误信息。代码实现如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">if</span> !usingDefaultBridge {
+    job.<span style="color:#c0f">Logf</span>(<span style="color:#c30">&#34;bridge not found: %s&#34;</span>, bridgeIface)
+    <span style="color:#069;font-weight:bold">return</span> job.<span style="color:#c0f">Error</span>(err)
+}</code></pre></div>
+<p>当使用的默认网桥设备名，而docker0网桥设备还未创建时，Docker Daemon则立即实现创建网桥的操作，并返回该docker0网桥设备的IP地址。代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// If the iface is not found, try to create it
+</span><span style="color:#09f;font-style:italic"></span>job.<span style="color:#c0f">Logf</span>(<span style="color:#c30">&#34;creating new bridge for %s&#34;</span>, bridgeIface)
+<span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> <span style="color:#c0f">createBridge</span>(bridgeIP); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+    <span style="color:#069;font-weight:bold">return</span> job.<span style="color:#c0f">Error</span>(err)
+}
+
+job.<span style="color:#c0f">Logf</span>(<span style="color:#c30">&#34;getting iface addr&#34;</span>)
+addr, err = networkdriver.<span style="color:#c0f">GetIfaceAddr</span>(bridgeIface)
+<span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+    <span style="color:#069;font-weight:bold">return</span> job.<span style="color:#c0f">Error</span>(err)
+}
+network = addr.(<span style="color:#555">*</span>net.IPNet)</code></pre></div>
+<p>创建Docker Daemon网桥设备docker0的实现，全部由createBridge(bridgeIP)来实现，createBridge的实现位于<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/networkdriver/bridge/driver.go#L245">./docker/daemon/networkdriver/bridge/driver.go#L245</a>。 createBridge函数实现过程的主要步骤为：</p>
+
+<ol>
+<li>确定网桥设备docker0的IP地址；</li>
+<li>通过createBridgeIface函数创建docker0网桥设备，并为网桥设备分配随机的MAC地址；</li>
+<li>将第一步中已经确定的IP地址，添加给新创建的docker0网桥设备</li>
+<li>启动docker0网桥设备。</li>
+</ol>
+
+<p>以下详细分析4个步骤的具体实现。 首先Docker Daemon确定docker0的IP地址，实现方式为判断用户是否指定bridgeIP。若用户未指定bridgeIP，则从Docker预先准备的IP网段列表addrs中查找合适的网段。具体的代码实现位于<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/networkdriver/bridge/driver.go#L257-L278">./docker/daemon/networkdriver/bridge/driver.go#L257-L278</a>，如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">if</span> <span style="color:#366">len</span>(bridgeIP) <span style="color:#555">!=</span> <span style="color:#f60">0</span> {
+    _, _, err <span style="color:#555">:=</span> net.<span style="color:#c0f">ParseCIDR</span>(bridgeIP)
+    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        <span style="color:#069;font-weight:bold">return</span> err
+    }
+    ifaceAddr = bridgeIP
+} <span style="color:#069;font-weight:bold">else</span> {
+    <span style="color:#069;font-weight:bold">for</span> _, addr <span style="color:#555">:=</span> <span style="color:#069;font-weight:bold">range</span> addrs {
+        _, dockerNetwork, err <span style="color:#555">:=</span> net.<span style="color:#c0f">ParseCIDR</span>(addr)
+        <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+            <span style="color:#069;font-weight:bold">return</span> err
+        }
+        <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> networkdriver.<span style="color:#c0f">CheckNameserverOverlaps</span>(nameservers, dockerNetwork); err <span style="color:#555">==</span> <span style="color:#069;font-weight:bold">nil</span> {
+            <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> networkdriver.<span style="color:#c0f">CheckRouteOverlaps</span>(dockerNetwork); err <span style="color:#555">==</span> <span style="color:#069;font-weight:bold">nil</span> {
+                ifaceAddr = addr
+                <span style="color:#069;font-weight:bold">break</span>
+            } <span style="color:#069;font-weight:bold">else</span> {
+                log.<span style="color:#c0f">Debugf</span>(<span style="color:#c30">&#34;%s %s&#34;</span>, addr, err)
+            }
+        }
+    }
+}</code></pre></div>
+<p>其中为网桥设备准备的候选网段地址addrs为：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">addrs = []<span style="color:#078;font-weight:bold">string</span>{
+        <span style="color:#c30">&#34;172.17.42.1/16&#34;</span>, <span style="color:#09f;font-style:italic">// Don&#39;t use 172.16.0.0/16, it conflicts with EC2 DNS 172.16.0.23
+</span><span style="color:#09f;font-style:italic"></span>        <span style="color:#c30">&#34;10.0.42.1/16&#34;</span>,   <span style="color:#09f;font-style:italic">// Don&#39;t even try using the entire /8, that&#39;s too intrusive
+</span><span style="color:#09f;font-style:italic"></span>        <span style="color:#c30">&#34;10.1.42.1/16&#34;</span>,
+        <span style="color:#c30">&#34;10.42.42.1/16&#34;</span>,
+        <span style="color:#c30">&#34;172.16.42.1/24&#34;</span>,
+        <span style="color:#c30">&#34;172.16.43.1/24&#34;</span>,
+        <span style="color:#c30">&#34;172.16.44.1/24&#34;</span>,
+        <span style="color:#c30">&#34;10.0.42.1/24&#34;</span>,
+        <span style="color:#c30">&#34;10.0.43.1/24&#34;</span>,
+        <span style="color:#c30">&#34;192.168.42.1/24&#34;</span>,
+        <span style="color:#c30">&#34;192.168.43.1/24&#34;</span>,
+        <span style="color:#c30">&#34;192.168.44.1/24&#34;</span>,
+}</code></pre></div>
+<p>通过以上的流程的执行，可以确定找到一个可用的IP网段地址，为ifaceAddr；若没有找到，则返回错误日志，表明没有合适的IP地址赋予docker0网桥设备。</p>
+
+<p>第二个步骤通过createBridgeIface函数创建docker0网桥设备。createBridgeIface函数的实现如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> <span style="color:#c0f">createBridgeIface</span>(name <span style="color:#078;font-weight:bold">string</span>) <span style="color:#078;font-weight:bold">error</span> {
+    kv, err <span style="color:#555">:=</span> kernel.<span style="color:#c0f">GetKernelVersion</span>()
+    <span style="color:#09f;font-style:italic">// only set the bridge&#39;s mac address if the kernel version is &gt; 3.3
+</span><span style="color:#09f;font-style:italic"></span>    <span style="color:#09f;font-style:italic">// before that it was not supported
+</span><span style="color:#09f;font-style:italic"></span>    setBridgeMacAddr <span style="color:#555">:=</span> err <span style="color:#555">==</span> <span style="color:#069;font-weight:bold">nil</span> <span style="color:#555">&amp;&amp;</span> (kv.Kernel <span style="color:#555">&gt;=</span> <span style="color:#f60">3</span> <span style="color:#555">&amp;&amp;</span> kv.Major <span style="color:#555">&gt;=</span> <span style="color:#f60">3</span>)
+    log.<span style="color:#c0f">Debugf</span>(<span style="color:#c30">&#34;setting bridge mac address = %v&#34;</span>, setBridgeMacAddr)
+    <span style="color:#069;font-weight:bold">return</span> netlink.<span style="color:#c0f">CreateBridge</span>(name, setBridgeMacAddr)
+}</code></pre></div>
+<p>以上代码通过宿主机Linux内核信息，确定是否支持设定网桥设备的MAC地址。若Linux内核版本大于3.3，则支持配置MAC地址，否则则不支持。而Docker在不小于3.8的内核版本上运行才稳定，故可以认为内核支持配置MAC地址。最后通过netlink的CreateBridge函数实现创建docker0网桥。</p>
+
+<p>Netlink是Linux中一种较为特殊的socket通信方式，提供了用户应用间和内核进行双向数据传输的途径。在这种模式下，用户态可以使用标准的socket API来使用netlink强大的功能，而内核态需要使用专门的内核API才能使用netlink。</p>
+
+<p>Libcontainer的netlink包中CreateBridge实现了创建实际的网桥设备，具体使用系统调用的代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">syscall.<span style="color:#c0f">Syscall</span>(syscall.SYS_IOCTL, <span style="color:#366">uintptr</span>(s), SIOC_BRADDBR, <span style="color:#366">uintptr</span>(unsafe.<span style="color:#c0f">Pointer</span>(nameBytePtr)))</code></pre></div>
+<p>创建完网桥设备之后，为docker0网桥设备配置MAC地址，实现函数为setBridgeMacAddress。</p>
+
+<p>第三个步骤是为创建docker0网桥设备绑定IP地址。上一步骤仅完成了创建名为docker0的网桥设备，之后仍需要为docker0网桥设备绑定IP地址。具体代码实现为：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">if</span> netlink.<span style="color:#c0f">NetworkLinkAddIp</span>(iface, ipAddr, ipNet); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        <span style="color:#069;font-weight:bold">return</span> fmt.<span style="color:#c0f">Errorf</span>(<span style="color:#c30">&#34;Unable to add private network: %s&#34;</span>, err)
+}</code></pre></div>
+<p>NetworkLinkAddIP的实现同样位于libcontainer中的netlink包，主要的功能为：通过netlink机制为一个网络接口设备绑定一个IP地址。 第四个步骤是启动docker0网桥设备。具体实现代码为：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> netlink.<span style="color:#c0f">NetworkLinkUp</span>(iface); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        <span style="color:#069;font-weight:bold">return</span> fmt.<span style="color:#c0f">Errorf</span>(<span style="color:#c30">&#34;Unable to start network bridge: %s&#34;</span>, err)
+    }</code></pre></div>
+<p>NetworkLinkUp的实现同样位于libcontainer中的netlink包，功能为启动docker网桥设备。 至此，docker0网桥历经确定IP、创建、绑定IP、启动四个环节，createBridge关于docker0网桥设备的工作全部完成。</p>
+
+<h3 id="获取网桥设备的网络地址"><strong>获取网桥设备的网络地址</strong></h3>
+
+<p>创建完网桥设备之后，网桥设备必然会存在一个网络地址。网桥网络地址的作用为：Docker Daemon在创建Docker Container时，使用该网络地址为Docker Container分配IP地址。 Docker使用代码network = addr.(*net.IPNet)获取网桥设备的网络地址。</p>
+
+<h3 id="配置docker-daemon的iptables"><strong>配置Docker Daemon的iptables</strong></h3>
+
+<p>创建完网桥之后，Docker Daemon为容器以及宿主机配置iptables，包括为container之间所需要的link操作提供支持，为host主机上所有的对外对内流量制定传输规则等。该部分详情可以参看<a href="http://www.sel.zju.edu.cn/?p=165">《Docker源码分析（四）：Docker Daemon之NewDaemon实现》</a>。代码位于<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/networkdriver/bridge/driver.go#L133">./docker/daemon/networkdriver/bridge/driver/driver.go#L133</a>，如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// Configure iptables for link support
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">if</span> enableIPTables {
+        <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> <span style="color:#c0f">setupIPTables</span>(addr, icc); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+            <span style="color:#069;font-weight:bold">return</span> job.<span style="color:#c0f">Error</span>(err)
+        }
+}
+
+<span style="color:#09f;font-style:italic">// We can always try removing the iptables
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> iptables.<span style="color:#c0f">RemoveExistingChain</span>(<span style="color:#c30">&#34;DOCKER&#34;</span>); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        <span style="color:#069;font-weight:bold">return</span> job.<span style="color:#c0f">Error</span>(err)
+}
+
+<span style="color:#069;font-weight:bold">if</span> enableIPTables {
+        chain, err <span style="color:#555">:=</span> iptables.<span style="color:#c0f">NewChain</span>(<span style="color:#c30">&#34;DOCKER&#34;</span>, bridgeIface)
+        <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+            <span style="color:#069;font-weight:bold">return</span> job.<span style="color:#c0f">Error</span>(err)
+        }
+        portmapper.<span style="color:#c0f">SetIptablesChain</span>(chain)
+}</code></pre></div>
+<h3 id="配置网络设备间数据报转发功能"><strong>配置网络设备间数据报转发功能</strong></h3>
+
+<p>在Linux系统上，数据包转发功能是被默认禁止的。数据包转发，就是当host主机存在多个网络设备时，如果其中一个接收到数据包，并需要将其转发给另外的网络设备。通过修改/proc/sys/net/ipv4/ip_forward的值，将其置为1，则可以保证系统内数据包可以实现转发功能，代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">if</span> ipForward {
+        <span style="color:#09f;font-style:italic">// Enable IPv4 forwarding
+</span><span style="color:#09f;font-style:italic"></span>        <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> ioutil.<span style="color:#c0f">WriteFile</span>(<span style="color:#c30">&#34;/proc/sys/net/ipv4/ip_forward&#34;</span>, []<span style="color:#078;font-weight:bold">byte</span>{<span style="color:#c30">&#39;1&#39;</span>, <span style="color:#c30">&#39;\n&#39;</span>}, <span style="color:#f60">0644</span>); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+            job.<span style="color:#c0f">Logf</span>(<span style="color:#c30">&#34;WARNING: unable to enable IPv4 forwarding: %s\n&#34;</span>, err)
+        }
+}</code></pre></div>
+<h3 id="注册网络handler"><strong>注册网络Handler</strong></h3>
+
+<p>创建Docker Daemon网络环境的最后一个步骤是：注册4个与网络相关的Handler。这4个Handler分别是allocate_interface、release_interface、allocate_port和link，作用分别是为Docker Container分配网络设备，回收Docker Container网络设备、为Docker Container分配端口资源、以及为Docker Container间执行link操作。 至此，Docker Daemon的网络环境初始化工作全部完成。</p>
+
+<h1 id="总结"><strong>总结</strong></h1>
+
+<p>在工业界，Docker的网络问题备受关注。Docker的网络环境可以分为Docker Daemon网络和Docker Container网络。本文从Docker Daemon的网络入手，分析了大家熟知的Docker 桥接模式。</p>
+
+<p>Docker的容器技术以及镜像技术，已经给Docker实践者带来了诸多效益。然而Docker网络的发展依然具有很大的潜力。下一篇Docker Container网络篇，将会带来更为灵活的Docker网络配置。</p>
+
+<p>5 参考文献 <a href="http://www.cnblogs.com/iceocean/articles/1594195.html">LINUX netlink机制</a> <a href="http://docs.studygolang.com/pkg/net/">Package net</a></p>
+                        </div>
+                        
+                        
+                        
+                        
+                        
+                        
+
+                        
+                        <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+                        <script src="https://unpkg.com/gitalk@latest/dist/gitalk.min.js"></script> 
+                        <script type="text/javascript" src="/assets/js/md5.min.js"></script>
+                        <div id="gitalk-container"></div>     
+                        <script type="text/javascript">
+                            var gitalk = new Gitalk({
+                              clientID: '835183d2dcbd1167ac28', 
+                            
+                              clientSecret: 'd873919fac3cc76921ee0800172c2279bc612f8d', 
+                            
+                              repo: 'Sel-Website-talk',
+                              owner: 'Peeknut',
+                              admin: ['Peeknut','Rachel-Shao'],
+                              id: location.href.split("/").pop().substring(0, 49),      
+                              distractionFreeMode: false  
+                            })
+                            gitalk.render('gitalk-container')
+                        </script> 
+                        
+
+                    </div>
+                    
+
+                    
+
+                    
+
+                    <div class="col-md-3">
+
+                        
+
+                        
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+      <h3 class="panel-title">搜索栏</h3>
+      
+    </div>
+
+    <div class="panel-body">
+        
+        <div class="search" id="search">
+            <div class="input-group">
+                <input type="text" name="q" class="form-control" placeholder="请输入文章标题或摘要..." id="search-key">
+                <input type="hidden" name="sitesearch" value="https://Congrool.github.io/">
+                <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main" onclick="search()"><i class="fas fa-search"></i></button>
+                </span>
+            </div>
+            <h1 id="search-tip" style="color: red;text-align: center;display: none;font-size: medium;">搜索中，请稍后 ...</h1>
+        </div>
+        <script type="text/javascript">
+            
+            window.onload = function() {
+                      document.onkeydown = function(ev) {
+                        var event = ev || event
+                        if (event.keyCode == 13) {
+                          search()
+                        }
+                      }
+                    }
+            
+            function search() {
+                    
+                      key = document.getElementById("search-key").value;
+                      if (key === "") {
+                        
+                        return;
+                      }
+                      key = key.toLowerCase();
+                      document.getElementById("search-key").value = "";
+                  
+                      
+                      document.getElementById("search-tip").innerText = "搜索中，请稍后 ...";
+                      document.getElementById("search-tip").style.display = "block";
+                  
+                      
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      var childs = el.childNodes;
+                      for (var i = childs.length - 1; i >= 0; i--) {
+                        el.removeChild(childs[i]);
+                      }
+                  
+                      
+                      xmltext = new XMLHttpRequest;
+                      xmltext.open("GET", "/index.xml", false);
+                      xmltext.send();
+                      resp = xmltext.responseXML;
+                      
+                      items = resp.getElementsByTagName("item");
+                      
+                      var i = 0;
+                      haveResult = false;
+                      while (i < items.length) {
+                        txt = items[i].getElementsByTagName("title")[0].innerHTML + items[i].getElementsByTagName("description")[0].innerHTML
+                        txt = txt.toLowerCase();
+                        if (txt.indexOf(key) > -1) {
+                          haveResult = true;
+                          title = items[i].getElementsByTagName("title")[0].innerHTML;
+                          link = items[i].getElementsByTagName("link")[0].innerHTML;
+                          time = items[i].getElementsByTagName("pubDate")[0].innerHTML;
+                          mark = items[i].getElementsByTagName("description")[0].innerHTML;
+                          time = time.slice(0, -5);
+                          addItem(title, link, time, mark)
+                        }
+                        i++;
+                      }
+                      if (!haveResult) {
+                        document.getElementById("search-tip").innerText = "搜索完毕，未发现结果 ...";
+                        document.getElementById("search-tip").style.display = "block";
+                      }
+
+                      
+                      var el = document.getElementById("blog-head");
+                      el.innerHTML="Blogs"
+                    }
+                  
+                    
+                    function addItem(title, link, time, mark) {
+                      document.getElementById("search-tip").style.display = "none";
+                      tmpl = "<article class=\"post\" style=\"border-bottom: 1px solid #e6e6e6;\" >" +
+                        "<header class=\"post-header\">" +
+                        "<h1 class=\"post-title\"><a class=\"post-link\" href=\"" + link + "\" target=\"_blank\">" + title + "</a></h1>" +
+                        "<div class=\"post-meta\">" +
+                        " <span class=\"post-time\">" + time + "</span>" +
+                        "</div>" +
+                        " </header>" +
+                        "<div class=\"post-content\">" +
+                        "<div class=\"post-summary\">" + mark + "</div>" +
+                        "<div class=\"read-more\">" +
+                        "<a href=" + link + " class=\"read-more-link\" target=\"_blank\">阅读更多</a>" +
+                        "</div>" +
+                        " </div>" +
+                        "</article>"
+                      div = document.createElement("div")
+                      div.innerHTML = tmpl;
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      el.appendChild(div)
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+
+        </script>
+        
+    </div>
+</div>
+
+
+
+
+
+
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">归档栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="nav nav-pills nav-stacked">
+            
+            
+            <li>
+                <a href="/categories/bosh">bosh (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloud_controller_ng">cloud_controller_ng (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloudfoundry">cloudfoundry (15)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/containerd">containerd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/docker">docker (19)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/etcd">etcd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/haproxy">haproxy (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/healthmanager">healthmanager (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/karmada">karmada (4)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubeedge">kubeedge (5)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubernetes">kubernetes (14)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/network">network (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/openyurt">openyurt (2)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/service-mesh">service-mesh (4)</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+<div class="panel sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">标签栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="tag-cloud">
+            
+            
+            <li>
+                <a href="/tags/agent"><i class="fas fa-tags"></i> agent</a>
+            </li>
+            
+            <li>
+                <a href="/tags/apiserver"><i class="fas fa-tags"></i> apiserver</a>
+            </li>
+            
+            <li>
+                <a href="/tags/books"><i class="fas fa-tags"></i> books</a>
+            </li>
+            
+            <li>
+                <a href="/tags/bosh"><i class="fas fa-tags"></i> bosh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/ccng"><i class="fas fa-tags"></i> ccng</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cf-release"><i class="fas fa-tags"></i> cf-release</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cgroups"><i class="fas fa-tags"></i> cgroups</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudfoundry"><i class="fas fa-tags"></i> cloudfoundry</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudnative"><i class="fas fa-tags"></i> cloudnative</a>
+            </li>
+            
+            <li>
+                <a href="/tags/collector"><i class="fas fa-tags"></i> collector</a>
+            </li>
+            
+            <li>
+                <a href="/tags/containerd"><i class="fas fa-tags"></i> containerd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cri"><i class="fas fa-tags"></i> cri</a>
+            </li>
+            
+            <li>
+                <a href="/tags/dea"><i class="fas fa-tags"></i> dea</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker"><i class="fas fa-tags"></i> docker</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker-network"><i class="fas fa-tags"></i> docker-network</a>
+            </li>
+            
+            <li>
+                <a href="/tags/edgecomputing"><i class="fas fa-tags"></i> edgecomputing</a>
+            </li>
+            
+            <li>
+                <a href="/tags/etcd"><i class="fas fa-tags"></i> etcd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/gorouter"><i class="fas fa-tags"></i> gorouter</a>
+            </li>
+            
+            <li>
+                <a href="/tags/haproxy"><i class="fas fa-tags"></i> haproxy</a>
+            </li>
+            
+            <li>
+                <a href="/tags/healthmanager"><i class="fas fa-tags"></i> healthmanager</a>
+            </li>
+            
+            <li>
+                <a href="/tags/istio"><i class="fas fa-tags"></i> istio</a>
+            </li>
+            
+            <li>
+                <a href="/tags/karmada"><i class="fas fa-tags"></i> karmada</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubeedge"><i class="fas fa-tags"></i> kubeedge</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubelet"><i class="fas fa-tags"></i> kubelet</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubernetes"><i class="fas fa-tags"></i> kubernetes</a>
+            </li>
+            
+            <li>
+                <a href="/tags/libcontainer"><i class="fas fa-tags"></i> libcontainer</a>
+            </li>
+            
+            <li>
+                <a href="/tags/micro-service"><i class="fas fa-tags"></i> micro-service</a>
+            </li>
+            
+            <li>
+                <a href="/tags/namespace"><i class="fas fa-tags"></i> namespace</a>
+            </li>
+            
+            <li>
+                <a href="/tags/nats"><i class="fas fa-tags"></i> nats</a>
+            </li>
+            
+            <li>
+                <a href="/tags/news"><i class="fas fa-tags"></i> news</a>
+            </li>
+            
+            <li>
+                <a href="/tags/openyurt"><i class="fas fa-tags"></i> openyurt</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pipework"><i class="fas fa-tags"></i> pipework</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pouch"><i class="fas fa-tags"></i> pouch</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runc"><i class="fas fa-tags"></i> runc</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runtime"><i class="fas fa-tags"></i> runtime</a>
+            </li>
+            
+            <li>
+                <a href="/tags/security"><i class="fas fa-tags"></i> security</a>
+            </li>
+            
+            <li>
+                <a href="/tags/serverless"><i class="fas fa-tags"></i> serverless</a>
+            </li>
+            
+            <li>
+                <a href="/tags/service-mesh"><i class="fas fa-tags"></i> service-mesh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/syslog_aggregator"><i class="fas fa-tags"></i> syslog_aggregator</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+                        
+
+                    </div>
+                    
+
+                    
+
+                </div>
+                
+
+            </div>
+            
+        </div>
+        
+
+        <footer id="footer">
+    <div class="container">
+
+        
+        <div class="col-md-4 col-sm-6">
+            <h4></h4>
+
+            <p><strong>关于我们：<strong> <p>浙大SEL实验室</p><p>地址：杭州市浙大路38号曹光彪西楼405室</p><p><strong></strong>
+            <a href="/contact" class="btn btn-small btn-template-main" >跳转到关于</a>
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+        <div class="col-md-4 col-sm-6">
+
+             
+            <h4>最新博客</h4>
+            
+
+            <div class="blog-entries">
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/27/overview.png" class="img-responsive" alt="基于KubeEdge的边缘节点分组管理设计与实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">基于KubeEdge的边缘节点分组管理设计与实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/20/karmada-scheduler.png" class="img-responsive" alt="多云环境下的资源调度：karmada scheduler的框架和实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">多云环境下的资源调度：karmada scheduler的框架和实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">
+                          
+                            <img src="/img/blogs/19/karmada-arch.jpg" class="img-responsive" alt="多云环境下的成员集群管理，看看开源项目karmada是如何做到的">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">多云环境下的成员集群管理，看看开源项目karmada是如何做到的</a></h5>
+                    </div>
+                </div>
+                
+            </div>
+
+            <hr class="hidden-md hidden-lg">
+             
+
+        </div>
+        
+
+        
+        <div class="col-md-4 col-sm-6">
+
+          <h4></h4>
+
+            <p><strong>联系我们: 
+                                    <p>团队负责人：丁轶群 yiqunding@zju.edu.cn</p>
+                                    <p>网站维护人：刘佳文 839809484@qq.com</p>                
+    </strong>
+
+            
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+    </div>
+    
+</footer>
+
+
+
+
+
+
+
+<div id="copyright">
+    <div class="container">
+        <div class="col-md-12">
+            
+            <p class="pull-left">Copyright ©️ 2020 SEL Laboratory , ZJ University all rights reserved.</p>
+            
+            <p class="pull-right">
+               <a href="https://bootstrapious.com/p/universal-business-e-commerce-template">Bootstrapious</a>.
+              
+
+               <a href="https://github.com/devcows/hugo-universal-theme">DevCows</a>.
+            </p>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+    </div>
+    
+
+    
+
+
+<script src="/js/jquery.min.js"></script>
+<script src="/js/bootstrap.min.js"></script>
+
+
+
+<script src="/js/jquery.cookie.min.js"></script>
+<script src="/js/jquery.waypoints.min.js"></script>
+<script src="/js/jquery.counterup.min.js"></script>
+<script src="/js/jquery-parallax.js"></script>
+
+
+<script src="/js/front.js"></script>
+
+
+<script src="/js/owl.carousel.min.js"></script>
+
+
+
+  </body>
+</html>

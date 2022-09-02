@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>cri on 浙大SEL实验室</title>
+    <link>https://Congrool.github.io/tags/cri/</link>
+    <description>Recent content in cri on 浙大SEL实验室</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Tue, 29 May 2018 10:35:04 +0000</lastBuildDate>
+    
+	<atom:link href="https://Congrool.github.io/tags/cri/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>PouchContainer CRI的设计与实现</title>
+      <link>https://Congrool.github.io/blog/2018/05/29/pouchcontainer-cri%E7%9A%84%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/</link>
+      <pubDate>Tue, 29 May 2018 10:35:04 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2018/05/29/pouchcontainer-cri%E7%9A%84%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/</guid>
+      <description>&lt;h3 id=&#34;1-cri简介&#34;&gt;1. CRI简介&lt;/h3&gt;
+
+&lt;p&gt;在每个Kubernetes节点的最底层都有一个程序负责具体的容器创建删除工作，Kubernetes会对其接口进行调用，从而完成容器的编排调度。我们将这一层软件称之为容器运行时（Container Runtime），大名鼎鼎的Docker就是其中的代表。&lt;/p&gt;
+
+&lt;p&gt;当然，容器运行时并非只有Docker一种，包括CoreOS的rkt，hyper.sh的runV，Google的gvisor，以及本文的主角PouchContainer，都包含了完整的容器操作，能够用来创建特性各异的容器。不同的容器运行时有着各自独特的优点，能够满足不同用户的需求，因此Kubernetes支持多种容器运行时势在必行。&lt;/p&gt;</description>
+    </item>
+    
+  </channel>
+</rss>

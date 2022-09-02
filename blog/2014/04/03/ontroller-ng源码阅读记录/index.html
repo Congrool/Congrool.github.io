@@ -1,0 +1,1367 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="robots" content="all,follow">
+  <meta name="googlebot" content="index,follow,snippet,archive">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <title>Cloud_Controller_NG源码阅读记录</title>
+  <meta name="author" content="孙健波" />
+  
+  
+  
+  
+  <meta name="keywords" content="ccng, cloudfoundry">
+  
+  
+  <meta name="description" content="Cloud_Controller_NG就是cloud controller next generation的意思。即Cloud Foundry 平台用来管理控制应用和服务的组件。官方文档是这么解释CCNG的作用的： * 维护一个包含应用、服务、配置信息的数据库(CCDB)。 * 在blobstore中存储应用的packages和droplets。 * 通过NATS和其他组件进行通信，包括Droplet Execution Agents (DEAs)、Service Gateways、和 Health Manager（HM）。 * 其他供用户调用的后端API。阅读该组件源码，有助于从应用管理的视角理解cloudfoundry的运行过程。">
+
+  <meta name="generator" content="Hugo 0.68.3" />
+
+  
+  <link href='//fonts.googleapis.com/css?family=Roboto:400,100,100italic,300,300italic,500,700,800' rel='stylesheet' type='text/css'>
+
+  
+  
+  
+  
+  
+
+  <link href="/css/all.css" rel="stylesheet">
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+
+  
+  <link href="/css/animate.css" rel="stylesheet">
+
+  
+  
+    <link href="/css/style.default.css" rel="stylesheet" id="theme-stylesheet">
+  
+
+  
+  <link href="/css/custom.css" rel="stylesheet">
+
+  
+  
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+        <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  
+
+  
+  <link rel="shortcut icon" href="/img/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
+
+  
+  <link href="/css/owl.carousel.css" rel="stylesheet">
+  <link href="/css/owl.theme.css" rel="stylesheet">
+
+  
+  <link rel="alternate" href="https://Congrool.github.io/index.xml" type="application/rss+xml" title="浙大SEL实验室">
+
+  
+  
+  
+  
+  
+  
+  <meta property="og:updated_time" content="2014-04-03T14:15:12Z">
+  
+    
+    
+    <meta property="article:section" content="cloud_controller_ng">
+    <meta property="article:tag" content="ccng">
+    <meta property="article:tag" content="cloudfoundry">
+    
+    
+    <meta property="article:published_time" content="2014-04-03T14:15:12Z">
+    <meta property="article:modified_time" content="2014-04-03T14:15:12Z">
+  
+
+  
+  <meta name="twitter:card" content="summary">
+  
+  <meta name="twitter:title" content="Cloud_Controller_NG源码阅读记录">
+  
+  <meta name="twitter:description" content="Cloud_Controller_NG就是cloud controller next generation的意思。即Cloud Foundry 平台用来管理控制应用和服务的组件。官方文档是这么解释CCNG的作用的： * 维护一个包含应用、服务、配置信息的数据库(CCDB)。 * 在blobstore中存储应用的packages和droplets。 * 通过NATS和其他组件进行通信，包 …">
+  
+  
+</head>
+
+
+  <body>
+
+    <div id="all">
+
+        <header class="navbar-affixed-top" data-spy="affix" data-offset-top="62">
+    <div class="navbar navbar-default yamm" role="navigation" id="navbar" style="background-color:white;">    
+        <div class="container">
+            <div class="navbar-header">
+                <a class="navbar-brand home" href="/">
+                    <img src="/img/sel.png" alt="Cloud_Controller_NG源码阅读记录" class="hidden-xs hidden-sm img-responsive">
+                    
+                    <span class="sr-only">Cloud_Controller_NG源码阅读记录 - </span>
+                </a>
+                <div class="navbar-buttons">
+                    <button type="button" class="navbar-toggle btn-template-main" data-toggle="collapse" data-target="#navigation">
+                      <span class="sr-only"></span>
+                        <i class="fas fa-align-justify"></i>
+                    </button>
+                </div>
+            </div>
+            
+
+            <div class="navbar-collapse collapse" id="navigation">
+                <ul class="nav navbar-nav navbar-right">
+                  
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/">主页</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/blog/">博客</a>
+                    
+                  </li>
+
+                  <li class="dropdown">
+                    
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">社区 <span class="caret"></span></a>
+                  <ul class="dropdown-menu">
+                    
+                      <li><a href="https://www.servicemesher.com/">ServiceMesh社区</a></li>
+                    
+                      <li><a href="">kubeedge社区</a></li>
+
+                      <li><a href="http://www.icsoft.zju.edu.cn/index.php">浙江大学智能计算与软件中心</a></li>
+                    
+                  </ul>
+
+                  <li class="dropdown">
+                    
+                    <a href="/archives/">归档</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/contact/">关于</a>
+                    
+                  </li>
+                  
+                </li>
+
+                
+                
+
+                
+                </ul>
+            </div>
+            
+
+            <div class="collapse clearfix" id="search">    
+                <form class="navbar-form" role="search">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search">
+                        <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main"><i class="fas fa-search"></i></button>
+                </span>
+                    </div>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+
+    
+</header>
+
+
+
+
+        <div id="heading-breadcrumbs">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h1>Cloud_Controller_NG源码阅读记录</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+        <div id="content">
+            <div class="container">
+
+                <div class="row">
+
+                    
+
+                    <div class="col-md-9" id="blog-post">
+
+                        
+                          <p class="text-muted text-uppercase mb-small text-right">
+                             <a href="#">孙健波</a>
+                             | 
+                            2014-04-03
+                          </p>
+                        
+
+                        <div id="post-content">
+                          
+
+<p>Cloud_Controller_NG就是cloud controller next generation的意思。即Cloud Foundry 平台用来管理控制应用和服务的组件。</p>
+
+<p>是这么解释CCNG的作用的： * 维护一个包含应用、服务、配置信息的数据库(CCDB)。 * 在blobstore中存储应用的packages和droplets。 * 通过NATS和其他组件进行通信，包括Droplet Execution Agents (DEAs)、Service Gateways、和 Health Manager（HM）。 * 其他供用户调用的后端API。</p>
+
+<p>阅读该组件源码，有助于从应用管理的视角理解cloudfoundry的运行过程。</p>
+
+<p><strong>说明：</strong> 1. Cloud_Controller_NG以下简称CCNG。 2. 本文所阅读的源码版本为github中cf-release中V145 tag下面的CCNG项目源码。</p>
+
+<hr />
+
+<h1 id="ccng各模块概览">CCNG各模块概览</h1>
+
+<p>首先让我们看一下这张框架图：</p>
+
+<p><img src="http://wonderflow.info/wp-content/uploads/2014/02/ccng.png" alt="Alt text" />
+<strong>图1.CCNG架构图byshlallen</strong></p>
+
+<p>从ccng架构图中可以看出ccng可以分为以下多个模块：</p>
+
+<ol>
+<li><p>Stager模块，主要负责与DEA组件的staging部分进行交互；</p></li>
+
+<li><p>DEA模块，主要负责与DEA组件进行交互；</p></li>
+
+<li><p>Blobstore模块，主要负责创建一个blobstore的存储，以供Cloud Foundry存储应用所需的静态文件；</p></li>
+
+<li><p>HealthManager（HM）模块，主要负责与HealthManager组件进行交互；</p></li>
+
+<li><p>CCDB模块，负责维护cloud_controller的数据库；</p></li>
+
+<li><p>collector_registrar模块，负责作为component向Collector组件注册；</p></li>
+
+<li><p>router_registrar模块，负责将cloud controller组件的域名注册至Router组件；</p></li>
+
+<li><p>legacy_api部分，负责接管ccng关于info，bulk以及services等的RESTful请求；</p></li>
+
+<li><p>Permission模块，负责各种不同权限用户的注册和认证。</p></li>
+
+<li><p>其他零散模块</p>
+
+<p>我们按官方文档给出的组件功能介绍的顺序逐步深入各模块。</p></li>
+</ol>
+
+<h2 id="db模块">DB模块</h2>
+
+<p>众所周知，CCDB就是CC的一个postgresql数据库，用于存储CC需要的一些数据。</p>
+
+<p>在CCNG的rakefile里面，有着CCDB建表的初始化信息，具体的建表内容在<code>db/migrations/*.rb</code>中。</p>
+
+<p>CCNG开始正常运行后，主要调用lib/sequel_plugins/update_or_create.rb里面的函数对以下信息的改变进行更新（更新的代码都在以下各部分的源码中，可以使用全文搜索update_or_create函数查看）。</p>
+
+<ol>
+<li>framework：语言运行时框架。就是<code>&quot;*.war&quot;</code>包可上传的各种框架，在<code>/var/vcap/jobs/cloud_controller/config/staging</code>路径下的各类*.yml存储。@<code>lib/cloud_controller/models/framework.rb</code></li>
+<li>stack ：应用运行的堆环境，默认为lucid64。<a href="http://docs.cloudfoundry.com/docs/running/architecture/stacks.html">stacks</a>就是一个预先构建的文件系统，包括可运行应用的操作系统环境。@<code>lib/cloud_controller/models/stack.rb</code></li>
+<li>runtime：应用可运行语言的运行时环境。运行时环境的具体信息在配置文件<code>config/runtimes.yml</code>中。@<code>lib/cloud_controller/models/runtime.rb</code></li>
+<li>quota：一些共享信息的更新，包括sevice数量，内存限制等。@<code>lib/cloud_controller/models/quota_definition.rb</code> 5. service：存储支持的service信息。@<code>app/models/services/service_broker.rb</code></li>
+</ol>
+
+<h2 id="blobstore模块">Blobstore模块</h2>
+
+<p><strong>注：</strong>blobstor相关源码都@<code>lib/cloud_controller/blobstore</code>文件夹下</p>
+
+<p>Blobstore模块主要负责维护静态文件的存储，这部分文件主要分为三部分： * package,通俗的讲即应用程序打包。blobstore会把应用的源码进行压缩，变为package。 * buildpack，通俗的讲即程序build时所需环境打包。CCNG的blobstore又把buildpack又分为admin buildpack,cache buildpack两部分。 * droplet，通俗的讲即buildpack+package。</p>
+
+<p><img src="http://wonderflow.info/wp-content/uploads/2014/02/droplet.png" alt="Alt text" /></p>
+
+<p><strong>图2.buildpack、droplet、package结构图 by 薛伟</strong></p>
+
+<p>从如上的工作内容可知Blobstore具体实现内容为： 1. 文件的压缩，变为package。@<code>local_app_bits.rb</code> 运行时调用 <code>cloud_controller/safe_zipper.rb</code> 2. 文件指纹收集，避免重复备份。采用SHA1的方式。@<code>fingerprints_collection.rb</code> 3. 拷贝package到blobstore进行保存，被<code>app_bits_package.rb</code>调用。 4. blobstore中存储的各种包下载地址的创建。@<code>blobstore_url_generator.rb</code> 5. blobstore中文件的下载 @<code>cdb.rb</code>@<code>blobstore.rb</code> 6. blobstore创建的内容主要由@<code>lib/cloud_controller/dependency_locator.rb</code>调用</p>
+
+<h2 id="stager模块">Stager模块</h2>
+
+<p>通过blobstore模块的描述我们知道应用的源码和buildpack进行捆绑打包后的最终形式即为droplet，而负责管理这个过程的组件就是Stager模块。</p>
+
+<p>在Cloud Foundry v1的版本中，整个Cloud Foundry集群只有一个Stager组件。而在Cloud Foundry v2版本中，已经不存在原来独立的Stager组件，而将和Stager功能类似的staging模块设计成DEA的一个子模块。因此，如果v2版本的Cloud Foundry 部署了多个DEA的话，那么该云平台中就会有多个Staging模块。</p>
+
+<p>正是由于有多个Staging模块的缘故，在ccng处设计了一个与这些Staging进行交互的模块，也就是我们这里谈论的CCNG的stager模块。</p>
+
+<p>stager模块分为以下三个部分：</p>
+
+<ol>
+<li><strong>stager_pool</strong>：stager模块维护的资源池，stager_poor会保持与DEA中stager模块的通信，维护最优的5个stager的信息，用来接收和分发有关staging任务的请求。@<code>lib/cloud_controller/stager/stager_poor.rb</code></li>
+<li><strong>app_stager</strong>: stager模块主要负责处理任务的模块。当app上传的接口收到app_stage命令时，就会调用该模块，该接口@<code>/lib/cloud_controller/api/app.rb</code>。该模块会把app和service进行绑定并向nats发送消息让DEA进行staging的过程，成功staging以后就在blobstore里面存储起来。@<code>lib/cloud_controller/app_stager.rb</code></li>
+<li><strong>app_stager_task</strong>:CCNG有一个app_observer模块，它会关注app需要进行的动作，包括update、delete。第2点完成以后，update功能会继续stage，调用app_stager_task部分,向nats发送请求。@<code>lib/cloud_controller/app_stager_task.rb</code></li>
+</ol>
+
+<p>一开始看的时候发现第2步和第3步有很多地方函数命名是相同的，觉得很奇怪。后来才知道，第3步就是第2步的延续。所以发送的请求内容是不同的，同时第3步对更新的返回信息有更多的处理。</p>
+
+<p>可以看一下第2步stage_request的代码，此时droplet还未形成：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby"><span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">staging_request</span>(app)
+        {
+          <span style="color:#fc3">:app_id</span>       <span style="color:#555">=&gt;</span> app<span style="color:#555">.</span>guid,
+          <span style="color:#fc3">:properties</span>   <span style="color:#555">=&gt;</span> staging_task_properties(app),
+          <span style="color:#fc3">:download_uri</span> <span style="color:#555">=&gt;</span> <span style="color:#360">LegacyStaging</span><span style="color:#555">.</span>app_uri(app<span style="color:#555">.</span>guid),
+          <span style="color:#fc3">:upload_uri</span>   <span style="color:#555">=&gt;</span> <span style="color:#360">LegacyStaging</span><span style="color:#555">.</span>droplet_upload_uri(app<span style="color:#555">.</span>guid)
+        }
+      <span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>第3点的stage_request代码除上述部分外，还要多</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby"><span style="color:#fc3">:buildpack_cache_download_uri</span> <span style="color:#555">=&gt;</span> @blobstore_url_generator<span style="color:#555">.</span>buildpack_cache_download_url(@app),  
+    <span style="color:#fc3">:buildpack_cache_upload_uri</span> <span style="color:#555">=&gt;</span> @blobstore_url_generator<span style="color:#555">.</span>buildpack_cache_upload_url(@app),  
+    <span style="color:#fc3">:start_message</span> <span style="color:#555">=&gt;</span> start_app_message,  
+    <span style="color:#fc3">:admin_buildpacks</span> <span style="color:#555">=&gt;</span> admin_buildpacks  </code></pre></div>
+<p>同时上传和下载的地址获取方式也已经不同了，因为droplet已经实际存在了：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby"><span style="color:#fc3">:download_uri</span> <span style="color:#555">=&gt;</span> @blobstore_url_generator<span style="color:#555">.</span>app_package_download_url(@app),  
+    <span style="color:#fc3">:upload_uri</span> <span style="color:#555">=&gt;</span> @blobstore_url_generator<span style="color:#555">.</span>droplet_upload_url(@app),  </code></pre></div>
+<p>同时，app_stage_task在进行stage之前会从stager_pool中找出合适的stager来完成staging任务。</p>
+
+<h2 id="dea模块">DEA模块</h2>
+
+<p>DEA模块的功能是负责CCNG与众DEA之间通信。</p>
+
+<p>在CCNG中，DEA模块也可以大致分为三个部分：</p>
+
+<ol>
+<li><strong>dea_client</strong>：主要负责向DEA发送CCNG收到的相关请求。如：应用的启动、暂停、运行，查找具体的instance信息，应用相关修改等等。同时，它也会向HealthManger模块发送请求查询应用状态。@<code>lib/cloud_controller/dea/dea_client.rb</code></li>
+<li><strong>dea_respondent</strong>：负责相应并完成由DEA主动发送过来的请求。请求主要是当DEA中的应用退出或意外崩溃时，会由DEA通过NATS向CCNG发送应用退出的消息，从而CCNG可以做后续处理工作。@<code>lib/cloud_controller/dea/dea_respondent.rb</code></li>
+<li><strong>dea_pool</strong>：负责维护Cloud Foundry中所有DEA的资源池。当Cloud Foundry中有新的DEA启动并开始工作时，都会通过NATS向CCNG发布advertise信息，而CCNG则通过发来的该部分信息向dea_pool中注册DEA信息。当有应用需要启动的时候，CCNG需要找到合适的DEA来完成启动工作，这个时候则由dea_pool通过各DEA的资源使用情况等其他重要条件完成DEAs的筛选，找出符合条件的DEA。@<code>lib/cloud_controller/dea/dea_pool.rb</code></li>
+</ol>
+
+<h2 id="小结-app上传流程示意图">小结：APP上传流程示意图</h2>
+
+<p>看完了上述几个模块后，我们可以通过下图进行上述知识的整合。</p>
+
+<p><img src="http://wonderflow.info/wp-content/uploads/2014/02/cfpush.png" alt="Alt text" /></p>
+
+<p><strong>图3.APP上传流程示意图 by 薛伟</strong></p>
+
+<p>此图表现的就是执行了<code>$cf push</code>命令（原<code>$vmc push</code>命令）以后，CF集群运作的过程。圆圈中的数字表示执行顺序。</p>
+
+<h2 id="healthmanager模块">HealthManager模块</h2>
+
+<p>HealthManager(以下简称HM)模块主要负责与health_manager建立通信，并完成有关应用健康状态的监控。该部分也可以简单分为两部分：</p>
+
+<ol>
+<li><strong>HealthManagerClient：</strong>充当CCNG与HM进行通信的client端，通过NATS发消息到HM实现查询指定app的状态、 查找crash的instance、 查看所有app的健康状态这三个功能。@<code>lib/cloud_controller/health_manager_client.rb</code></li>
+<li><strong>HealthManagerRespondent：</strong>负责接收CCNG与HM通信过程中health_manager发来启动/停止应用的信息。@<code>lib/cloud_controller/health_manager_respondent.rb</code></li>
+</ol>
+
+<h2 id="service相关模块">Service相关模块</h2>
+
+<p>这个模块的主要代码都在<code>lib/cloud_controller/legacy_api</code>文件夹下，为什么叫legacy这个名字，我至今没有参透。正如该文件夹的名字所言，文件夹下的文件都是对外提供api的，形式就是一个http对应一个执行函数。该模块涉及到Service的只要有3个，LegacyServiceGateway、LegacyServiceLifecycle和LegacyService:</p>
+
+<ol>
+<li><strong>LegacyServiceGateway</strong>：service_gateway对外接口。包括获取所提供的service_gatway信息并更新、根据条件过滤service_gateway信息、删除、更新service_gateway等操作，并在ccdb中进行记录。@<code>lib/cloud_controller/legacy_api/legacy_service_gateway.rb</code></li>
+<li><strong>LegacyService</strong>：service对外的接口，创建、删除、查找service都通过它。@<code>lib/cloud_controller/legacy_api/legacy_service.rb</code></li>
+<li><strong>LegacyServiceLifecycle</strong>：上面针对的是service种类，此处针对的是某个service的一个instance的生命周期的管理。@<code>lib/cloud_controller/legacy_api/legacy_service_lifecycle.rb</code></li>
+</ol>
+
+<h2 id="其他api功能一览">其他API功能一览</h2>
+
+<h3 id="lib-cloud-controller-api目录下">lib/cloud_controller/api目录下：</h3>
+
+<ul>
+<li>info.rb: 展示集群信息，主要是配置文件上写的信息展示</li>
+<li>crashes.rb：查看崩溃的应用</li>
+<li>app_summary.rb：总览各类应用的情况</li>
+<li><strong>TO BE CONTINUED&hellip;</strong>
+
+<br /></li>
+</ul>
+
+<h2 id="ccng-model图">CCNG Model图</h2>
+
+<p><img src="http://10.10.103.47/gitlab/cf_src_docs/raw/master/pictures/model.png" alt="Alt text" /></p>
+
+<hr />
+
+<h1 id="从ccng启动开始的程序细节">从CCNG启动开始的程序细节</h1>
+
+<p>整个项目从可执行脚本bin/cloud_controller开始。</p>
+
+<p>启动命令为：<code>$ ./bin/cloud_controller [-c] [-m] [-d]</code></p>
+
+<p>打开bin/cloud_controller这个文件，前两行就是</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">$:.unshift<span style="color:#555">(</span>File.expand_path<span style="color:#555">(</span><span style="color:#c30">&#34;../../lib&#34;</span>, __FILE__<span style="color:#555">))</span>
+$:.unshift<span style="color:#555">(</span>File.expand_path<span style="color:#555">(</span><span style="color:#c30">&#34;../../app&#34;</span>, __FILE__<span style="color:#555">))</span></code></pre></div>
+<p>这两行的作用就是把项目中lib和app两个文件夹加入到ruby的path路径中，这样就能在后面直接使用require/load调用了。</p>
+
+<p>开始代码是这一行：<code>VCAP::CloudController::Runner.new(ARGV).run!</code></p>
+
+<p>从代码中可以看出调用了Runner模块中的run函数，文件路径为：<code>lib/cloud_controller/runner.rb</code></p>
+
+<p>在执行run!方法前，先经历了一个初始化。默认rack的环境是生产环境，默认配置文件的路径是config/cloud_controller.yml，然后根据参数进行调整。</p>
+
+<p>三个参数分别代表：</p>
+
+<ul>
+<li><p>-c 设置配置文件读取路径，-c后可指定cloud_controller.yml，代替默认读取的config下的cloud_controller.yml为启动配置文件。</p></li>
+
+<li><p>-d 进行rack_env设置，把默认的production变成development。程序会执行 register Sinatra::Reloader，动态加载 reload_path 路径下的*.rb文件，这样就可以在不需求重启进程情况下，查看修改后结果，加快开发速度</p></li>
+
+<li><p>-m 数据库初始化，默认进行 rake db:migrate 后，数据库都是空的，加了-m 选项，cc会在启动的时候将一些默认的值写到数据库中，比如：quota定义等等</p></li>
+</ul>
+
+<p><strong>启动过程</strong>如下:</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby"><span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">run!</span>
+start_cloud_controller
+config <span style="color:#555">=</span> @config<span style="color:#555">.</span>dup 
+<span style="color:#360">Seeds</span><span style="color:#555">.</span>write_seed_data(config) <span style="color:#069;font-weight:bold">if</span> @insert_seed_data
+app <span style="color:#555">=</span> create_app(config)
+start_thin_server(app, config)
+<span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>执行create_app之前会做一些初始化工作，包括：</p>
+
+<ol>
+<li>cloud_controller初始化：创建pid文件，设置logger，创建和db数据库的连接</li>
+<li>steno日志对象初始化</li>
+<li>message_bus初始化，所有的subscribe和publish都通过这个对象来进行操作</li>
+</ol>
+
+<p><strong>附，初始化配置的相关模块：</strong> * MessageBus * AccountCapacity * ResourcePool * AppPackage * StagerPool * AppStager * LegacyStaging * DeaPool * DeaClient * LegacyBulk * HealthManagerClient * Models</p>
+
+<p>之后通过create_app生成一个Rack::Builder实例,其中有如下关键代码</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">map <span style="color:#c30">&#34;/&#34;</span> <span style="color:#069;font-weight:bold">do</span>
+run <span style="color:#360">VCAP</span><span style="color:#555">::</span><span style="color:#360">CloudController</span><span style="color:#555">::</span><span style="color:#360">Controller</span><span style="color:#555">.</span>new(config)
+<span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>map &lsquo;/&lsquo;表示，不管接收到什么http请求，都会调用Controller进行处理。do&hellip;end模块中<a href="http://rack.rubyforge.org/doc/Rack/Builder.html#method-i-run">run这个方法</a>的用法属于sinatra框架的特殊语法。</p>
+
+<p>最后通过start_thin_server启动一个http服务，将生成的Rack::Builder实例传递给该服务器，处理来自客户端的请求。thin_server启动完毕以后，基本上CCNG的启动环节算是结束了。然后进入处理http请求的事件驱动的循环过程。</p>
+
+<p><strong>附，框架相关:</strong> * <a href="(http://rack.rubyforge.org/doc/SPEC.html)">rack</a>是一个用来相应请求的WebServer。 * <a href="(http://rack.rubyforge.org/doc/SPEC.html)">rack</a>发送过来的请求CCNG采用<a href="(ttp://www.sinatrarb.com/intro.html)">sinatra</a>框架处理</p>
+
+<hr />
+
+<h1 id="http请求处理框架">HTTP请求处理框架</h1>
+
+<p>启动的配置以及初始化完毕后，ccng就在thin_server上以一个rack app的形式运行，事件响应则采用sinatra的架构。</p>
+
+<h2 id="controller类">Controller类</h2>
+
+<p><strong>VCAP::CloudController::Controller</strong>继承于Sinatra::Base，是处理所有http请求的入口。</p>
+
+<p>一开始，Controller这个类中定义了<code>before do....end</code>，这个函数会在第一次次接收到请求的时候执行，主要进行用户请求身份验证操作，判断用户是否合法，如果用户验证失败的话，会返回错误信息码。如果成功验证通过，那么会调用VCAP::CloudController::SecurityContext的set方法设置当前登录用户信息，供后面的陆续操作进行权限判断依据。</p>
+
+<p>接下来，http请求根据不同的内容被不同的路由规则引导处理。从程序代码的角度看，这些路由主要被分为自定义路由和默认路由两大块。</p>
+
+<p>通俗的讲： * 一部分是直接定义在＊.rb文件中，比如 <code>lib/cloud_controller/legacy_api/*.rb</code> 下的所有请求都是直接在脚本中定义get或者post请求处理函数，这种是直观就可以看见的 * 还有一部分，是通过回调<code>lib/cloud_controller/rest_controller.rb</code>中的self.rest_controller这个方法，这个方法里面有一个define_routes，来定义get，post，delete，put请求，并通过调用api的dispatch函数来进行选择具体的处理函数.</p>
+
+<h3 id="自定义路由">自定义路由</h3>
+
+<p>自定义路由即文件被载入(require)到Controller模块时，就是rack框架可识别的路由信息。这样自定义的路由信息都被写成类似如下的格式：(以lib/cloud_controller/api/app_bits.rb为例)</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby"><span style="color:#069;font-weight:bold">module</span> <span style="color:#0cf;font-weight:bold">VCAP::CloudController</span>
+  rest\_controller <span style="color:#fc3">:AppBits</span> <span style="color:#069;font-weight:bold">do</span>
+    <span style="color:#555">......</span>
+  <span style="color:#069;font-weight:bold">end</span>
+<span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>这其中，起到关键作用的就是rest_contoller这个宏定义方法，在require文件app_bits.rb时（或者说执行到这里时），会将其后的内容展开。rest_controller定义在lib/cloud_controller/rest_controller.rb中</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby"><span style="color:#069;font-weight:bold">def</span> <span style="color:#0a8;font-weight:bold">self</span><span style="color:#555">.</span><span style="color:#c0f">rest_controller</span>(<span style="color:#366">name</span>, <span style="color:#555">&amp;</span>blk)
+    <span style="color:#09f;font-style:italic"># Class.new：生成一个无名的superclass的子类. 若superclass不存在则生成Object的子类.</span>
+    <span style="color:#09f;font-style:italic"># 这里的superclass应该是RestController::ModelController, Base的子类，include了routes</span>
+    klass <span style="color:#555">=</span> <span style="color:#360">Class</span><span style="color:#555">.</span>new <span style="color:#360">RestController</span><span style="color:#555">::</span><span style="color:#360">ModelController</span>
+    <span style="color:#09f;font-style:italic"># const_set：在模块中，定义一个名为name且值为value的常数后返回value</span>
+    <span style="color:#366">self</span><span style="color:#555">.</span>const_set <span style="color:#366">name</span>, klass
+    <span style="color:#09f;font-style:italic"># class_eval：添加方法</span>
+    <span style="color:#09f;font-style:italic"># class_eval若带块的话，会把新生成的类传给块参数，然后在类的context中执行该块。</span>
+    klass<span style="color:#555">.</span>class_eval <span style="color:#555">&amp;</span>blk
+
+    <span style="color:#09f;font-style:italic"># 执行了disable_default_routes的类都有自己定义的route</span>
+    <span style="color:#069;font-weight:bold">if</span> klass<span style="color:#555">.</span>default_routes?
+    <span style="color:#09f;font-style:italic"># 否则绝大多数类都有attribute之类的语句</span>
+      klass<span style="color:#555">.</span>class_eval <span style="color:#069;font-weight:bold">do</span>
+        define_messages
+        define_routes
+      <span style="color:#069;font-weight:bold">end</span>
+    <span style="color:#069;font-weight:bold">end</span>
+  <span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>对于app_bits.rb，参数name就是:AppBits，blk就是do&hellip;end部分的内容。首先动态生成一个类，然后执行klass.class_eval将blk中的方法添加为自己的方法。添加方法的同时会执行blk。</p>
+
+<p>对于app_bits.rb来说，通过def&hellip;end定义的方法不会被执行，如upload、download等。而独立于方法定义之外的是语句可执行的。如</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">disable\_default\_routes
+put <span style="color:#c30">&#34;</span><span style="color:#a00">#{</span>path\_id<span style="color:#a00">}</span><span style="color:#c30">/bits&#34;</span>, <span style="color:#fc3">:upload</span>
+get <span style="color:#c30">&#34;</span><span style="color:#a00">#{</span>path\_id<span style="color:#a00">}</span><span style="color:#c30">/download&#34;</span>, <span style="color:#fc3">:download</span></code></pre></div>
+<p>等等。</p>
+
+<p>由此可以看出，这种路由配置实际上是一个方法的执行。以<code>put &quot;#{path_id}/bits&quot; :upload</code>为例，其方法是<code>put</code>，参数是<code>&quot;#{path_id}/bits&quot;</code>和<code>:upload</code>。这里的<code>put</code>方法也是在<code>lib/cloud_controller/rest_controller/routes.rb</code>中定义的</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby"><span style="color:#555">[</span><span style="color:#fc3">:post</span>, <span style="color:#fc3">:get</span>, <span style="color:#fc3">:put</span>, <span style="color:#fc3">:delete</span><span style="color:#555">].</span>each <span style="color:#069;font-weight:bold">do</span> <span style="color:#555">|</span>verb<span style="color:#555">|</span>
+  define_method(verb) <span style="color:#069;font-weight:bold">do</span> <span style="color:#555">|*</span>args, <span style="color:#555">&amp;</span>blk<span style="color:#555">|</span>
+    (path, <span style="color:#366">method</span>) <span style="color:#555">=</span> <span style="color:#555">*</span>args
+  define_route(verb, path, <span style="color:#366">method</span>, <span style="color:#555">&amp;</span>blk)
+  <span style="color:#069;font-weight:bold">end</span>
+<span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>这里同时定义了4个方法，包括<code>put</code>。每一个方法的功能又是定义一个方法。对于<code>put</code>，该方法的名字为<code>put</code>，参数为<code>args</code>和<code>blk</code>，在<code>put &quot;#{path_id}/bits&quot;, :upload</code>中，args是<code>&quot;#{path_id}/bits&quot;, :upload</code>，blk为<code>nil</code>。进一步解析为，path=<code>&quot;#{path_id}/bits&quot;</code>，method=<code>&quot;upload&quot;</code>。然后执行<code>define_route(&quot;put&quot;, &quot;#{path_id}/bits&quot;, &quot;upload&quot;)</code>。 define_route定义在<code>lib/cloud_controller/rest_controller/routes.rb</code>中</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby"><span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">define_route</span>(verb, path, <span style="color:#366">method</span> <span style="color:#555">=</span> <span style="color:#069">nil</span>, <span style="color:#555">&amp;</span>blk)
+    opts <span style="color:#555">=</span> {}
+    opts<span style="color:#555">[</span><span style="color:#fc3">:consumes</span><span style="color:#555">]</span> <span style="color:#555">=</span> <span style="color:#555">[</span><span style="color:#fc3">:json</span><span style="color:#555">]</span> <span style="color:#069;font-weight:bold">if</span> <span style="color:#555">[</span><span style="color:#fc3">:put</span>, <span style="color:#fc3">:post</span><span style="color:#555">].</span>include?(verb)
+    klass <span style="color:#555">=</span> <span style="color:#366">self</span>       
+    controller<span style="color:#555">.</span>send(verb, path, opts) <span style="color:#069;font-weight:bold">do</span> <span style="color:#555">|*</span>args<span style="color:#555">|</span>        
+      logger<span style="color:#555">.</span>debug <span style="color:#c30">&#34;dispatch </span><span style="color:#a00">#{</span>klass<span style="color:#a00">}</span><span style="color:#c30"> </span><span style="color:#a00">#{</span>verb<span style="color:#a00">}</span><span style="color:#c30"> </span><span style="color:#a00">#{</span>path<span style="color:#a00">}</span><span style="color:#c30">&#34;</span>     
+      api <span style="color:#555">=</span> klass<span style="color:#555">.</span>new(@config, logger, env, request<span style="color:#555">.</span>params, request<span style="color:#555">.</span>body, <span style="color:#366">self</span>)
+      <span style="color:#069;font-weight:bold">if</span> <span style="color:#366">method</span>
+        <span style="color:#09f;font-style:italic"># dispatch定义在Base中</span>
+        api<span style="color:#555">.</span>dispatch(<span style="color:#366">method</span>, <span style="color:#555">*</span>args)
+      <span style="color:#069;font-weight:bold">else</span>
+        blk<span style="color:#555">.</span>yield(api, <span style="color:#555">*</span>args)
+      <span style="color:#069;font-weight:bold">end</span>
+    <span style="color:#069;font-weight:bold">end</span>
+  <span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>controller就定义在本文件中，<code>controller.class=Class.send</code>若是带块调用的话,也会把块原封不动地传给方法，于是就执行<code>put &quot;#{path_id}/bits&quot; do...end</code>，这时还不知道如何执行put，所以就展开放在这里，成了rack可读的形式。 send后面有一个参数*args实际上是:guid，这是。Sinatra框架中，路由范式可以包括具名参数。例如</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">get <span style="color:#c30">&#39;/:path/:name&#39;</span> <span style="color:#069;font-weight:bold">do</span> <span style="color:#555">|</span>n, m<span style="color:#555">|</span>
+    <span style="color:#c30">&#34;path= </span><span style="color:#a00">#{</span>n<span style="color:#a00">}</span><span style="color:#c30">; name= </span><span style="color:#a00">#{</span>m<span style="color:#a00">}</span><span style="color:#c30;font-weight:bold">\n</span><span style="color:#c30">&#34;</span>
+<span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>path展开到最底层，只有一个具名参数:guid，于是*args就是:guid。</p>
+
+<p>参数env和request是<code>Sinatra::Base</code>的成员，其中env包括很多内容，例如<code>REQUEST_URI，REMOTE_ADDR</code>等等。因为当前类间接地继承了<code>Sinatra::Base</code>，所以可以使用这些变量。</p>
+
+<p>最后，路由<code>put &quot;#{path_id}/bits&quot;, :upload</code>就被翻译为，遇到put请求，路径为<code>&quot;#{path_id}/bits&quot;</code>，则调用<code>upload</code>处理，同时将<code>:guid</code>传递给<code>upload</code>。</p>
+
+<h3 id="默认路由">默认路由</h3>
+
+<p>app.rb及其他一些文件中，没有调用<code>disable_default_routes</code>，在执行到rest_controller时，会调用define_routes来定义自己的路由。通过define_routes创建的路由具有一定的相似性，源文件只需给出路径名的一部分，其他部分在define_routes中动态生成，因此称为默认路由。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">  <span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">define_routes</span>
+    define_standard_routes
+    define_to_many_routes
+  <span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p><code>define_standard_routes</code>和<code>define_to_many_routes</code>定义在同名文件中。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">  <span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">define_standard_routes</span>
+    <span style="color:#555">[</span>
+      <span style="color:#555">[</span><span style="color:#fc3">:post</span>,   path,    <span style="color:#fc3">:create</span><span style="color:#555">]</span>,
+      <span style="color:#555">[</span><span style="color:#fc3">:get</span>,    path,    <span style="color:#fc3">:enumerate</span><span style="color:#555">]</span>,
+      <span style="color:#555">[</span><span style="color:#fc3">:get</span>,    path_id, <span style="color:#fc3">:read</span><span style="color:#555">]</span>,
+      <span style="color:#555">[</span><span style="color:#fc3">:put</span>,    path_id, <span style="color:#fc3">:update</span><span style="color:#555">]</span>,
+      <span style="color:#555">[</span><span style="color:#fc3">:delete</span>, path_id, <span style="color:#fc3">:delete</span><span style="color:#555">]</span>
+    <span style="color:#555">].</span>each <span style="color:#069;font-weight:bold">do</span> <span style="color:#555">|</span>verb, path, <span style="color:#366">method</span><span style="color:#555">|</span>
+      define_route(verb, path, <span style="color:#366">method</span>)
+    <span style="color:#069;font-weight:bold">end</span>
+  <span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>define_standard_routes生成一些相对固定的路由。当有path时，路由为path，方法为post和get；当有path_id时，路由为path_id，方法为get，put和delete。path定义在<code>lib/cloud_controller/rest_controller/base.rb</code>中</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">  <span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">path</span>
+    <span style="color:#c30">&#34;</span><span style="color:#a00">#{</span><span style="color:#360">ROUTE_PREFIX</span><span style="color:#a00">}</span><span style="color:#c30">/</span><span style="color:#a00">#{</span>path_base<span style="color:#a00">}</span><span style="color:#c30">&#34;</span>
+  <span style="color:#069;font-weight:bold">end</span>
+
+  <span style="color:#09f;font-style:italic"># Get and set the base of the path for the api endpoint.</span>
+  <span style="color:#09f;font-style:italic">#</span>
+  <span style="color:#09f;font-style:italic"># @param [String] base path to the api endpoint, e.g. the apps part of</span>
+  <span style="color:#09f;font-style:italic"># /v2/apps/...</span>
+  <span style="color:#09f;font-style:italic">#</span>
+  <span style="color:#09f;font-style:italic"># @return [String] base path to the api endoint</span>
+  <span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">path_base</span>(base <span style="color:#555">=</span> <span style="color:#069">nil</span>)
+    @path_base <span style="color:#555">=</span> base <span style="color:#069;font-weight:bold">if</span> base
+    @path_base <span style="color:#555">||</span> class_basename<span style="color:#555">.</span>underscore<span style="color:#555">.</span>pluralize
+  <span style="color:#069;font-weight:bold">end</span>
+
+  <span style="color:#09f;font-style:italic"># basename of the class</span>
+  <span style="color:#09f;font-style:italic">#</span>
+  <span style="color:#09f;font-style:italic"># @return [String] basename of the class</span>
+  <span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">class_basename</span>
+    <span style="color:#366">self</span><span style="color:#555">.</span>name<span style="color:#555">.</span>split(<span style="color:#c30">&#34;::&#34;</span>)<span style="color:#555">.</span>last
+  <span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>当类的源文件中调用了path_base时，则@path_base为传入的参数；否则@path_base为类名做如下变化的结果：将大写字母改为小写，然后将单数形式改为复数形式。例如，对于app.rb，path展开后的形式为/v2/apps，而对于app_bits.rb，path展开后的形式也为/v2/apps。</p>
+
+<p>(为什么有/v2？ 因为<code>ROUTE_PREFIX = &quot;/v2&quot;</code>)</p>
+
+<p>path_id定义在<code>lib/cloud_controller/rest_controller/model_controller.rb</code>中。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">  <span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">path_id</span>
+    <span style="color:#c30">&#34;</span><span style="color:#a00">#{</span>path<span style="color:#a00">}</span><span style="color:#c30">/:guid&#34;</span>
+  <span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>其中:guid为具名参数（关于具名参数&rsquo;named parameters&rsquo;的意思可参考博客<a href="http://www.sitepoint.com/just-do-it-learn-sinatra-i/">Just Do It: Learn Sinatra, Part One</a>），根据请求内容而定。 至此，结合前面的分析，define_standard_routes的调用结果就显而易见了。例如app.rb，会生成下面这些路由</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">post  <span style="color:#c30">&#34;/v2/apps&#34;</span>  create
+get  <span style="color:#c30">&#34;/va/apps&#34;</span>  enumerate
+get  <span style="color:#c30">&#34;/v2/apps/:guid&#34;</span>  read
+put  <span style="color:#c30">&#34;/v2/apps/:guid&#34;</span>  update
+delete  <span style="color:#c30">&#34;/v2/apps/:guid&#34;</span>  delete</code></pre></div>
+<p>create等操作定义在lib/cloud_controller/rest_controller/model_controller.rb中。</p>
+
+<p>define_routes接下来还要调用define_to_many_routes。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby"><span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">define_to_many_routes</span>        
+    to_many_relationships<span style="color:#555">.</span>each <span style="color:#069;font-weight:bold">do</span> <span style="color:#555">|</span><span style="color:#366">name</span>, <span style="color:#069">attr</span><span style="color:#555">|</span>
+     
+      get <span style="color:#c30">&#34;</span><span style="color:#a00">#{</span>path_id<span style="color:#a00">}</span><span style="color:#c30">/</span><span style="color:#a00">#{</span><span style="color:#366">name</span><span style="color:#a00">}</span><span style="color:#c30">&#34;</span> <span style="color:#069;font-weight:bold">do</span> <span style="color:#555">|</span>api, <span style="color:#366">id</span><span style="color:#555">|</span>
+        api<span style="color:#555">.</span>dispatch(<span style="color:#fc3">:enumerate_related</span>, <span style="color:#366">id</span>, <span style="color:#366">name</span>)
+      <span style="color:#069;font-weight:bold">end</span>
+
+      put <span style="color:#c30">&#34;</span><span style="color:#a00">#{</span>path_id<span style="color:#a00">}</span><span style="color:#c30">/</span><span style="color:#a00">#{</span><span style="color:#366">name</span><span style="color:#a00">}</span><span style="color:#c30">/:other_id&#34;</span> <span style="color:#069;font-weight:bold">do</span> <span style="color:#555">|</span>api, <span style="color:#366">id</span>, other_id<span style="color:#555">|</span>
+        api<span style="color:#555">.</span>dispatch(<span style="color:#fc3">:add_related</span>, <span style="color:#366">id</span>, <span style="color:#366">name</span>, other_id)
+      <span style="color:#069;font-weight:bold">end</span>
+
+      delete <span style="color:#c30">&#34;</span><span style="color:#a00">#{</span>path_id<span style="color:#a00">}</span><span style="color:#c30">/</span><span style="color:#a00">#{</span><span style="color:#366">name</span><span style="color:#a00">}</span><span style="color:#c30">/:other_id&#34;</span> <span style="color:#069;font-weight:bold">do</span> <span style="color:#555">|</span>api, <span style="color:#366">id</span>, other_id<span style="color:#555">|</span>
+        api<span style="color:#555">.</span>dispatch(<span style="color:#fc3">:remove_related</span>, <span style="color:#366">id</span>, <span style="color:#366">name</span>, other_id)
+      <span style="color:#069;font-weight:bold">end</span>
+    <span style="color:#069;font-weight:bold">end</span>
+  <span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>如果说define_standard_routes用来解析由path和path_id定义的路由，那么define_to_many_routes就是用来解析通过to_many定义的路由。 以<code>lib/cloud_controller/api/space.rb</code>为例，其中有一段</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">define_attributes <span style="color:#069;font-weight:bold">do</span>
+  attribute  <span style="color:#fc3">:name</span>,            <span style="color:#366">String</span>
+  to_one     <span style="color:#fc3">:organization</span>
+  to_many    <span style="color:#fc3">:developers</span>
+  to_many    <span style="color:#fc3">:managers</span>
+  to_many    <span style="color:#fc3">:auditors</span>
+  to_many    <span style="color:#fc3">:apps</span>
+  to_many    <span style="color:#fc3">:domains</span>
+  to_many    <span style="color:#fc3">:service_instances</span>
+  to_many    <span style="color:#fc3">:app_events</span>
+<span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>当启动时执行到这里时，就会调用define_attributes方法。define_attributes定义在lib/cloud_controller/rest_controller/model_controller.rb中</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">  <span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">define_attributes</span>(<span style="color:#555">&amp;</span>blk)
+    k <span style="color:#555">=</span> <span style="color:#360">Class</span><span style="color:#555">.</span>new <span style="color:#069;font-weight:bold">do</span>
+      <span style="color:#069">include</span> <span style="color:#360">ControllerDSL</span>
+    <span style="color:#069;font-weight:bold">end</span>
+    <span style="color:#09f;font-style:italic"># instance_eval：在对象的context中计算字符串expr并返回结果</span>
+    k<span style="color:#555">.</span>new(<span style="color:#366">self</span>)<span style="color:#555">.</span>instance_eval_r(<span style="color:#555">&amp;</span>blk)
+  <span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>于是会执行attribute，to_one和to_many这些方法。其中to_many定义在<code>lib\cloud_controller\rest_controller\controller_dsl.rb</code>中。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby"><span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">to_many</span>(<span style="color:#366">name</span>, opts <span style="color:#555">=</span> {})
+  to_many_relationships<span style="color:#555">[</span><span style="color:#366">name</span><span style="color:#555">]</span> <span style="color:#555">=</span> <span style="color:#360">ToManyAttribute</span><span style="color:#555">.</span>new(<span style="color:#366">name</span>, opts)
+<span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>对于space.rb中的to_many :apps来说，展开为</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">to_many_relationships<span style="color:#555">[</span><span style="color:#c30">&#34;:apps&#34;</span><span style="color:#555">]</span> <span style="color:#555">=</span> <span style="color:#360">ToManyAttribute</span><span style="color:#555">.</span>new(<span style="color:#c30">&#34;:apps&#34;</span>, opts)</code></pre></div>
+<p>也就是新建一个类，添加到to_many_relationships中。根据上下文，to_many_relationships是一个Array或一个Hash结构。</p>
+
+<p>执行到define_to_many_routes时，each后的参数name就是apps。api和id是路由范式中的具名参数。</p>
+
+<p>以路由<code>&quot;#{path_id}/#{name}&quot;</code>为例，path_id中包括两个变量，如果一个请求和该路由匹配，则第一个变量的实际值将赋给api，第二个变量的实际值赋给id。在另外两个路由范式中，:other_id代表第三个变量。第一个变量是什么还不知道，但通过测试可知，:guid部分的内容会被赋给id，那么第一个具名参数一定在path_id中。而api在运行过程中代表一个类的实例。例如，在启动时一个路由最终展开为<code>#{path_id} /v2/spaces/:guid</code>。当一个URL匹配该路由时，参数值如下</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">api<span style="color:#555">=</span><span style="color:#09f;font-style:italic">#</span>
+<span style="color:#366">id</span><span style="color:#555">=</span><span style="color:#f60">81243</span>e10<span style="color:#555">-</span><span style="color:#f60">9</span>b28<span style="color:#555">-</span><span style="color:#f60">411</span>e<span style="color:#555">-</span><span style="color:#f60">9</span>ccf<span style="color:#555">-</span><span style="color:#f60">524</span>ab15ce37c
+<span style="color:#09f;font-style:italic">#{name}=apps</span></code></pre></div>
+<p>通过define_standard_routes定义的路由，其具名参数放在*args中，数量可以是一个。</p>
+
+<h2 id="处理请求的过程">处理请求的过程</h2>
+
+<p>以客户启动一个APP为例。</p>
+
+<p>当客户端启动一个app时，发送的请求的格式如下（实际上客户端先检查app的状态，然后才决定是否发送put请求，这里假设app当前状态为stopped，因此客户端需要发送put请求）</p>
+
+<p><code>PUT /v2/apps/:guid?stage_async=true</code></p>
+
+<p>通过前面的分析可知，该请求和一个通过define_standard_routes定义的路由匹配，并被<code>lib/cloud_controller/rest_controller/model_controller.rb</code>的update方法处理。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby"><span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">update</span>(<span style="color:#366">id</span>)
+      logger<span style="color:#555">.</span>debug <span style="color:#c30">&#34;update: </span><span style="color:#a00">#{</span><span style="color:#366">id</span><span style="color:#a00">}</span><span style="color:#c30"> </span><span style="color:#a00">#{</span>request_attrs<span style="color:#a00">}</span><span style="color:#c30">&#34;</span>
+      obj <span style="color:#555">=</span> find_id_and_validate_access(<span style="color:#fc3">:update</span>, <span style="color:#366">id</span>)
+      json_msg <span style="color:#555">=</span> <span style="color:#366">self</span><span style="color:#555">.</span>class<span style="color:#555">::</span><span style="color:#360">UpdateMessage</span><span style="color:#555">.</span>decode(body)
+      @request_attrs <span style="color:#555">=</span> json_msg<span style="color:#555">.</span>extract(<span style="color:#fc3">:stringify_keys</span> <span style="color:#555">=&gt;</span> <span style="color:#069">true</span>)
+      <span style="color:#069;font-weight:bold">raise</span> <span style="color:#360">InvalidRequest</span> <span style="color:#069;font-weight:bold">unless</span> request_attrs\
+      
+      before_modify(obj)
+      
+      model<span style="color:#555">.</span>db<span style="color:#555">.</span>transaction <span style="color:#069;font-weight:bold">do</span>
+        obj<span style="color:#555">.</span>lock!
+        obj<span style="color:#555">.</span>update_from_hash(request_attrs)
+      <span style="color:#069;font-weight:bold">end</span>
+
+      after_modify(obj)
+
+      <span style="color:#555">[</span><span style="color:#360">HTTP</span><span style="color:#555">::</span><span style="color:#360">CREATED</span>, serialization<span style="color:#555">.</span>render_json(<span style="color:#366">self</span><span style="color:#555">.</span>class, obj, @opts)<span style="color:#555">]</span>
+    <span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>其参数即是url中的guid。find_id_and_validate_access会调用<code>obj = model.find(:guid =&gt; id)</code>得到一个Sequel::Model对象并加以验证，如果合法则返回该对象。</p>
+
+<p>Sequel 是一个 Ruby 语言的对象映射框架（ORM），其子类Sequel::Model代表一种对象关系映射。而find_id_and_validate_access返回的Sequel::Model对象相当于数据库中的一行，:guid =&gt; id即是查询条件。</p>
+
+<p>obj.update_from_hash根据请求中body中的内容更新数据库。在操作前后分别调用了before_modify和after_modify方法，其中before_modify定义如下</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby"><span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">before_modify</span>(app)
+  app<span style="color:#555">.</span>stage_async <span style="color:#555">=</span> <span style="color:#c30">%w(1 true)</span><span style="color:#555">.</span>include?(params<span style="color:#555">[</span><span style="color:#c30">&#34;stage_async&#34;</span><span style="color:#555">]</span>)
+<span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>根据put请求的内容，执行before_modify后app.stage_async会变为true。当update_from_hash这个事物成功后，会调用<code>lib/cloud_controller/models/app.rb</code>中的after_commit，其中涉及到对该标志位的检查。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">  <span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">after_commit</span>
+    <span style="color:#069;font-weight:bold">super</span>
+    react_to_saved_changes(previous_changes <span style="color:#555">||</span> {})
+  <span style="color:#069;font-weight:bold">end</span>
+
+  <span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">react_to_saved_changes</span>(changes)
+    <span style="color:#069;font-weight:bold">if</span> changes<span style="color:#555">.</span>has_key?(<span style="color:#fc3">:state</span>)
+      react_to_state_change
+    <span style="color:#069;font-weight:bold">elsif</span> changes<span style="color:#555">.</span>has_key?(<span style="color:#fc3">:instances</span>)
+      delta <span style="color:#555">=</span> changes<span style="color:#555">[</span><span style="color:#fc3">:instances</span><span style="color:#555">][</span><span style="color:#f60">1</span><span style="color:#555">]</span> <span style="color:#555">-</span> changes<span style="color:#555">[</span><span style="color:#fc3">:instances</span><span style="color:#555">][</span><span style="color:#f60">0</span><span style="color:#555">]</span>
+      react_to_instances_change(delta)
+    <span style="color:#069;font-weight:bold">end</span>
+  <span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>在after_commit中调用react_to_saved_changes，执行数据库更新后应该做的一些操作。react_to_saved_changes首先检查changes这个参数，看其是否包含:state关键字。当app在数据库中的状态由stopped变为started时，changes会记录该变化，于是执行react_to_state_change。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby">  <span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">react_to_state_change</span>
+    <span style="color:#069;font-weight:bold">if</span> started?
+      stage_if_needed <span style="color:#069;font-weight:bold">do</span>
+        <span style="color:#360">DeaClient</span><span style="color:#555">.</span>start(<span style="color:#366">self</span>)
+        send_droplet_updated_message
+      <span style="color:#069;font-weight:bold">end</span>
+    <span style="color:#069;font-weight:bold">elsif</span> stopped?
+      <span style="color:#360">DeaClient</span><span style="color:#555">.</span>stop(<span style="color:#366">self</span>)
+      send_droplet_updated_message
+    <span style="color:#069;font-weight:bold">end</span>
+  <span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>react_to_state_change判断状态是不是“STARTED”，结果为真，于是执行if后的语句。如果需要，则先执行stage操作，然后调用DeaClient.start和send_droplet_updated_message。send_droplet_updated_message向nats中发送droplet.updated消息，DeaClient.start开始启动一个app的过程。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-ruby" data-lang="ruby"><span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">start</span>(app)
+        start_instances_in_range(app, (<span style="color:#f60">0</span><span style="color:#555">...</span>app<span style="color:#555">.</span>instances))
+        app<span style="color:#555">.</span>routes_changed <span style="color:#555">=</span> <span style="color:#069">false</span>
+      <span style="color:#069;font-weight:bold">end</span>
+      
+      <span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">start_instances_in_range</span>(app, indices)
+        start_instances_with_message(app, indices, {})
+      <span style="color:#069;font-weight:bold">end</span>
+      
+      <span style="color:#069;font-weight:bold">def</span> <span style="color:#c0f">start_instances_with_message</span>(app, indices, message_override)
+        msg <span style="color:#555">=</span> start_app_message(app)
+
+        indices<span style="color:#555">.</span>each <span style="color:#069;font-weight:bold">do</span> <span style="color:#555">|</span>idx<span style="color:#555">|</span>
+          msg<span style="color:#555">[</span><span style="color:#fc3">:index</span><span style="color:#555">]</span> <span style="color:#555">=</span> idx
+          dea_id <span style="color:#555">=</span> dea_pool<span style="color:#555">.</span>find_dea(app<span style="color:#555">.</span>memory, app<span style="color:#555">.</span>stack<span style="color:#555">.</span>name, app<span style="color:#555">.</span>guid)
+          <span style="color:#069;font-weight:bold">if</span> dea_id
+            dea_publish(<span style="color:#c30">&#34;</span><span style="color:#a00">#{</span>dea_id<span style="color:#a00">}</span><span style="color:#c30">.start&#34;</span>, msg<span style="color:#555">.</span>merge(message_override))
+            dea_pool<span style="color:#555">.</span>mark_app_staged(<span style="color:#fc3">dea_id</span>: dea_id, <span style="color:#fc3">app_id</span>: app<span style="color:#555">.</span>guid)
+          <span style="color:#069;font-weight:bold">else</span>
+            logger<span style="color:#555">.</span>error <span style="color:#c30">&#34;no resources available </span><span style="color:#a00">#{</span>msg<span style="color:#a00">}</span><span style="color:#c30">&#34;</span>
+          <span style="color:#069;font-weight:bold">end</span>
+        <span style="color:#069;font-weight:bold">end</span>
+      <span style="color:#069;font-weight:bold">end</span></code></pre></div>
+<p>start_instances_with_message的第一个参数是app名字，第二个参数是实例个数，controller从dea_pool中找到一个dea，通过nats向主题<code>#{dea_id}.start</code>发送消息。<code>#{dea_id}</code>对应的dea收到消息后，就会执行启动app的操作。</p>
+
+<hr />
+
+<h1 id="一些大家可能感兴趣的细节">一些大家可能感兴趣的细节</h1>
+
+<h2 id="cloud-controller-yml文件">cloud_controller.yml文件</h2>
+
+<ol>
+<li>CCNG统一使用8181作为统一对外开放的端口，原CC的端口为9022.</li>
+<li>info包含了如下默认信息，包括版本号、描述等。其中，support_address默认为&rdquo;<a href="http://support.cloudfoundry.com&quot;">http://support.cloudfoundry.com&quot;</a> description默认为 &ldquo;VMware&rsquo;s Cloud Application Platform&rdquo;</li>
+<li>db包含了和CCDB的最大连接数和超时时间的设置.</li>
+<li>staging字段包含了最大stage时间，默认为120s，如果上传的应用大，需要修改配置.</li>
+</ol>
+
+<h2 id="to-be-continued">TO BE CONTINUED&hellip;</h2>
+
+<hr />
+
+<h1 id="参考文献">参考文献</h1>
+
+<ul>
+<li><a href="https://github.com/cloudfoundry/cloud_controller_ng">Cloud_Controller_NG github源码</a></li>
+<li><a href="http://blog.sina.com.cn/s/blog_c0cc23d90101otot.html">Cloud_Controller_ng源码分析</a></li>
+<li><a href="http://blog.csdn.net/tibelf/article/details/13295443">cloud controller v2源码解析</a></li>
+<li><a href="http://blog.csdn.net/shlazww/article/details/18887607">Cloud Foundry中cloud_controller_ng架构简析</a>
+
+<br /></li>
+</ul>
+
+                        </div>
+                        
+                        
+                        
+                        
+                        
+                        
+
+                        
+                        <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+                        <script src="https://unpkg.com/gitalk@latest/dist/gitalk.min.js"></script> 
+                        <script type="text/javascript" src="/assets/js/md5.min.js"></script>
+                        <div id="gitalk-container"></div>     
+                        <script type="text/javascript">
+                            var gitalk = new Gitalk({
+                              clientID: '835183d2dcbd1167ac28', 
+                            
+                              clientSecret: 'd873919fac3cc76921ee0800172c2279bc612f8d', 
+                            
+                              repo: 'Sel-Website-talk',
+                              owner: 'Peeknut',
+                              admin: ['Peeknut','Rachel-Shao'],
+                              id: location.href.split("/").pop().substring(0, 49),      
+                              distractionFreeMode: false  
+                            })
+                            gitalk.render('gitalk-container')
+                        </script> 
+                        
+
+                    </div>
+                    
+
+                    
+
+                    
+
+                    <div class="col-md-3">
+
+                        
+
+                        
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+      <h3 class="panel-title">搜索栏</h3>
+      
+    </div>
+
+    <div class="panel-body">
+        
+        <div class="search" id="search">
+            <div class="input-group">
+                <input type="text" name="q" class="form-control" placeholder="请输入文章标题或摘要..." id="search-key">
+                <input type="hidden" name="sitesearch" value="https://Congrool.github.io/">
+                <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main" onclick="search()"><i class="fas fa-search"></i></button>
+                </span>
+            </div>
+            <h1 id="search-tip" style="color: red;text-align: center;display: none;font-size: medium;">搜索中，请稍后 ...</h1>
+        </div>
+        <script type="text/javascript">
+            
+            window.onload = function() {
+                      document.onkeydown = function(ev) {
+                        var event = ev || event
+                        if (event.keyCode == 13) {
+                          search()
+                        }
+                      }
+                    }
+            
+            function search() {
+                    
+                      key = document.getElementById("search-key").value;
+                      if (key === "") {
+                        
+                        return;
+                      }
+                      key = key.toLowerCase();
+                      document.getElementById("search-key").value = "";
+                  
+                      
+                      document.getElementById("search-tip").innerText = "搜索中，请稍后 ...";
+                      document.getElementById("search-tip").style.display = "block";
+                  
+                      
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      var childs = el.childNodes;
+                      for (var i = childs.length - 1; i >= 0; i--) {
+                        el.removeChild(childs[i]);
+                      }
+                  
+                      
+                      xmltext = new XMLHttpRequest;
+                      xmltext.open("GET", "/index.xml", false);
+                      xmltext.send();
+                      resp = xmltext.responseXML;
+                      
+                      items = resp.getElementsByTagName("item");
+                      
+                      var i = 0;
+                      haveResult = false;
+                      while (i < items.length) {
+                        txt = items[i].getElementsByTagName("title")[0].innerHTML + items[i].getElementsByTagName("description")[0].innerHTML
+                        txt = txt.toLowerCase();
+                        if (txt.indexOf(key) > -1) {
+                          haveResult = true;
+                          title = items[i].getElementsByTagName("title")[0].innerHTML;
+                          link = items[i].getElementsByTagName("link")[0].innerHTML;
+                          time = items[i].getElementsByTagName("pubDate")[0].innerHTML;
+                          mark = items[i].getElementsByTagName("description")[0].innerHTML;
+                          time = time.slice(0, -5);
+                          addItem(title, link, time, mark)
+                        }
+                        i++;
+                      }
+                      if (!haveResult) {
+                        document.getElementById("search-tip").innerText = "搜索完毕，未发现结果 ...";
+                        document.getElementById("search-tip").style.display = "block";
+                      }
+
+                      
+                      var el = document.getElementById("blog-head");
+                      el.innerHTML="Blogs"
+                    }
+                  
+                    
+                    function addItem(title, link, time, mark) {
+                      document.getElementById("search-tip").style.display = "none";
+                      tmpl = "<article class=\"post\" style=\"border-bottom: 1px solid #e6e6e6;\" >" +
+                        "<header class=\"post-header\">" +
+                        "<h1 class=\"post-title\"><a class=\"post-link\" href=\"" + link + "\" target=\"_blank\">" + title + "</a></h1>" +
+                        "<div class=\"post-meta\">" +
+                        " <span class=\"post-time\">" + time + "</span>" +
+                        "</div>" +
+                        " </header>" +
+                        "<div class=\"post-content\">" +
+                        "<div class=\"post-summary\">" + mark + "</div>" +
+                        "<div class=\"read-more\">" +
+                        "<a href=" + link + " class=\"read-more-link\" target=\"_blank\">阅读更多</a>" +
+                        "</div>" +
+                        " </div>" +
+                        "</article>"
+                      div = document.createElement("div")
+                      div.innerHTML = tmpl;
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      el.appendChild(div)
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+
+        </script>
+        
+    </div>
+</div>
+
+
+
+
+
+
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">归档栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="nav nav-pills nav-stacked">
+            
+            
+            <li>
+                <a href="/categories/bosh">bosh (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloud_controller_ng">cloud_controller_ng (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloudfoundry">cloudfoundry (15)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/containerd">containerd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/docker">docker (19)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/etcd">etcd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/haproxy">haproxy (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/healthmanager">healthmanager (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/karmada">karmada (4)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubeedge">kubeedge (5)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubernetes">kubernetes (14)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/network">network (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/openyurt">openyurt (2)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/service-mesh">service-mesh (4)</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+<div class="panel sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">标签栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="tag-cloud">
+            
+            
+            <li>
+                <a href="/tags/agent"><i class="fas fa-tags"></i> agent</a>
+            </li>
+            
+            <li>
+                <a href="/tags/apiserver"><i class="fas fa-tags"></i> apiserver</a>
+            </li>
+            
+            <li>
+                <a href="/tags/books"><i class="fas fa-tags"></i> books</a>
+            </li>
+            
+            <li>
+                <a href="/tags/bosh"><i class="fas fa-tags"></i> bosh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/ccng"><i class="fas fa-tags"></i> ccng</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cf-release"><i class="fas fa-tags"></i> cf-release</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cgroups"><i class="fas fa-tags"></i> cgroups</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudfoundry"><i class="fas fa-tags"></i> cloudfoundry</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudnative"><i class="fas fa-tags"></i> cloudnative</a>
+            </li>
+            
+            <li>
+                <a href="/tags/collector"><i class="fas fa-tags"></i> collector</a>
+            </li>
+            
+            <li>
+                <a href="/tags/containerd"><i class="fas fa-tags"></i> containerd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cri"><i class="fas fa-tags"></i> cri</a>
+            </li>
+            
+            <li>
+                <a href="/tags/dea"><i class="fas fa-tags"></i> dea</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker"><i class="fas fa-tags"></i> docker</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker-network"><i class="fas fa-tags"></i> docker-network</a>
+            </li>
+            
+            <li>
+                <a href="/tags/edgecomputing"><i class="fas fa-tags"></i> edgecomputing</a>
+            </li>
+            
+            <li>
+                <a href="/tags/etcd"><i class="fas fa-tags"></i> etcd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/gorouter"><i class="fas fa-tags"></i> gorouter</a>
+            </li>
+            
+            <li>
+                <a href="/tags/haproxy"><i class="fas fa-tags"></i> haproxy</a>
+            </li>
+            
+            <li>
+                <a href="/tags/healthmanager"><i class="fas fa-tags"></i> healthmanager</a>
+            </li>
+            
+            <li>
+                <a href="/tags/istio"><i class="fas fa-tags"></i> istio</a>
+            </li>
+            
+            <li>
+                <a href="/tags/karmada"><i class="fas fa-tags"></i> karmada</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubeedge"><i class="fas fa-tags"></i> kubeedge</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubelet"><i class="fas fa-tags"></i> kubelet</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubernetes"><i class="fas fa-tags"></i> kubernetes</a>
+            </li>
+            
+            <li>
+                <a href="/tags/libcontainer"><i class="fas fa-tags"></i> libcontainer</a>
+            </li>
+            
+            <li>
+                <a href="/tags/micro-service"><i class="fas fa-tags"></i> micro-service</a>
+            </li>
+            
+            <li>
+                <a href="/tags/namespace"><i class="fas fa-tags"></i> namespace</a>
+            </li>
+            
+            <li>
+                <a href="/tags/nats"><i class="fas fa-tags"></i> nats</a>
+            </li>
+            
+            <li>
+                <a href="/tags/news"><i class="fas fa-tags"></i> news</a>
+            </li>
+            
+            <li>
+                <a href="/tags/openyurt"><i class="fas fa-tags"></i> openyurt</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pipework"><i class="fas fa-tags"></i> pipework</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pouch"><i class="fas fa-tags"></i> pouch</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runc"><i class="fas fa-tags"></i> runc</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runtime"><i class="fas fa-tags"></i> runtime</a>
+            </li>
+            
+            <li>
+                <a href="/tags/security"><i class="fas fa-tags"></i> security</a>
+            </li>
+            
+            <li>
+                <a href="/tags/serverless"><i class="fas fa-tags"></i> serverless</a>
+            </li>
+            
+            <li>
+                <a href="/tags/service-mesh"><i class="fas fa-tags"></i> service-mesh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/syslog_aggregator"><i class="fas fa-tags"></i> syslog_aggregator</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+                        
+
+                    </div>
+                    
+
+                    
+
+                </div>
+                
+
+            </div>
+            
+        </div>
+        
+
+        <footer id="footer">
+    <div class="container">
+
+        
+        <div class="col-md-4 col-sm-6">
+            <h4></h4>
+
+            <p><strong>关于我们：<strong> <p>浙大SEL实验室</p><p>地址：杭州市浙大路38号曹光彪西楼405室</p><p><strong></strong>
+            <a href="/contact" class="btn btn-small btn-template-main" >跳转到关于</a>
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+        <div class="col-md-4 col-sm-6">
+
+             
+            <h4>最新博客</h4>
+            
+
+            <div class="blog-entries">
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/27/overview.png" class="img-responsive" alt="基于KubeEdge的边缘节点分组管理设计与实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">基于KubeEdge的边缘节点分组管理设计与实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/20/karmada-scheduler.png" class="img-responsive" alt="多云环境下的资源调度：karmada scheduler的框架和实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">多云环境下的资源调度：karmada scheduler的框架和实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">
+                          
+                            <img src="/img/blogs/19/karmada-arch.jpg" class="img-responsive" alt="多云环境下的成员集群管理，看看开源项目karmada是如何做到的">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">多云环境下的成员集群管理，看看开源项目karmada是如何做到的</a></h5>
+                    </div>
+                </div>
+                
+            </div>
+
+            <hr class="hidden-md hidden-lg">
+             
+
+        </div>
+        
+
+        
+        <div class="col-md-4 col-sm-6">
+
+          <h4></h4>
+
+            <p><strong>联系我们: 
+                                    <p>团队负责人：丁轶群 yiqunding@zju.edu.cn</p>
+                                    <p>网站维护人：刘佳文 839809484@qq.com</p>                
+    </strong>
+
+            
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+    </div>
+    
+</footer>
+
+
+
+
+
+
+
+<div id="copyright">
+    <div class="container">
+        <div class="col-md-12">
+            
+            <p class="pull-left">Copyright ©️ 2020 SEL Laboratory , ZJ University all rights reserved.</p>
+            
+            <p class="pull-right">
+               <a href="https://bootstrapious.com/p/universal-business-e-commerce-template">Bootstrapious</a>.
+              
+
+               <a href="https://github.com/devcows/hugo-universal-theme">DevCows</a>.
+            </p>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+    </div>
+    
+
+    
+
+
+<script src="/js/jquery.min.js"></script>
+<script src="/js/bootstrap.min.js"></script>
+
+
+
+<script src="/js/jquery.cookie.min.js"></script>
+<script src="/js/jquery.waypoints.min.js"></script>
+<script src="/js/jquery.counterup.min.js"></script>
+<script src="/js/jquery-parallax.js"></script>
+
+
+<script src="/js/front.js"></script>
+
+
+<script src="/js/owl.carousel.min.js"></script>
+
+
+
+  </body>
+</html>

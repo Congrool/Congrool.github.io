@@ -1,0 +1,1283 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="robots" content="all,follow">
+  <meta name="googlebot" content="index,follow,snippet,archive">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <title>Docker源码分析（四）：Docker Daemon之NewDaemon实现</title>
+  <meta name="author" content="孙宏亮" />
+  
+  
+  
+  
+  <meta name="keywords" content="Docker">
+  
+  
+  <meta name="description" content="Docker的生态系统日趋完善，开发者群体也在日趋庞大，这让业界对Docker持续抱有极其乐观的态度。然而，对于广大开发者而言，使用Docker这项技术已然不是门槛，享受Docker带来的技术福利已不是困难。如今，如何探寻Docker适应的场景，如何发展Docker周边的技术，以及如何弥合Docker新技术与传统物理机或VM技术的鸿沟，已经占据Docker研究者们的思考与实践。">
+
+  <meta name="generator" content="Hugo 0.68.3" />
+
+  
+  <link href='//fonts.googleapis.com/css?family=Roboto:400,100,100italic,300,300italic,500,700,800' rel='stylesheet' type='text/css'>
+
+  
+  
+  
+  
+  
+
+  <link href="/css/all.css" rel="stylesheet">
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+
+  
+  <link href="/css/animate.css" rel="stylesheet">
+
+  
+  
+    <link href="/css/style.default.css" rel="stylesheet" id="theme-stylesheet">
+  
+
+  
+  <link href="/css/custom.css" rel="stylesheet">
+
+  
+  
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+        <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  
+
+  
+  <link rel="shortcut icon" href="/img/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
+
+  
+  <link href="/css/owl.carousel.css" rel="stylesheet">
+  <link href="/css/owl.theme.css" rel="stylesheet">
+
+  
+  <link rel="alternate" href="https://Congrool.github.io/index.xml" type="application/rss+xml" title="浙大SEL实验室">
+
+  
+  
+  
+  
+  
+  
+  <meta property="og:updated_time" content="2014-12-02T13:03:12Z">
+  
+    
+    
+    <meta property="article:section" content="Docker">
+    <meta property="article:tag" content="Docker">
+    
+    
+    <meta property="article:published_time" content="2014-12-02T13:03:12Z">
+    <meta property="article:modified_time" content="2014-12-02T13:03:12Z">
+  
+
+  
+  <meta name="twitter:card" content="summary">
+  
+  <meta name="twitter:title" content="Docker源码分析（四）：Docker Daemon之NewDaemon实现">
+  
+  <meta name="twitter:description" content="Docker的生态系统日趋完善，开发者群体也在日趋庞大，这让业界对Docker持续抱有极其乐观的态度。然而，对于广大开发者而言，使用Docker这项技术已然不是门槛，享受Docker带来的技术福利已不是困难。如今，如何探寻Docker适应的场景，如何发展Docker周边的技术，以及如何弥合Docker新技术与传统物理机或VM技术的鸿沟，已经占据Docker研究者们的思考与实践。">
+  
+  
+</head>
+
+
+  <body>
+
+    <div id="all">
+
+        <header class="navbar-affixed-top" data-spy="affix" data-offset-top="62">
+    <div class="navbar navbar-default yamm" role="navigation" id="navbar" style="background-color:white;">    
+        <div class="container">
+            <div class="navbar-header">
+                <a class="navbar-brand home" href="/">
+                    <img src="/img/sel.png" alt="Docker源码分析（四）：Docker Daemon之NewDaemon实现" class="hidden-xs hidden-sm img-responsive">
+                    
+                    <span class="sr-only">Docker源码分析（四）：Docker Daemon之NewDaemon实现 - </span>
+                </a>
+                <div class="navbar-buttons">
+                    <button type="button" class="navbar-toggle btn-template-main" data-toggle="collapse" data-target="#navigation">
+                      <span class="sr-only"></span>
+                        <i class="fas fa-align-justify"></i>
+                    </button>
+                </div>
+            </div>
+            
+
+            <div class="navbar-collapse collapse" id="navigation">
+                <ul class="nav navbar-nav navbar-right">
+                  
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/">主页</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/blog/">博客</a>
+                    
+                  </li>
+
+                  <li class="dropdown">
+                    
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">社区 <span class="caret"></span></a>
+                  <ul class="dropdown-menu">
+                    
+                      <li><a href="https://www.servicemesher.com/">ServiceMesh社区</a></li>
+                    
+                      <li><a href="">kubeedge社区</a></li>
+
+                      <li><a href="http://www.icsoft.zju.edu.cn/index.php">浙江大学智能计算与软件中心</a></li>
+                    
+                  </ul>
+
+                  <li class="dropdown">
+                    
+                    <a href="/archives/">归档</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/contact/">关于</a>
+                    
+                  </li>
+                  
+                </li>
+
+                
+                
+
+                
+                </ul>
+            </div>
+            
+
+            <div class="collapse clearfix" id="search">    
+                <form class="navbar-form" role="search">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search">
+                        <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main"><i class="fas fa-search"></i></button>
+                </span>
+                    </div>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+
+    
+</header>
+
+
+
+
+        <div id="heading-breadcrumbs">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h1>Docker源码分析（四）：Docker Daemon之NewDaemon实现</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+        <div id="content">
+            <div class="container">
+
+                <div class="row">
+
+                    
+
+                    <div class="col-md-9" id="blog-post">
+
+                        
+                          <p class="text-muted text-uppercase mb-small text-right">
+                             <a href="#">孙宏亮</a>
+                             | 
+                            2014-12-02
+                          </p>
+                        
+
+                        <div id="post-content">
+                          <h1 id="前言">前言</h1>
+
+<p>Docker的生态系统日趋完善，开发者群体也在日趋庞大，这让业界对Docker持续抱有极其乐观的态度。然而，对于广大开发者而言，使用Docker这项技术已然不是门槛，享受Docker带来的技术福利已不是困难。如今，如何探寻Docker适应的场景，如何发展Docker周边的技术，以及如何弥合Docker新技术与传统物理机或VM技术的鸿沟，已经占据Docker研究者们的思考与实践。</p>
+
+<p>本文为《Docker源码分析》第四篇——Docker Daemon之NewDaemon实现，力求帮助广大Docker爱好者更多得理解Docker 的核心——Docker Daemon的实现。</p>
+
+<h2 id="1-newdaemon作用简介"><strong>1. NewDaemon作用简介</strong></h2>
+
+<p>在Docker架构中有很多重要的概念，如：graph，graphdriver，execdriver，networkdriver，volumes，Docker containers等。Docker的实现过程中，需要将以上实体进行统一化管理，而Docker Daemon中的daemon实例就是设计来完成这一任务。</p>
+
+<p>从源码的角度，NewDaemon函数的执行出色的完成了Docker Daemon创建并加载daemon的任务，最终实现统一管理Docker Daemon的资源。</p>
+
+<h2 id="2-newdaemon源码分析内容安排"><strong>2. NewDaemon源码分析内容安排</strong></h2>
+
+<p>本文从源码角度，分析Docker Daemon加载过程中NewDaemon的实现，整个分析过程如下图：
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605753700/sel/NewDaemon_E6_B5_81_E7_A8_8B_bziljb.jpg" alt="NewDaemon流程" style="zoom:16%;" />
+</center></p>
+
+<h2 id="3-newdaemon具体实现"><strong>3. NewDaemon具体实现</strong></h2>
+
+<p>在《Docker源码分析》系列第三篇中，有一个重要的环节为：使用goroutine加载daemon对象并运行。在加载并运行daemon对象时，所做的第一个工作即为：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">d, err <span style="color:#555">:=</span> daemon.<span style="color:#c0f">NewDaemon</span>(daemonCfg, eng)</code></pre></div>
+<p>该部分代码分析如下：</p>
+
+<ul>
+<li>函数名：NewDaemon；</li>
+<li>函数调用具体实现所处的包位置：<a href="https://github.com/docker/docker/tree/v1.2.0/daemon">./docker/daemon</a>；</li>
+<li>函数具体实现源文件：<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/daemon.go#L665-L671">./docker/daemon/daemon.go</a>；</li>
+<li>函数传入实参：daemonCfg，定义了Docker Daemon运行过程中所需的众多配置信息；eng，在mainDaemon中创建的engine对象实例；</li>
+<li>函数返回类型：d，具体的Daemon对象实例；err，错误状态。</li>
+</ul>
+
+<p>进入./docker/daemon/daemon.go中<a href="(https://github.com/docker/docker/blob/v1.2.0/daemon/daemon.go#L665-L671)">NewDaemon的具体实现</a>，代码如下</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    <span style="color:#069;font-weight:bold">func</span> <span style="color:#c0f">NewDaemon</span>(config <span style="color:#555">*</span>Config, eng <span style="color:#555">*</span>engine.Engine) (<span style="color:#555">*</span>Daemon, <span style="color:#078;font-weight:bold">error</span>) {
+        daemon, err <span style="color:#555">:=</span> <span style="color:#c0f">NewDaemonFromDirectory</span>(config, eng)
+        <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+            <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>, err
+        }
+        <span style="color:#069;font-weight:bold">return</span> daemon, <span style="color:#069;font-weight:bold">nil</span>
+    }</code></pre></div>
+<p>可见，在实现NewDaemon的过程中，主要依靠NewDaemonFromDirectory函数来实现创建Daemon的运行环境。该函数的实现，传入参数以及返回类型与NewDaemon相同。下文将大篇幅分析其实现细节。</p>
+
+<h3 id="3-1-应用配置信息"><strong>3.1. 应用配置信息</strong></h3>
+
+<p>在NewDaemonFromDirectory的实现过程中，第一个工作是：如何应用传入的配置信息。这部分配置信息服务于Docker Daemon的运行，并在Docker Daemon启动初期就初始化完毕。配置信息的主要功能是：供用户自由配置Docker的可选功能，使得Docker的运行更贴近用户所期待的运行场景。</p>
+
+<p>配置信息的处理包含4部分：</p>
+
+<ul>
+<li>配置Docker容器的MTU；</li>
+<li>检测网桥配置信息；</li>
+<li>查验容器通信配置；</li>
+<li>处理PID文件配置。</li>
+</ul>
+
+<p>以下逐一分析配置信息的处理。</p>
+
+<h4 id="3-1-1-配置docker容器的mtu"><strong>3.1.1. 配置Docker容器的MTU</strong></h4>
+
+<p>config信息中的Mtu应用于容器网络的最大传输单元（MTU）特性。有关MTU的源码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">if</span> config.Mtu <span style="color:#555">==</span> <span style="color:#f60">0</span> {
+        config.Mtu = <span style="color:#c0f">GetDefaultNetworkMtu</span>()
+}</code></pre></div>
+<p>如果config信息中Mtu的值为0的话，则通过GetDefaultNetworkMtu函数将Mtu设定为默认的值；否则，采用config中的Mtu值。由于在默认的配置文件<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/config.go#L57">./docker/daemon/config.go</a>（下文简称为默认配置文件）中，初始化时Mtu属性值为0，故执行GetDefaultNetworkMtu。 GetDefaultNetworkMtu函数的具体实现位于<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/config.go#L65-L70">./docker/daemon/config.go</a>:</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> <span style="color:#c0f">GetDefaultNetworkMtu</span>() <span style="color:#078;font-weight:bold">int</span> {
+    <span style="color:#069;font-weight:bold">if</span> iface, err <span style="color:#555">:=</span> networkdriver.<span style="color:#c0f">GetDefaultRouteIface</span>(); err <span style="color:#555">==</span> <span style="color:#069;font-weight:bold">nil</span> {
+        <span style="color:#069;font-weight:bold">return</span> iface.MTU
+    }
+    <span style="color:#069;font-weight:bold">return</span> defaultNetworkMtu
+}</code></pre></div>
+<p>GetDefaultNetworkMtu的实现中，通过networkdriver包的GetDefaultRouteIface方法获取具体的网络设备，若该网络设备存在，则返回该网络设备的MTU属性值；否则的话，返回默认的MTU值defaultNetworkMtu，值为1500。</p>
+
+<h4 id="3-1-2-检测网桥配置信息"><strong>3.1.2. 检测网桥配置信息</strong></h4>
+
+<p>处理完config中的Mtu属性之后，马上检测config中BridgeIface和BridgeIP这两个信息。BridgeIface和BridgeIP的作用是为创建网桥的任务”init_networkdriver”提供参数。代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">if</span> config.BridgeIface <span style="color:#555">!=</span> <span style="color:#c30">&#34;&#34;</span> <span style="color:#555">&amp;&amp;</span> config.BridgeIP <span style="color:#555">!=</span> <span style="color:#c30">&#34;&#34;</span> {
+    <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>, fmt.<span style="color:#c0f">Errorf</span>(<span style="color:#c30">&#34;You specified -b &amp; --bip, mutually exclusive options. Please specify only one.&#34;</span>)
+}</code></pre></div>
+<p>以上代码的含义为：若config中BridgeIface和BridgeIP两个属性均不为空，则返回nil对象，并返回错误信息，错误信息内容为：用户同时指定了BridgeIface和BridgeIP，这两个属性属于互斥类型，只能至多指定其中之一。在<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/config.go#L51-L52">默认配置文件</a>中，BridgeIface和BridgeIP均为空。</p>
+
+<h4 id="3-1-3-查验容器通信配置"><strong>3.1.3. 查验容器通信配置</strong></h4>
+
+<p>检测容器的通信配置，主要是针对config中的EnableIptables和InterContainerCommunication这两个属性。EnableIptables属性的作用是启用Docker对iptables规则的添加；InterContainerCommunication的作用是启动Docker container之间互相通信的功能。代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">if</span> !config.EnableIptables <span style="color:#555">&amp;&amp;</span> !config.InterContainerCommunication {
+    <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>, fmt.<span style="color:#c0f">Errorf</span>(<span style="color:#c30">&#34;You specified --iptables=false with --icc=false. ICC uses iptables to function. Please set --icc or --iptables to true.&#34;</span>)
+}</code></pre></div>
+<p>代码含义为：若EnableIptables和InterContainerCommunication两个属性的值均为false，则返回nil对象以及错误信息。其中错误信息为：用户将以上两属性均置为false，container间通信需要iptables的支持，需设置至少其中之一为true。而在<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/config.go#L49-L53">默认配置文件</a>中，这两个属性的值均为true。</p>
+
+<h4 id="3-1-4-处理网络功能配置"><strong>3.1.4. 处理网络功能配置</strong></h4>
+
+<p>接着，处理config中的DisableNetwork属性，以备后续在创建并执行创建Docker Daemon网络环境时使用，即在名为”init_networkdriver”的job创建并运行中体现。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">config.DisableNetwork = config.BridgeIface <span style="color:#555">==</span> DisableNetworkBridge</code></pre></div>
+<p>由于config中的DisableNetwork属性值为空，另外DisableNetworkBridge的值为字符串”none”，因此最终config中DisableNetwork的值为false。后续的”init_networkdriver”的job需要执行。</p>
+
+<h4 id="3-1-5-处理pid文件配置"><strong>3.1.5. 处理PID文件配置</strong></h4>
+
+<p>处理PID文件配置，主要工作为：为Docker Daemon运行时的PID号创建一个PID文件，文件的路径即为config中的Pidfile属性。并且为Docker Daemon的shutdown操作添加一个删除该Pidfile的函数，以便在Docker Daemon退出的时候，可以在第一时间删除该Pidfile。<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/daemon.go#L691-L699">处理PID文件配置信息</a>的代码实现如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">if</span> config.Pidfile <span style="color:#555">!=</span> <span style="color:#c30">&#34;&#34;</span> {
+<span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> utils.<span style="color:#c0f">CreatePidFile</span>(config.Pidfile); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+    <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>, err
+}
+eng.<span style="color:#c0f">OnShutdown</span>(<span style="color:#069;font-weight:bold">func</span>() {
+    utils.<span style="color:#c0f">RemovePidFile</span>(config.Pidfile)
+})
+}</code></pre></div>
+<p>代码执行过程中，首先检测config中的Pidfile属性是否为空，若为空，则跳过代码块继续执行；若不为空，则首先在文件系统中创建具体的Pidfile，然后向eng的onShutdown属性添加一个处理函数，函数具体完成的工作为utils.RemovePidFile(config.Pidfile)，即在Docker Daemon进行shutdown操作的时候，删除Pidfile文件。在<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/config.go#L46">默认配置文件</a>中，Pidfile文件的初始值为” /var/run/docker.pid”。</p>
+
+<p>以上便是关于配置信息处理的分析。</p>
+
+<h3 id="3-2-检测系统支持及用户权限"><strong>3.2. 检测系统支持及用户权限</strong></h3>
+
+<p>初步处理完Docker的配置信息之后，Docker对自身运行的环境进行了一系列的检测，主要包括三个方面： * 操作系统类型对Docker Daemon的支持； * 用户权限的级别； * 内核版本与处理器的支持。</p>
+
+<p>系统支持与用户权限检测的实现较为简单，<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/daemon.go#L703-L711">实现代码</a>如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">if</span> runtime.GOOS <span style="color:#555">!=</span> <span style="color:#c30">&#34;linux&#34;</span> {
+log.<span style="color:#c0f">Fatalf</span>(<span style="color:#c30">&#34;The Docker daemon is only supported on linux&#34;</span>)
+}
+<span style="color:#069;font-weight:bold">if</span> os.<span style="color:#c0f">Geteuid</span>() <span style="color:#555">!=</span> <span style="color:#f60">0</span> {
+    log.<span style="color:#c0f">Fatalf</span>(<span style="color:#c30">&#34;The Docker daemon needs to be run as root&#34;</span>)
+}
+<span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> <span style="color:#c0f">checkKernelAndArch</span>(); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+    log.<span style="color:#c0f">Fatalf</span>(err.<span style="color:#c0f">Error</span>())
+}</code></pre></div>
+<p>首先，通过runtime.GOOS，检测操作系统的类型。runtime.GOOS返回运行程序所在操作系统的类型，可以是Linux，Darwin，FreeBSD等。结合具体代码，可以发现，若操作系统不为Linux的话，将报出Fatal错误日志，内容为“Docker Daemon只能支持Linux操作系统”。</p>
+
+<p>接着，通过os.Geteuid()，检测程序用户是否拥有足够权限。os.Geteuid()返回调用者所在组的group id。结合具体代码，可就是说若返回不为0，则说明不是以root用户的身份运行，报出Fatal日志。</p>
+
+<p>最后，通过checkKernelAndArch()，检测内核的版本以及主机处理器类型。checkKernelAndArch()的实现同样位于<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/daemon.go#L1097-L1119">./docker/daemon/daemon.go</a>。实现过程中，第一个工作是：检测程序运行所在的处理器架构是否为“amd64”，而目前Docker运行时只能支持amd64的处理器架构。第二个工作是：检测Linux内核版本是否满足要求，而目前Docker Daemon运行所需的内核版本若过低，则必须升级至3.8.0。</p>
+
+<h3 id="3-3-配置工作路径"><strong>3.3. 配置工作路径</strong></h3>
+
+<p>配置Docker Daemon的工作路径，主要是创建Docker Daemon运行中所在的工作目录。实现过程中，通过config中的Root属性来完成。在<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/config.go#L47">默认配置文件</a>中，Root属性的值为”/var/lib/docker”。</p>
+
+<p>在<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/daemon.go#L714-L741">配置工作路径的代码实现</a>中，步骤如下： (1) 使用规范路径创建一个TempDir，路径名为tmp； (2) 通过tmp，创建一个指向tmp的文件符号连接realTmp； (3) 使用realTemp的值，创建并赋值给环境变量TMPDIR； (4) 处理config的属性EnableSelinuxSupport； (5) 将realRoot重新赋值于config.Root，并创建Docker Daemon的工作根目录</p>
+
+<h3 id="3-4-加载并配置存储驱动graphdriver"><strong>3.4. 加载并配置存储驱动graphdriver</strong></h3>
+
+<p>加载并配置存储驱动graphdriver，目的在于：使得Docker Daemon创建Docker镜像管理所需的驱动环境。Graphdriver用于完成Docker容器镜像的管理，包括存储与获取。</p>
+
+<h4 id="3-4-1-graphdriver的创建"><strong>3.4.1. Graphdriver的创建</strong></h4>
+
+<p>这部分内容的源码位于<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/daemon.go#L743-L790">./docker/daemon/daemon.go#L743-L790</a>，具体细节分析如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">graphdriver.DefaultDriver = config.GraphDriver
+driver, err <span style="color:#555">:=</span> graphdriver.<span style="color:#c0f">New</span>(config.Root, config.GraphOptions)</code></pre></div>
+<p>首先，为graphdriver包中的DefaultDriver对象赋值，值为config中的GraphDriver属性，在<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/config.go#L54">默认配置文件</a>中，GraphDriver属性的值为空；同样的，属性GraphOptions也为空。然后通过graphDriver中的new函数实现加载graph的存储驱动。</p>
+
+<p>创建具体的graphdriver是相当重要的一个环节，实现细节由graphdriver包中的New函数来完成。进入<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/graphdriver/driver.go#L81-L111">./docker/daemon/graphdriver/driver.go</a>中，实现步骤如下：</p>
+
+<p>第一，遍历数组选择graphdriver，数组内容为os.Getenv(“DOCKER_DRIVER”)和DefaultDriver。若不为空，则通过GetDriver函数直接返回相应的Driver对象实例，若均为空，则继续往下执行。这部分内容的作用是：让graphdriver的加载，首先满足用户的自定义选择，然后满足默认值。代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    <span style="color:#069;font-weight:bold">for</span> _, name <span style="color:#555">:=</span> <span style="color:#069;font-weight:bold">range</span> []<span style="color:#078;font-weight:bold">string</span>{os.<span style="color:#c0f">Getenv</span>(<span style="color:#c30">&#34;DOCKER_DRIVER&#34;</span>), DefaultDriver} {
+        <span style="color:#069;font-weight:bold">if</span> name <span style="color:#555">!=</span> <span style="color:#c30">&#34;&#34;</span> {
+            <span style="color:#069;font-weight:bold">return</span> <span style="color:#c0f">GetDriver</span>(name, root, options)
+        }
+    }</code></pre></div>
+<p>第二，遍历优先级数组选择graphdriver，优先级数组的内容为依次为”aufs”，”brtfs”，”devicemapper”和”vfs”。若依次验证时，GetDriver成功，则直接返回相应的Driver对象实例，若均不成功，则继续往下执行。这部分内容的作用是：在没有指定以及默认的Driver时，从优先级数组中选择Driver，目前优先级最高的为“aufs”。代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    <span style="color:#069;font-weight:bold">for</span> _, name <span style="color:#555">:=</span> <span style="color:#069;font-weight:bold">range</span> priority {
+        driver, err = <span style="color:#c0f">GetDriver</span>(name, root, options)
+        <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+            <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">==</span> ErrNotSupported <span style="color:#555">||</span> err <span style="color:#555">==</span> ErrPrerequisites <span style="color:#555">||</span> err <span style="color:#555">==</span> ErrIncompatibleFS {
+                <span style="color:#069;font-weight:bold">continue</span>
+            }
+            <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>, err
+        }
+        <span style="color:#069;font-weight:bold">return</span> driver, <span style="color:#069;font-weight:bold">nil</span>
+    }</code></pre></div>
+<p>第三，从已经注册的drivers数组中选择graphdriver。在”aufs”，”btrfs”，”devicemapper”和”vfs”四个不同类型driver的init函数中，它们均向graphdriver的drivers数组注册了相应的初始化方法。分别位于<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/graphdriver/aufs/aufs.go#L49-L51">./docker/daemon/graphdriver/aufs/aufs.go</a>，以及其他三类driver的相应位置。这部分内容的作用是：在没有优先级drivers数组的时候，同样可以通过注册的driver来选择具体的graphdriver。</p>
+
+<h4 id="3-4-2-验证btrfs与selinux的兼容性"><strong>3.4.2. 验证btrfs与SELinux的兼容性</strong></h4>
+
+<p>由于目前在btrfs文件系统上运行的Docker不兼容SELinux，因此当config中配置信息需要启用SELinux的支持并且driver的类型为btrfs时，返回nil对象，并报出Fatal日志。代码实现如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// As Docker on btrfs and SELinux are incompatible at present, error on both being enabled
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">if</span> config.EnableSelinuxSupport <span style="color:#555">&amp;&amp;</span> driver.<span style="color:#c0f">String</span>() <span style="color:#555">==</span> <span style="color:#c30">&#34;btrfs&#34;</span> {
+    <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>, fmt.<span style="color:#c0f">Errorf</span>(<span style="color:#c30">&#34;SELinux is not supported with the BTRFS graph driver!&#34;</span>)
+}</code></pre></div>
+<h4 id="3-4-3-创建容器仓库目录"><strong>3.4.3. 创建容器仓库目录</strong></h4>
+
+<p>Docker Daemon在创建Docker容器之后，需要将容器放置于某个仓库目录下，统一管理。而这个目录即为daemonRepo，值为：/var/lib/docker/containers，并通过daemonRepo创建相应的目录。代码实现如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">daemonRepo <span style="color:#555">:=</span> path.<span style="color:#c0f">Join</span>(config.Root, <span style="color:#c30">&#34;containers&#34;</span>)
+<span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> os.<span style="color:#c0f">MkdirAll</span>(daemonRepo, <span style="color:#f60">0700</span>); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> <span style="color:#555">&amp;&amp;</span> !os.<span style="color:#c0f">IsExist</span>(err) {
+    <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>, err
+}</code></pre></div>
+<h4 id="3-4-4-迁移容器至aufs类型"><strong>3.4.4. 迁移容器至aufs类型</strong></h4>
+
+<p>当graphdriver的类型为aufs时，需要将现有的graph所有内容都迁移至aufs类型；若不为aufs，则继续往下执行。实现代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">if</span> err = <span style="color:#c0f">migrateIfAufs</span>(driver, config.Root); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+<span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>, err
+}</code></pre></div>
+<p>这部分的迁移内容主要包括Repositories，Images以及Containers，具体实现位于<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/graphdriver/aufs/migrate.go#L39-L50">./docker/daemon/graphdriver/aufs/migrate.go</a>。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    <span style="color:#069;font-weight:bold">func</span> (a <span style="color:#555">*</span>Driver) <span style="color:#c0f">Migrate</span>(pth <span style="color:#078;font-weight:bold">string</span>, setupInit <span style="color:#069;font-weight:bold">func</span>(p <span style="color:#078;font-weight:bold">string</span>) <span style="color:#078;font-weight:bold">error</span>) <span style="color:#078;font-weight:bold">error</span> {
+        <span style="color:#069;font-weight:bold">if</span> <span style="color:#c0f">pathExists</span>(path.<span style="color:#c0f">Join</span>(pth, <span style="color:#c30">&#34;graph&#34;</span>)) {
+            <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> a.<span style="color:#c0f">migrateRepositories</span>(pth); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+                <span style="color:#069;font-weight:bold">return</span> err
+            }
+            <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> a.<span style="color:#c0f">migrateImages</span>(path.<span style="color:#c0f">Join</span>(pth, <span style="color:#c30">&#34;graph&#34;</span>)); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+                <span style="color:#069;font-weight:bold">return</span> err
+             }
+             <span style="color:#069;font-weight:bold">return</span> a.<span style="color:#c0f">migrateContainers</span>(path.<span style="color:#c0f">Join</span>(pth, <span style="color:#c30">&#34;containers&#34;</span>), setupInit)
+        }
+        <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>
+    }</code></pre></div>
+<p>migrate repositories的功能是：在Docker Daemon的root工作目录下创建repositories-aufs的文件，存储所有与images相关的基本信息。</p>
+
+<p>migrate images的主要功能是：将原有的image镜像都迁移至aufs driver能识别并使用的类型，包括aufs所规定的layers，diff与mnt目录内容。</p>
+
+<p>migrate container的主要功能是：将container内部的环境使用aufs driver来进行配置，包括，创建container内部的初始层（init layer），以及创建原先container内部的其他layers。</p>
+
+<h4 id="3-4-5-创建镜像graph"><strong>3.4.5. 创建镜像graph</strong></h4>
+
+<p>创建镜像graph的主要工作是：在文件系统中指定的root目录下，实例化一个全新的graph对象，作用为：存储所有标记的文件系统镜像，并记录镜像之间的关系。实现代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">g, err <span style="color:#555">:=</span> graph.<span style="color:#c0f">NewGraph</span>(path.<span style="color:#c0f">Join</span>(config.Root, <span style="color:#c30">&#34;graph&#34;</span>), driver)</code></pre></div>
+<p>NewGraph的具体实现位于<a href="https://github.com/docker/docker/blob/v1.2.0/graph/graph.go#L34-L53">./docker/graph/graph.go</a>，实现过程中返回的对象为Graph类型，定义如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">type</span> Graph <span style="color:#069;font-weight:bold">struct</span> {
+    Root    <span style="color:#078;font-weight:bold">string</span>
+    idIndex <span style="color:#555">*</span>truncindex.TruncIndex
+    driver  graphdriver.Driver
+}</code></pre></div>
+<p>其中Root表示graph的工作根目录，一般为”/var/lib/docker/graph”；idIndex使得检索字符串标识符时，允许使用任意一个该字符串唯一的前缀，在这里idIndex用于通过简短有效的字符串前缀检索镜像与容器的ID；最后driver表示具体的graphdriver类型。</p>
+
+<h4 id="3-4-6-创建volumesdriver以及volume-graph"><strong>3.4.6. 创建volumesdriver以及volume graph</strong></h4>
+
+<p>在Docker中volume的概念是：可以从Docker宿主机上挂载到Docker容器内部的特定目录。一个volume可以被多个Docker容器挂载，从而Docker容器可以实现互相共享数据等。在实现volumes时，Docker需要使用文件系统driver来管理它，由于volumes的管理不会像容器文件系统管理那么复杂，故Docker采用vfs驱动实现volumes的管理。代码实现如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">volumesDriver, err <span style="color:#555">:=</span> graphdriver.<span style="color:#c0f">GetDriver</span>(<span style="color:#c30">&#34;vfs&#34;</span>, config.Root, config.GraphOptions)
+volumes, err <span style="color:#555">:=</span> graph.<span style="color:#c0f">NewGraph</span>(path.<span style="color:#c0f">Join</span>(config.Root, <span style="color:#c30">&#34;volumes&#34;</span>), volumesDriver)</code></pre></div>
+<p>主要完成工作为：使用vfs创建volumesDriver；创建相应的volumes目录，并返回volumes graph对象。</p>
+
+<h4 id="3-4-7-创建tagstore"><strong>3.4.7. 创建TagStore</strong></h4>
+
+<p>TagStore主要是用于存储镜像的仓库列表（repository list）。代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">repositories, err <span style="color:#555">:=</span> graph.<span style="color:#c0f">NewTagStore</span>(path.<span style="color:#c0f">Join</span>(config.Root, <span style="color:#c30">&#34;repositories-&#34;</span><span style="color:#555">+</span>driver.<span style="color:#c0f">String</span>()), g)</code></pre></div>
+<p>NewTagStore位于<a href="https://github.com/docker/docker/blob/v1.2.0/graph/tags.go#L33-L54">./docker/graph/tags.go</a>，TagStore的定义如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    <span style="color:#069;font-weight:bold">type</span> TagStore <span style="color:#069;font-weight:bold">struct</span> {
+        path         <span style="color:#078;font-weight:bold">string</span>
+        graph        <span style="color:#555">*</span>Graph
+        Repositories   <span style="color:#069;font-weight:bold">map</span>[<span style="color:#078;font-weight:bold">string</span>]Repository
+        sync.Mutex
+        pullingPool    <span style="color:#069;font-weight:bold">map</span>[<span style="color:#078;font-weight:bold">string</span>]<span style="color:#069;font-weight:bold">chan</span> <span style="color:#069;font-weight:bold">struct</span>{}
+        pushingPool   <span style="color:#069;font-weight:bold">map</span>[<span style="color:#078;font-weight:bold">string</span>]<span style="color:#069;font-weight:bold">chan</span> <span style="color:#069;font-weight:bold">struct</span>{}
+    }</code></pre></div>
+<p>需要阐述的是TagStore类型中的多个属性的含义：</p>
+
+<ul>
+<li>path：TagStore中记录镜像的仓库文件位置；</li>
+<li>graph：相应的Graph实例对象；</li>
+<li>Repositories：记录具体的镜像的仓库的数据结构；</li>
+<li>sync.Mutex：TagStore的互斥锁</li>
+<li>pullingPool ：记录池，记录有哪些镜像正在被下载，若某一个镜像正在被下载，则驳回其他Docker Client发起下载该镜像的请求；</li>
+<li>pushingPool：记录池，记录有哪些镜像正在被上传，若某一个镜像正在被上传，则驳回其他Docker Client发起上传该镜像的请求；</li>
+</ul>
+
+<h3 id="3-5-创建docker-daemon网络环境"><strong>3.5. 创建Docker Daemon网络环境</strong></h3>
+
+<p>创建Docker Daemon运行环境的时候，创建网络环境是极为重要的一个部分，这不仅关系着容器对外的通信，同样也关系这容器间的通信。</p>
+
+<p>在创建网络时，Docker Daemon是通过运行名为”init_networkdriver”的job来完成的。代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    <span style="color:#069;font-weight:bold">if</span> !config.DisableNetwork {
+        job <span style="color:#555">:=</span> eng.<span style="color:#c0f">Job</span>(<span style="color:#c30">&#34;init_networkdriver&#34;</span>)
+    
+        job.<span style="color:#c0f">SetenvBool</span>(<span style="color:#c30">&#34;EnableIptables&#34;</span>, config.EnableIptables)
+        job.<span style="color:#c0f">SetenvBool</span>(<span style="color:#c30">&#34;InterContainerCommunication&#34;</span>, config.InterContainerCommunication)
+        job.<span style="color:#c0f">SetenvBool</span>(<span style="color:#c30">&#34;EnableIpForward&#34;</span>, config.EnableIpForward)
+        job.<span style="color:#c0f">Setenv</span>(<span style="color:#c30">&#34;BridgeIface&#34;</span>, config.BridgeIface)
+        job.<span style="color:#c0f">Setenv</span>(<span style="color:#c30">&#34;BridgeIP&#34;</span>, config.BridgeIP)
+        job.<span style="color:#c0f">Setenv</span>(<span style="color:#c30">&#34;DefaultBindingIP&#34;</span>, config.DefaultIp.<span style="color:#c0f">String</span>())
+    
+        <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> job.<span style="color:#c0f">Run</span>(); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+            <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>, err
+        }
+    }</code></pre></div>
+<p>分析以上源码可知，通过config中的DisableNetwork属性来判断，在<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/config.go#L36">默认配置文件</a>中，该属性有过定义，却没有初始值。但是在应用配置信息中处理网络功能配置的时候，将DisableNetwork属性赋值为false，故判断语句结果为真，执行相应的代码块。</p>
+
+<p>首先创建名为”init_networkdriver”的job，随后为该job设置环境变量，环境变量的值如下：</p>
+
+<ul>
+<li>环境变量EnableIptables，使用config.EnableIptables来赋值，为true；</li>
+<li>环境变量InterContainerCommunication，使用config.InterContainerCommunication来赋值，为true；</li>
+<li>环境变量EnableIpForward，使用config.EnableIpForward来赋值，值为true；</li>
+<li>环境变量BridgeIface，使用config.BridgeIface来赋值，为空字符串””;</li>
+<li>环境变量BridgeIP，使用config.BridgeIP来赋值，为空字符串””;</li>
+<li>环境变量DefaultBindingIP，使用config.DefaultIp.String()来赋值，为”0.0.0.0”。</li>
+</ul>
+
+<p>设置完环境变量之后，随即运行该job，由于在eng中key为”init_networkdriver”的handler，value为bridge.InitDriver函数，具体的实现位于<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/networkdriver/bridge/driver.go#L79">./docker/daemon/networkdriver/bridge/dirver.go</a>，作用为： * 获取为Docker服务的网络设备的地址； * 创建指定IP地址的网桥； * 启用Iptables功能并配置； * 另外还为eng对象注册了4个Handler,如 ”allocate_interface”， ”release_interface”， ”allocate_port”，”link”。</p>
+
+<h4 id="3-5-1-创建docker网络设备"><strong>3.5.1. 创建Docker网络设备</strong></h4>
+
+<p>创建Docker网络设备，属于Docker Daemon创建网络环境的第一步，实际工作是创建名为“docker0”的网桥设备。</p>
+
+<p>在InitDriver函数运行过程中，首先使用job的环境变量初始化内部变量；然后根据目前网络环境，判断是否创建docker0网桥，若Docker专属网桥已存在，则继续往下执行；否则的话，创建docker0网桥。具体实现为<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/networkdriver/bridge/driver.go#L108">createBridge(bridgeIP</a>)，以及<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/networkdriver/bridge/driver.go#L285">createBridgeIface(bridgeIface)</a>。</p>
+
+<p>createBridge的功能是：在host主机上启动创建指定名称网桥设备的任务，并为该网桥设备配置一个与其他设备不冲突的网络地址。而createBridgeIface通过系统调用负责创建具体实际的网桥设备，并设置MAC地址，通过libcontainer中netlink包的CreateBridge来实现。</p>
+
+<h4 id="3-5-2-启用iptables功能并配置"><strong>3.5.2. 启用iptables功能并配置</strong></h4>
+
+<p>创建完网桥之后，Docker Daemon为容器以及host主机配置iptables，包括为container之间所需要的link操作提供支持，为host主机上所有的对外对内流量制定传输规则等。代码位于<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/networkdriver/bridge/driver.go#L133-L137">./docker/daemon/networkdriver/bridge/driver/driver.go#L133-L137</a>,如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// Configure iptables for link support
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">if</span> enableIPTables {
+    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> <span style="color:#c0f">setupIPTables</span>(addr, icc); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        <span style="color:#069;font-weight:bold">return</span> job.<span style="color:#c0f">Error</span>(err)
+    }
+}</code></pre></div>
+<p>其中setupIPtables的调用过程中，addr地址为Docker网桥的网络地址，icc为true，即为允许Docker容器间互相访问。假设网桥设备名为docker0，网桥网络地址为docker0_ip,设置iptables规则，操作步骤如下： (1) 使用iptables工具开启新建网桥的NAT功能，使用命令如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">    iptables -I POSTROUTING -t nat -s docker0_ip ! -o docker0 -j MASQUERADE</code></pre></div>
+<p>(2) 通过icc参数，决定是否允许container间通信，并制定相应iptables的Forward链。Container之间通信，说明数据包从container内发出后，经过docker0，并且还需要在docker0处发往docker0，最终转向指定的container。换言之，从docker0出来的数据包，如果需要继续法网docker0，则说明是container的通信数据包。命令使用如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">iptables -I FORWARD -i docker0 -o docker0 -j ACCEPT</code></pre></div>
+<p>(3) 允许接受从container发出，且不是发往其他container数据包。换言之，允许所有从docker0发出且不是继续发向docker0的数据包，使用命令如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">iptables -I FORWARD -i docker0 ! -o docker0 -j ACCEPT</code></pre></div>
+<p>(4) 对于发往docker0，并且属于已经建立的连接的数据包，Docker无条件接受这些数据包，使用命令如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">iptables -I FORWARD -o docker0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT</code></pre></div>
+<h4 id="3-5-3-启用系统数据包转发功能"><strong>3.5.3. 启用系统数据包转发功能</strong></h4>
+
+<p>在Linux系统上，数据包转发功能是被默认禁止的。数据包转发，就是当host主机存在多块网卡的时，如果其中一块网卡接收到数据包，并需要将其转发给另外的网卡。通过修改/proc/sys/net/ipv4/ip_forward的值，将其置为1，则可以保证系统内数据包可以实现转发功能，代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    <span style="color:#069;font-weight:bold">if</span> ipForward {
+        <span style="color:#09f;font-style:italic">// Enable IPv4 forwarding
+</span><span style="color:#09f;font-style:italic"></span>        <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> ioutil.<span style="color:#c0f">WriteFile</span>(<span style="color:#c30">&#34;/proc/sys/net/ipv4/ip_forward&#34;</span>, []<span style="color:#078;font-weight:bold">byte</span>{<span style="color:#c30">&#39;1&#39;</span>, <span style="color:#c30">&#39;\n&#39;</span>}, <span style="color:#f60">0644</span>); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+            job.<span style="color:#c0f">Logf</span>(<span style="color:#c30">&#34;WARNING: unable to enable IPv4 forwarding: %s\n&#34;</span>, err)
+        }
+    }</code></pre></div>
+<h4 id="3-5-4-创建docker链"><strong>3.5.4. 创建DOCKER链</strong></h4>
+
+<p>在网桥设备上创建一条名为DOCKER的链，该链的作用是在创建Docker container并设置端口映射时使用。实现代码位于<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/networkdriver/bridge/driver.go#L147-L157">./docker/daemon/networkdriver/bridge/driver/driver.go</a>，如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> iptables.<span style="color:#c0f">RemoveExistingChain</span>(<span style="color:#c30">&#34;DOCKER&#34;</span>); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        <span style="color:#069;font-weight:bold">return</span> job.<span style="color:#c0f">Error</span>(err)
+    }
+    <span style="color:#069;font-weight:bold">if</span> enableIPTables {
+        chain, err <span style="color:#555">:=</span> iptables.<span style="color:#c0f">NewChain</span>(<span style="color:#c30">&#34;DOCKER&#34;</span>, bridgeIface)
+        <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+            <span style="color:#069;font-weight:bold">return</span> job.<span style="color:#c0f">Error</span>(err)
+        }
+            portmapper.<span style="color:#c0f">SetIptablesChain</span>(chain)
+    }</code></pre></div>
+<h4 id="3-5-5-注册handler至engine"><strong>3.5.5. 注册Handler至Engine</strong></h4>
+
+<p>在创建完网桥，并配置完基本的iptables规则之后，Docker Daemon在网络方面还在Engine中注册了4个Handler，这些Handler的名称与作用如下： * allocate_interface：为Docker container分配一个专属网卡； * realease_interface：释放网卡资源； * allocate_port：为Docker container分配一个端口； * link：实现Docker container间的link操作。</p>
+
+<p>由于在Docker架构中，网络是极其重要的一部分，因此Docker网络篇会安排在《Docker源码分析》系列的第六篇。</p>
+
+<h3 id="3-6-创建graphdb并初始化"><strong>3.6. 创建graphdb并初始化</strong></h3>
+
+<p>Graphdb是一个构建在SQLite之上的图形数据库，通常用来记录节点命名以及节点之间的关联。Docker Daemon使用graphdb来记录镜像之间的关联。创建graphdb的代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">graphdbPath <span style="color:#555">:=</span> path.<span style="color:#c0f">Join</span>(config.Root, <span style="color:#c30">&#34;linkgraph.db&#34;</span>)
+graph, err <span style="color:#555">:=</span> graphdb.<span style="color:#c0f">NewSqliteConn</span>(graphdbPath)
+<span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+    <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>, err
+}</code></pre></div>
+<p>以上代码首先确定graphdb的目录为/var/lib/docker/linkgraph.db；随后通过graphdb包内的NewSqliteConn打开graphdb，使用的驱动为”sqlite3”，数据源的名称为” /var/lib/docker/linkgraph.db”；最后通过NewDatabase函数初始化整个graphdb，为graphdb创建entity表，edge表，并在这两个表中初始化部分数据。NewSqliteConn函数的实现位于<a href="https://github.com/docker/docker/blob/v1.2.0/pkg/graphdb/conn_sqlite3.go">./docker/pkg/graphdb/conn_sqlite3.go</a>，代码实现如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> <span style="color:#c0f">NewSqliteConn</span>(root <span style="color:#078;font-weight:bold">string</span>) (<span style="color:#555">*</span>Database, <span style="color:#078;font-weight:bold">error</span>) {
+    <span style="color:#a00;background-color:#faa">……</span>
+    conn, err <span style="color:#555">:=</span> sql.<span style="color:#c0f">Open</span>(<span style="color:#c30">&#34;sqlite3&#34;</span>, root)
+    <span style="color:#a00;background-color:#faa">……</span>
+    <span style="color:#069;font-weight:bold">return</span> <span style="color:#c0f">NewDatabase</span>(conn, initDatabase)
+}</code></pre></div>
+<h3 id="3-7-创建execdriver"><strong>3.7. 创建execdriver</strong></h3>
+
+<p>Execdriver是Docker中用来执行Docker container任务的驱动。创建并初始化graphdb之后，Docker Daemon随即创建了execdriver，具体代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">ed, err <span style="color:#555">:=</span> execdrivers.<span style="color:#c0f">NewDriver</span>(config.ExecDriver, config.Root, sysInitPath, sysInfo)</code></pre></div>
+<p>可见，在创建execdriver的时候，需要4部分的信息，以下简要介绍这4部分信息： * config.ExecDriver:Docker运行时中指定使用的exec驱动类别，在默认配置文件中默认使用”native”,也可以将这个值改为”lxc”，则使用lxc接口执行Docker container内部的操作; * config.Root:Docker运行时的root路径，默认配置文件中为”/var/lib/docker”; * sysInitPath:系统上存放dockerinit文件的路径，一般为”/var/lib/docker/init/dockerinit-1.2.0”; * sysInfo:系统功能信息，包括：容器的内存限制功能，交换区内存限制功能，数据转发功能，以及AppArmor安全功能。</p>
+
+<p>在执行execdrivers.NewDriver之前，首先通过以下代码，获取期望目标dockerinit文件的路径localPath，以及系统中dockerinit文件实际所在的路径sysInitPath：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    localCopy <span style="color:#555">:=</span> path.<span style="color:#c0f">Join</span>(config.Root, <span style="color:#c30">&#34;init&#34;</span>, fmt.<span style="color:#c0f">Sprintf</span>(<span style="color:#c30">&#34;dockerinit-%s&#34;</span>, dockerversion.VERSION))
+    sysInitPath <span style="color:#555">:=</span> utils.<span style="color:#c0f">DockerInitPath</span>(localCopy)</code></pre></div>
+<p>通过执行以上代码，localCopy为”/var/lib/docker/init/dockerinit-1.2.0”，而sysyInitPath为当前Docker运行时中dockerinit-1.2.0实际所处的路径，utils.DockerInitPath的实现位于 <a href="https://github.com/docker/docker/blob/v1.2.0/utils/utils.go#L120-L158">./docker/utils/util.go</a>。若localCopy与sysyInitPath不相等，则说明当前系统中的dockerinit二进制文件，不在localCopy路径下，需要将其拷贝至localCopy下，并对该文件设定权限。</p>
+
+<p>设定完dockerinit二进制文件的位置之后，Docker Daemon创建sysinfo对象，记录系统的功能属性。SysInfo的定义，位于<a href="https://github.com/docker/docker/blob/v1.2.0/pkg/sysinfo/sysinfo.go#L12-L17">./docker/pkg/sysinfo/sysinfo.go</a>，如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">type</span> SysInfo <span style="color:#069;font-weight:bold">struct</span> {
+    MemoryLimit            <span style="color:#078;font-weight:bold">bool</span>
+    SwapLimit              <span style="color:#078;font-weight:bold">bool</span>
+    IPv4ForwardingDisabled <span style="color:#078;font-weight:bold">bool</span>
+    AppArmor               <span style="color:#078;font-weight:bold">bool</span>
+}</code></pre></div>
+<p>其中MemoryLimit通过判断cgroups文件系统挂载路径下是否均存在memory.limit_in_bytes和memory.soft_limit_in_bytes文件来赋值，若均存在，则置为true，否则置为false。SwapLimit通过判断memory.memsw.limit_in_bytes文件来赋值，若该文件存在，则置为true，否则置为false。AppArmor通过宿主机是否存在/sys/kernel/security/apparmor来判断，若存在，则置为true，否则置为false。</p>
+
+<p>执行execdrivers.NewDriver时，返回execdriver.Driver对象实例，具体代码实现位于 <a href="https://github.com/docker/docker/blob/v1.2.0/daemon/execdriver/execdrivers/execdrivers.go">./docker/daemon/execdriver/execdrivers/execdrivers.go</a>，由于选择使用native作为exec驱动，故执行代码，返回最终的execdriver，如以下，其中native.NewDriver实现位于<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/execdriver/native/driver.go#L45-L60">./docker/daemon/execdriver/native/driver.go</a>：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">return</span> native.<span style="color:#c0f">NewDriver</span>(path.<span style="color:#c0f">Join</span>(root, <span style="color:#c30">&#34;execdriver&#34;</span>, <span style="color:#c30">&#34;native&#34;</span>), initPath)</code></pre></div>
+<h3 id="3-8-创建daemon对象"><strong>3.8. 创建daemon对象</strong></h3>
+
+<p>Docker Daemon在经过以上诸多设置以及创建对象之后，整合众多内容，创建最终的Daemon对象实例daemon，实现代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    daemon <span style="color:#555">:=</span> <span style="color:#555">&amp;</span>Daemon{
+        repository:     daemonRepo,
+        containers:     <span style="color:#555">&amp;</span>contStore{s: <span style="color:#366">make</span>(<span style="color:#069;font-weight:bold">map</span>[<span style="color:#078;font-weight:bold">string</span>]<span style="color:#555">*</span>Container)},
+        graph:          g,
+        repositories:   repositories,
+        idIndex:        truncindex.<span style="color:#c0f">NewTruncIndex</span>([]<span style="color:#078;font-weight:bold">string</span>{}),
+        sysInfo:        sysInfo,
+        volumes:        volumes,
+        config:         config,
+        containerGraph: graph,
+        driver:         driver,
+        sysInitPath:    sysInitPath,
+        execDriver:     ed,
+        eng:            eng,
+    }</code></pre></div>
+<p>以下分析Daemon类型的属性：</p>
+
+<h3 id="3-9-检测dns配置"><strong>3.9. 检测DNS配置</strong></h3>
+
+<p>创建完Daemon类型实例daemon之后，Docker Daemon使用daemon.checkLocaldns()检测Docker运行环境中DNS的配置， checkLocaldns函数的定义位于<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/daemon.go#L1053-L1063">./docker/daemon/daemon.go</a>，代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    <span style="color:#069;font-weight:bold">func</span> (daemon <span style="color:#555">*</span>Daemon) <span style="color:#c0f">checkLocaldns</span>() <span style="color:#078;font-weight:bold">error</span> {
+        resolvConf, err <span style="color:#555">:=</span> resolvconf.<span style="color:#c0f">Get</span>()
+        <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+            <span style="color:#069;font-weight:bold">return</span> err
+        }
+        <span style="color:#069;font-weight:bold">if</span> <span style="color:#366">len</span>(daemon.config.Dns) <span style="color:#555">==</span> <span style="color:#f60">0</span> <span style="color:#555">&amp;&amp;</span> utils.<span style="color:#c0f">CheckLocalDns</span>(resolvConf) {
+          log.<span style="color:#c0f">Infof</span>(<span style="color:#c30">&#34;Local (127.0.0.1) DNS resolver found in resolv.conf and containers can&#39;t use it. Using default external servers : %v&#34;</span>, DefaultDns)
+          daemon.config.Dns = DefaultDns
+        }
+        <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>
+    }</code></pre></div>
+<p>以上代码首先通过resolvconf.Get()方法获取/etc/resolv.conf中的DNS服务器信息。若本地DNS 文件中有127.0.0.1，而Docker container不能使用该地址，故采用默认外在DNS服务器，为8.8.8.8，8.8.4.4，并将其赋值给config文件中的Dns属性。</p>
+
+<h3 id="3-10-启动时加载已有docker-containers"><strong>3.10. 启动时加载已有Docker containers</strong></h3>
+
+<p>当Docker Daemon启动时，会去查看在daemon.repository，也就是在/var/lib/docker/containers中的内容。若有存在Docker container的话，则让Docker Daemon加载这部分运行着的容器，将容器信息收集，并做相应的维护。</p>
+
+<h3 id="3-11-设置shutdown的处理方法"><strong>3.11. 设置shutdown的处理方法</strong></h3>
+
+<p>加载完已有Docker container之后，Docker Daemon设置了多项在shutdown操作中需要执行的handler。代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">eng.<span style="color:#c0f">OnShutdown</span>(<span style="color:#069;font-weight:bold">func</span>() {
+    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> daemon.<span style="color:#c0f">shutdown</span>(); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        log.<span style="color:#c0f">Errorf</span>(<span style="color:#c30">&#34;daemon.shutdown(): %s&#34;</span>, err)
+    }
+    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> portallocator.<span style="color:#c0f">ReleaseAll</span>(); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        log.<span style="color:#c0f">Errorf</span>(<span style="color:#c30">&#34;portallocator.ReleaseAll(): %s&#34;</span>, err)
+    }
+    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> daemon.driver.<span style="color:#c0f">Cleanup</span>(); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        log.<span style="color:#c0f">Errorf</span>(<span style="color:#c30">&#34;daemon.driver.Cleanup(): %s&#34;</span>, err.<span style="color:#c0f">Error</span>())
+    }
+    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> daemon.containerGraph.<span style="color:#c0f">Close</span>(); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        log.<span style="color:#c0f">Errorf</span>(<span style="color:#c30">&#34;daemon.containerGraph.Close(): %s&#34;</span>, err.<span style="color:#c0f">Error</span>())
+    }
+})</code></pre></div>
+<p>可知，eng对象shutdown操作执行时，需要执行以上作为参数的func(){……}函数。该函数中，主要完成4部分的操作： * 运行daemon对象的shutdown函数，做daemon方面的善后工作； * 通过portallocator.ReleaseAll()，释放所有之前占用的资源； * 通过daemon.driver.Cleanup()，通过graphdriver实现unmount所有layers中的挂载点； * 通过daemon.containerGraph.Close()关闭graphdb的连接。</p>
+
+<h3 id="3-12-返回daemon对象"><strong>3.12. 返回daemon对象</strong></h3>
+
+<p>当所有的工作完成之后，Docker Daemon返回daemon实例，并最终返回至mainDaemon()中的加载daemon的goroutine中继续执行。</p>
+
+<h2 id="4-总结"><strong>4. 总结</strong></h2>
+
+<p>本文从源码的角度深度分析了Docker Daemon启动过程中daemon对象的创建与加载。在这一环节中涉及内容极多，本文归纳总结daemon实现的逻辑，一一深入，具体全面。</p>
+
+<p>在Docker的架构中，Docker Daemon的内容是最为丰富以及全面的，而NewDaemon的实现而是涵盖了Docker Daemon启动过程中的绝大部分。可以认为NewDaemon是Docker Daemon实现过程中的精华所在。深入理解NewDaemon的实现，即掌握了Docker Daemon运行的来龙去脉。</p>
+
+<h2 id="5-参考文献"><strong>5. 参考文献</strong></h2>
+
+<ol>
+<li><a href="http://docs.studygolang.com/pkg/">The Go Programming Language-Packages</a></li>
+<li><a href="http://www.iptables.info/en/iptables-matches.html">Iptables matches</a></li>
+<li><a href="https://www.kernel.org/doc/Documentation/networking/ip-sysctl.txt">/proc/sys/net/ipv4/* Variables:</a></li>
+<li><a href="http://crosbymichael.com/the-lost-packages-of-docker.html">The lost packages of docker</a></li>
+</ol>
+                        </div>
+                        
+                        
+                        
+                        
+                        
+                        
+
+                        
+                        <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+                        <script src="https://unpkg.com/gitalk@latest/dist/gitalk.min.js"></script> 
+                        <script type="text/javascript" src="/assets/js/md5.min.js"></script>
+                        <div id="gitalk-container"></div>     
+                        <script type="text/javascript">
+                            var gitalk = new Gitalk({
+                              clientID: '835183d2dcbd1167ac28', 
+                            
+                              clientSecret: 'd873919fac3cc76921ee0800172c2279bc612f8d', 
+                            
+                              repo: 'Sel-Website-talk',
+                              owner: 'Peeknut',
+                              admin: ['Peeknut','Rachel-Shao'],
+                              id: location.href.split("/").pop().substring(0, 49),      
+                              distractionFreeMode: false  
+                            })
+                            gitalk.render('gitalk-container')
+                        </script> 
+                        
+
+                    </div>
+                    
+
+                    
+
+                    
+
+                    <div class="col-md-3">
+
+                        
+
+                        
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+      <h3 class="panel-title">搜索栏</h3>
+      
+    </div>
+
+    <div class="panel-body">
+        
+        <div class="search" id="search">
+            <div class="input-group">
+                <input type="text" name="q" class="form-control" placeholder="请输入文章标题或摘要..." id="search-key">
+                <input type="hidden" name="sitesearch" value="https://Congrool.github.io/">
+                <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main" onclick="search()"><i class="fas fa-search"></i></button>
+                </span>
+            </div>
+            <h1 id="search-tip" style="color: red;text-align: center;display: none;font-size: medium;">搜索中，请稍后 ...</h1>
+        </div>
+        <script type="text/javascript">
+            
+            window.onload = function() {
+                      document.onkeydown = function(ev) {
+                        var event = ev || event
+                        if (event.keyCode == 13) {
+                          search()
+                        }
+                      }
+                    }
+            
+            function search() {
+                    
+                      key = document.getElementById("search-key").value;
+                      if (key === "") {
+                        
+                        return;
+                      }
+                      key = key.toLowerCase();
+                      document.getElementById("search-key").value = "";
+                  
+                      
+                      document.getElementById("search-tip").innerText = "搜索中，请稍后 ...";
+                      document.getElementById("search-tip").style.display = "block";
+                  
+                      
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      var childs = el.childNodes;
+                      for (var i = childs.length - 1; i >= 0; i--) {
+                        el.removeChild(childs[i]);
+                      }
+                  
+                      
+                      xmltext = new XMLHttpRequest;
+                      xmltext.open("GET", "/index.xml", false);
+                      xmltext.send();
+                      resp = xmltext.responseXML;
+                      
+                      items = resp.getElementsByTagName("item");
+                      
+                      var i = 0;
+                      haveResult = false;
+                      while (i < items.length) {
+                        txt = items[i].getElementsByTagName("title")[0].innerHTML + items[i].getElementsByTagName("description")[0].innerHTML
+                        txt = txt.toLowerCase();
+                        if (txt.indexOf(key) > -1) {
+                          haveResult = true;
+                          title = items[i].getElementsByTagName("title")[0].innerHTML;
+                          link = items[i].getElementsByTagName("link")[0].innerHTML;
+                          time = items[i].getElementsByTagName("pubDate")[0].innerHTML;
+                          mark = items[i].getElementsByTagName("description")[0].innerHTML;
+                          time = time.slice(0, -5);
+                          addItem(title, link, time, mark)
+                        }
+                        i++;
+                      }
+                      if (!haveResult) {
+                        document.getElementById("search-tip").innerText = "搜索完毕，未发现结果 ...";
+                        document.getElementById("search-tip").style.display = "block";
+                      }
+
+                      
+                      var el = document.getElementById("blog-head");
+                      el.innerHTML="Blogs"
+                    }
+                  
+                    
+                    function addItem(title, link, time, mark) {
+                      document.getElementById("search-tip").style.display = "none";
+                      tmpl = "<article class=\"post\" style=\"border-bottom: 1px solid #e6e6e6;\" >" +
+                        "<header class=\"post-header\">" +
+                        "<h1 class=\"post-title\"><a class=\"post-link\" href=\"" + link + "\" target=\"_blank\">" + title + "</a></h1>" +
+                        "<div class=\"post-meta\">" +
+                        " <span class=\"post-time\">" + time + "</span>" +
+                        "</div>" +
+                        " </header>" +
+                        "<div class=\"post-content\">" +
+                        "<div class=\"post-summary\">" + mark + "</div>" +
+                        "<div class=\"read-more\">" +
+                        "<a href=" + link + " class=\"read-more-link\" target=\"_blank\">阅读更多</a>" +
+                        "</div>" +
+                        " </div>" +
+                        "</article>"
+                      div = document.createElement("div")
+                      div.innerHTML = tmpl;
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      el.appendChild(div)
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+
+        </script>
+        
+    </div>
+</div>
+
+
+
+
+
+
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">归档栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="nav nav-pills nav-stacked">
+            
+            
+            <li>
+                <a href="/categories/bosh">bosh (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloud_controller_ng">cloud_controller_ng (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloudfoundry">cloudfoundry (15)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/containerd">containerd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/docker">docker (19)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/etcd">etcd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/haproxy">haproxy (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/healthmanager">healthmanager (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/karmada">karmada (4)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubeedge">kubeedge (5)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubernetes">kubernetes (14)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/network">network (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/openyurt">openyurt (2)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/service-mesh">service-mesh (4)</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+<div class="panel sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">标签栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="tag-cloud">
+            
+            
+            <li>
+                <a href="/tags/agent"><i class="fas fa-tags"></i> agent</a>
+            </li>
+            
+            <li>
+                <a href="/tags/apiserver"><i class="fas fa-tags"></i> apiserver</a>
+            </li>
+            
+            <li>
+                <a href="/tags/books"><i class="fas fa-tags"></i> books</a>
+            </li>
+            
+            <li>
+                <a href="/tags/bosh"><i class="fas fa-tags"></i> bosh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/ccng"><i class="fas fa-tags"></i> ccng</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cf-release"><i class="fas fa-tags"></i> cf-release</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cgroups"><i class="fas fa-tags"></i> cgroups</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudfoundry"><i class="fas fa-tags"></i> cloudfoundry</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudnative"><i class="fas fa-tags"></i> cloudnative</a>
+            </li>
+            
+            <li>
+                <a href="/tags/collector"><i class="fas fa-tags"></i> collector</a>
+            </li>
+            
+            <li>
+                <a href="/tags/containerd"><i class="fas fa-tags"></i> containerd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cri"><i class="fas fa-tags"></i> cri</a>
+            </li>
+            
+            <li>
+                <a href="/tags/dea"><i class="fas fa-tags"></i> dea</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker"><i class="fas fa-tags"></i> docker</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker-network"><i class="fas fa-tags"></i> docker-network</a>
+            </li>
+            
+            <li>
+                <a href="/tags/edgecomputing"><i class="fas fa-tags"></i> edgecomputing</a>
+            </li>
+            
+            <li>
+                <a href="/tags/etcd"><i class="fas fa-tags"></i> etcd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/gorouter"><i class="fas fa-tags"></i> gorouter</a>
+            </li>
+            
+            <li>
+                <a href="/tags/haproxy"><i class="fas fa-tags"></i> haproxy</a>
+            </li>
+            
+            <li>
+                <a href="/tags/healthmanager"><i class="fas fa-tags"></i> healthmanager</a>
+            </li>
+            
+            <li>
+                <a href="/tags/istio"><i class="fas fa-tags"></i> istio</a>
+            </li>
+            
+            <li>
+                <a href="/tags/karmada"><i class="fas fa-tags"></i> karmada</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubeedge"><i class="fas fa-tags"></i> kubeedge</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubelet"><i class="fas fa-tags"></i> kubelet</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubernetes"><i class="fas fa-tags"></i> kubernetes</a>
+            </li>
+            
+            <li>
+                <a href="/tags/libcontainer"><i class="fas fa-tags"></i> libcontainer</a>
+            </li>
+            
+            <li>
+                <a href="/tags/micro-service"><i class="fas fa-tags"></i> micro-service</a>
+            </li>
+            
+            <li>
+                <a href="/tags/namespace"><i class="fas fa-tags"></i> namespace</a>
+            </li>
+            
+            <li>
+                <a href="/tags/nats"><i class="fas fa-tags"></i> nats</a>
+            </li>
+            
+            <li>
+                <a href="/tags/news"><i class="fas fa-tags"></i> news</a>
+            </li>
+            
+            <li>
+                <a href="/tags/openyurt"><i class="fas fa-tags"></i> openyurt</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pipework"><i class="fas fa-tags"></i> pipework</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pouch"><i class="fas fa-tags"></i> pouch</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runc"><i class="fas fa-tags"></i> runc</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runtime"><i class="fas fa-tags"></i> runtime</a>
+            </li>
+            
+            <li>
+                <a href="/tags/security"><i class="fas fa-tags"></i> security</a>
+            </li>
+            
+            <li>
+                <a href="/tags/serverless"><i class="fas fa-tags"></i> serverless</a>
+            </li>
+            
+            <li>
+                <a href="/tags/service-mesh"><i class="fas fa-tags"></i> service-mesh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/syslog_aggregator"><i class="fas fa-tags"></i> syslog_aggregator</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+                        
+
+                    </div>
+                    
+
+                    
+
+                </div>
+                
+
+            </div>
+            
+        </div>
+        
+
+        <footer id="footer">
+    <div class="container">
+
+        
+        <div class="col-md-4 col-sm-6">
+            <h4></h4>
+
+            <p><strong>关于我们：<strong> <p>浙大SEL实验室</p><p>地址：杭州市浙大路38号曹光彪西楼405室</p><p><strong></strong>
+            <a href="/contact" class="btn btn-small btn-template-main" >跳转到关于</a>
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+        <div class="col-md-4 col-sm-6">
+
+             
+            <h4>最新博客</h4>
+            
+
+            <div class="blog-entries">
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/27/overview.png" class="img-responsive" alt="基于KubeEdge的边缘节点分组管理设计与实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">基于KubeEdge的边缘节点分组管理设计与实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/20/karmada-scheduler.png" class="img-responsive" alt="多云环境下的资源调度：karmada scheduler的框架和实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">多云环境下的资源调度：karmada scheduler的框架和实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">
+                          
+                            <img src="/img/blogs/19/karmada-arch.jpg" class="img-responsive" alt="多云环境下的成员集群管理，看看开源项目karmada是如何做到的">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">多云环境下的成员集群管理，看看开源项目karmada是如何做到的</a></h5>
+                    </div>
+                </div>
+                
+            </div>
+
+            <hr class="hidden-md hidden-lg">
+             
+
+        </div>
+        
+
+        
+        <div class="col-md-4 col-sm-6">
+
+          <h4></h4>
+
+            <p><strong>联系我们: 
+                                    <p>团队负责人：丁轶群 yiqunding@zju.edu.cn</p>
+                                    <p>网站维护人：刘佳文 839809484@qq.com</p>                
+    </strong>
+
+            
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+    </div>
+    
+</footer>
+
+
+
+
+
+
+
+<div id="copyright">
+    <div class="container">
+        <div class="col-md-12">
+            
+            <p class="pull-left">Copyright ©️ 2020 SEL Laboratory , ZJ University all rights reserved.</p>
+            
+            <p class="pull-right">
+               <a href="https://bootstrapious.com/p/universal-business-e-commerce-template">Bootstrapious</a>.
+              
+
+               <a href="https://github.com/devcows/hugo-universal-theme">DevCows</a>.
+            </p>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+    </div>
+    
+
+    
+
+
+<script src="/js/jquery.min.js"></script>
+<script src="/js/bootstrap.min.js"></script>
+
+
+
+<script src="/js/jquery.cookie.min.js"></script>
+<script src="/js/jquery.waypoints.min.js"></script>
+<script src="/js/jquery.counterup.min.js"></script>
+<script src="/js/jquery-parallax.js"></script>
+
+
+<script src="/js/front.js"></script>
+
+
+<script src="/js/owl.carousel.min.js"></script>
+
+
+
+  </body>
+</html>

@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="robots" content="all,follow">
+  <meta name="googlebot" content="index,follow,snippet,archive">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <title>Kubernetes代码走读之Minion Node 组件 kube-proxy</title>
+  <meta name="author" content="杜军" />
+  
+  
+  
+  
+  <meta name="keywords" content="Kubernetes">
+  
+  
+  <meta name="description" content="Kube-proxy是kubernetes 里运行在minion节点上的一个组件, 它 watch kubernetes 集群里 service 和 endpoints(label是某一特定条件的pods)这两个对象的增加或删除,　并且维护一个service 到 endpoints的映射. 他使用iptables REDIRECT target将对服务的请求流量转接到本地的一个port上,　然后再将流量发到后端,　这样的转发还支持一些策略,　如round robin等，所以我们可以把他看成是一个具有高级功能的反向代理。 本文的内容将分为以下两部分, 源代码来自kubernetes release-0.8.1, 代码有删节，省略的代码或log输出用&amp;hellip;表示">
+
+  <meta name="generator" content="Hugo 0.68.3" />
+
+  
+  <link href='//fonts.googleapis.com/css?family=Roboto:400,100,100italic,300,300italic,500,700,800' rel='stylesheet' type='text/css'>
+
+  
+  
+  
+  
+  
+
+  <link href="/css/all.css" rel="stylesheet">
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+
+  
+  <link href="/css/animate.css" rel="stylesheet">
+
+  
+  
+    <link href="/css/style.default.css" rel="stylesheet" id="theme-stylesheet">
+  
+
+  
+  <link href="/css/custom.css" rel="stylesheet">
+
+  
+  
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+        <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  
+
+  
+  <link rel="shortcut icon" href="/img/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
+
+  
+  <link href="/css/owl.carousel.css" rel="stylesheet">
+  <link href="/css/owl.theme.css" rel="stylesheet">
+
+  
+  <link rel="alternate" href="https://Congrool.github.io/index.xml" type="application/rss+xml" title="浙大SEL实验室">
+
+  
+  
+  
+  
+  
+  
+  <meta property="og:updated_time" content="2015-01-22T14:16:32Z">
+  
+    
+    
+    <meta property="article:section" content="Kubernetes">
+    <meta property="article:tag" content="Kubernetes">
+    
+    
+    <meta property="article:published_time" content="2015-01-22T14:16:32Z">
+    <meta property="article:modified_time" content="2015-01-22T14:16:32Z">
+  
+
+  
+  <meta name="twitter:card" content="summary">
+  
+  <meta name="twitter:title" content="Kubernetes代码走读之Minion Node 组件 kube-proxy">
+  
+  <meta name="twitter:description" content="Kube-proxy是kubernetes 里运行在minion节点上的一个组件, 它 watch kubernetes 集群里 service 和 endpoints(label是某一特定条件的pods)这两个对象的增加或删除,　并且维护一个service 到 endpoints的映射. 他使用iptables REDIRECT target将对服务的请求流量转接到本地的一个port上,　然后再 …">
+  
+  
+</head>
+
+
+  <body>
+
+    <div id="all">
+
+        <header class="navbar-affixed-top" data-spy="affix" data-offset-top="62">
+    <div class="navbar navbar-default yamm" role="navigation" id="navbar" style="background-color:white;">    
+        <div class="container">
+            <div class="navbar-header">
+                <a class="navbar-brand home" href="/">
+                    <img src="/img/sel.png" alt="Kubernetes代码走读之Minion Node 组件 kube-proxy" class="hidden-xs hidden-sm img-responsive">
+                    
+                    <span class="sr-only">Kubernetes代码走读之Minion Node 组件 kube-proxy - </span>
+                </a>
+                <div class="navbar-buttons">
+                    <button type="button" class="navbar-toggle btn-template-main" data-toggle="collapse" data-target="#navigation">
+                      <span class="sr-only"></span>
+                        <i class="fas fa-align-justify"></i>
+                    </button>
+                </div>
+            </div>
+            
+
+            <div class="navbar-collapse collapse" id="navigation">
+                <ul class="nav navbar-nav navbar-right">
+                  
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/">主页</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/blog/">博客</a>
+                    
+                  </li>
+
+                  <li class="dropdown">
+                    
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">社区 <span class="caret"></span></a>
+                  <ul class="dropdown-menu">
+                    
+                      <li><a href="https://www.servicemesher.com/">ServiceMesh社区</a></li>
+                    
+                      <li><a href="">kubeedge社区</a></li>
+
+                      <li><a href="http://www.icsoft.zju.edu.cn/index.php">浙江大学智能计算与软件中心</a></li>
+                    
+                  </ul>
+
+                  <li class="dropdown">
+                    
+                    <a href="/archives/">归档</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/contact/">关于</a>
+                    
+                  </li>
+                  
+                </li>
+
+                
+                
+
+                
+                </ul>
+            </div>
+            
+
+            <div class="collapse clearfix" id="search">    
+                <form class="navbar-form" role="search">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search">
+                        <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main"><i class="fas fa-search"></i></button>
+                </span>
+                    </div>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+
+    
+</header>
+
+
+
+
+        <div id="heading-breadcrumbs">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h1>Kubernetes代码走读之Minion Node 组件 kube-proxy</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+        <div id="content">
+            <div class="container">
+
+                <div class="row">
+
+                    
+
+                    <div class="col-md-9" id="blog-post">
+
+                        
+                          <p class="text-muted text-uppercase mb-small text-right">
+                             <a href="#">杜军</a>
+                             | 
+                            2015-01-22
+                          </p>
+                        
+
+                        <div id="post-content">
+                          <p>Kube-proxy是kubernetes 里运行在minion节点上的一个组件, 它起的作用是一个服务代理的角色. 本文的内容将分为以下两部分, 源代码来自kubernetes release-0.8.1, 代码有删节，省略的代码或log输出用．．．表示:</p>
+
+<p><em>1 Kube-proxy 简介</em></p>
+
+<p><em>2 Kube-proxy代码解读</em></p>
+
+<h1 id="1-kube-proxy简介"><strong>1 Kube-proxy简介</strong></h1>
+
+<p>Kube-proxy网络代理运行在每个minion节点上。网上很多人所说这个proxy是kubernetes里的SDN组件，我本人并不这么认为, 我认为可以把他看成是一个高级的反向代理．它的功能反映了定义在每个节点上Kubernetes API中的Services信息，并且可以做简单的TCP流转发或在一组服务后端做round robin的流转发．服务端点目前通过与docker link 兼容的环境变量指定的端口被发现, 这些端口由服务代理打开．目前，用户必须在代理上选择一个端口以暴露服务.</p>
+
+<h1 id="2-kube-proxy代码解读"><strong>2 Kube-proxy代码解读</strong></h1>
+
+<p>Kube-proxy代码入口定义在cmd/kube-proxy/proxy.go中, 源代码较长,分段解读如下:</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> <span style="color:#c0f">main</span>() {
+        flag.<span style="color:#c0f">Parse</span>()
+        util.<span style="color:#c0f">InitLogs</span>()
+        <span style="color:#069;font-weight:bold">defer</span> util.<span style="color:#c0f">FlushLogs</span>()
+    
+        <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> util.<span style="color:#c0f">ApplyOomScoreAdj</span>(<span style="color:#555">*</span>oomScoreAdj); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+            glog.<span style="color:#c0f">Info</span>(err)
+        }</code></pre></div>
+<p>首先</p>
+
+<p><strong>1. 使用flag pkg初始化命令行参数到相应的变量, 如etcd_servers选项</strong></p>
+
+<p><strong>2. 初始化log</strong></p>
+
+<p><strong>3. 应用oomScoreAdj参数到/proc/self/oom_score_adj文件</strong>.  oom_score_adj 是-1000到1000的数值, 用来表征进程当发生OOM(out of memory)时系统对该进程的行为,值越低越不容易被杀死.默认值是-899.</p>
+
+<p><strong>4. 使用下列两个函数新建两个重要的数据结构 <em>ServiceConfig</em> 和 <em>EndpointsConfig</em></strong></p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">serviceConfig <span style="color:#555">:=</span> config.<span style="color:#c0f">NewServiceConfig</span>()
+endpointsConfig <span style="color:#555">:=</span> config.<span style="color:#c0f">NewEndpointsConfig</span>()</code></pre></div>
+<p>由于proxy和kubernetes Service概念关系很大, 强烈建议读者访问<a href="https://github.com/GoogleCloudPlatform/kubernetes/blob/master/docs/services.md">kubernetes Service</a>官方文档了解其基本概念. 先介绍ServiceConfig结构体和相关操作NewServiceConfig(), 源代码如下, 定义在pkg/proxy/config/config.go中</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">type</span> ServiceConfig <span style="color:#069;font-weight:bold">struct</span> {
+        mux     <span style="color:#555">*</span>config.Mux
+        bcaster <span style="color:#555">*</span>config.Broadcaster
+        store   <span style="color:#555">*</span>serviceStore
+}
+<span style="color:#069;font-weight:bold">func</span> <span style="color:#c0f">NewServiceConfig</span>() <span style="color:#555">*</span>ServiceConfig {
+    updates <span style="color:#555">:=</span> <span style="color:#366">make</span>(<span style="color:#069;font-weight:bold">chan</span> <span style="color:#069;font-weight:bold">struct</span>{})
+    store <span style="color:#555">:=</span> <span style="color:#555">&amp;</span>serviceStore{updates: updates, services: <span style="color:#366">make</span>(<span style="color:#069;font-weight:bold">map</span>[<span style="color:#078;font-weight:bold">string</span>]<span style="color:#069;font-weight:bold">map</span>[<span style="color:#078;font-weight:bold">string</span>]api.Service)}
+    mux <span style="color:#555">:=</span> config.<span style="color:#c0f">NewMux</span>(store)
+    bcaster <span style="color:#555">:=</span> config.<span style="color:#c0f">NewBroadcaster</span>()
+    <span style="color:#069;font-weight:bold">go</span> <span style="color:#c0f">watchForUpdates</span>(bcaster, store, updates)
+    <span style="color:#069;font-weight:bold">return</span> <span style="color:#555">&amp;</span>ServiceConfig{mux, bcaster, store}
+}</code></pre></div>
+<p>ServiceConfig结构体跟踪记录Service配置信息的变化,他接受通过channel传递的Sevice上&rdquo;set&rdquo;,　&rdquo;add&rdquo;,　&rdquo;remove&rdquo;的操作,　并使用相应的handler函数处理这些变化. ServiceConfig通过组合的方式将config.Mux, config.Broadcaster和serviceStore类集成起来. 并启动一个goroutine watchForUpdates(bcaster, store, updates), watchForUpdates()函数源代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> <span style="color:#c0f">watchForUpdates</span>(bcaster <span style="color:#555">*</span>config.Broadcaster, accessor config.Accessor, updates <span style="color:#555">&lt;-</span><span style="color:#069;font-weight:bold">chan</span> <span style="color:#069;font-weight:bold">struct</span>{}) {
+        <span style="color:#069;font-weight:bold">for</span> _ = <span style="color:#069;font-weight:bold">range</span> updates {
+            bcaster.<span style="color:#c0f">Notify</span>(accessor.<span style="color:#c0f">MergedState</span>())
+        }
+    }</code></pre></div>
+<p>他的作用是当updates channel有可用的信息时,　调用bcaster.Notify()函数以广播的方式将MergedState()处理后的serivces信息通知到各个Listener. 其中MergeState实际调用的是(s *serviceStore) MergedState(); bcaster.Notify()函数源码如下,　它定义在pkg/util/config/config.go中</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// 通知所有listener.
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">func</span> (b <span style="color:#555">*</span>Broadcaster) <span style="color:#c0f">Notify</span>(instance <span style="color:#069;font-weight:bold">interface</span>{}) {
+    b.listenerLock.<span style="color:#c0f">RLock</span>()
+    listeners <span style="color:#555">:=</span> b.listeners
+    b.listenerLock.<span style="color:#c0f">RUnlock</span>()
+    <span style="color:#069;font-weight:bold">for</span> _, listener <span style="color:#555">:=</span> <span style="color:#069;font-weight:bold">range</span> listeners {
+        listener.<span style="color:#c0f">OnUpdate</span>(instance)
+    }
+}</code></pre></div>
+<p>listener 相关的结构体源代码如下, 可以看出_golang interface_的飘逸灵活用法:</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">type</span> Listener <span style="color:#069;font-weight:bold">interface</span> {
+        <span style="color:#09f;font-style:italic">// OnUpdate 在每次object 有变化时被调用.
+</span><span style="color:#09f;font-style:italic"></span>        <span style="color:#c0f">OnUpdate</span>(instance <span style="color:#069;font-weight:bold">interface</span>{})
+    }
+    
+    <span style="color:#09f;font-style:italic">// ListenerFunc 是一个函数类型，他以下面的方式实现了OnUpdate()函数.
+</span><span style="color:#09f;font-style:italic"></span>    <span style="color:#069;font-weight:bold">type</span> ListenerFunc <span style="color:#069;font-weight:bold">func</span>(instance <span style="color:#069;font-weight:bold">interface</span>{})
+    
+    <span style="color:#069;font-weight:bold">func</span> (f ListenerFunc) <span style="color:#c0f">OnUpdate</span>(instance <span style="color:#069;font-weight:bold">interface</span>{}) {
+        <span style="color:#c0f">f</span>(instance)
+    }</code></pre></div>
+<p>NewServiceConfig函数最后返回这个新建的ServiceConfig结构体.</p>
+
+<p>EndpointsConfig 结构体类似于ServiceConfig结构体, 相关的操作也与Service极其相似,也是采用组合的方式将config.Mux, config.Broadcaster, endpointsStore组合起来, 并马上启动一个goroutine watchForUpdates(),调用的和之前的watchForUpdates相同.</p>
+
+<p><strong>5. 新建loadBalancerRR和代理proxier</strong></p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">loadBalancer <span style="color:#555">:=</span> proxy.<span style="color:#c0f">NewLoadBalancerRR</span>()
+proxier <span style="color:#555">:=</span> proxy.<span style="color:#c0f">NewProxier</span>(loadBalancer, net.<span style="color:#c0f">IP</span>(bindAddress), iptables.<span style="color:#c0f">New</span>(exec.<span style="color:#c0f">New</span>(), protocol))
+<span style="color:#069;font-weight:bold">if</span> proxier <span style="color:#555">==</span> <span style="color:#069;font-weight:bold">nil</span> {
+    glog.<span style="color:#c0f">Fatalf</span>(<span style="color:#c30">&#34;failed to create proxier, aborting&#34;</span>)
+}</code></pre></div>
+<p>5.1 先介绍loadBalancer,源代码定义在pkg/proxy/roundrobin.go中,如下:</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// LoadBalancerRR is 是一个使用round robin方式的负载均衡器的实现.
+</span><span style="color:#09f;font-style:italic"></span>    <span style="color:#069;font-weight:bold">type</span> LoadBalancerRR <span style="color:#069;font-weight:bold">struct</span> {
+        lock          sync.RWMutex
+        endpointsMap  <span style="color:#069;font-weight:bold">map</span>[<span style="color:#078;font-weight:bold">string</span>][]<span style="color:#078;font-weight:bold">string</span>　<span style="color:#09f;font-style:italic">//记录每个service的后端endpoint映射
+</span><span style="color:#09f;font-style:italic"></span>        rrIndex       <span style="color:#069;font-weight:bold">map</span>[<span style="color:#078;font-weight:bold">string</span>]<span style="color:#078;font-weight:bold">int</span> <span style="color:#09f;font-style:italic">//记录每个service下一次round robin轮到的后端index
+</span><span style="color:#09f;font-style:italic"></span>        serviceDtlMap <span style="color:#069;font-weight:bold">map</span>[<span style="color:#078;font-weight:bold">string</span>]serviceDetail　<span style="color:#09f;font-style:italic">//保存服务的名字和细节的映射
+</span><span style="color:#09f;font-style:italic"></span>    }
+    <span style="color:#09f;font-style:italic">// NewLoadBalancerRR 返回一个新的LoadBalancerRR结构体.
+</span><span style="color:#09f;font-style:italic"></span>    <span style="color:#069;font-weight:bold">func</span> <span style="color:#c0f">NewLoadBalancerRR</span>() <span style="color:#555">*</span>LoadBalancerRR {
+        <span style="color:#069;font-weight:bold">return</span> <span style="color:#555">&amp;</span>LoadBalancerRR{
+            endpointsMap:  <span style="color:#366">make</span>(<span style="color:#069;font-weight:bold">map</span>[<span style="color:#078;font-weight:bold">string</span>][]<span style="color:#078;font-weight:bold">string</span>),
+            rrIndex:       <span style="color:#366">make</span>(<span style="color:#069;font-weight:bold">map</span>[<span style="color:#078;font-weight:bold">string</span>]<span style="color:#078;font-weight:bold">int</span>),
+            serviceDtlMap: <span style="color:#366">make</span>(<span style="color:#069;font-weight:bold">map</span>[<span style="color:#078;font-weight:bold">string</span>]serviceDetail),
+        }
+    }</code></pre></div>
+<p>5.2 proxier源代码定义在pkg/proxy/proxier中,　如下</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// Proxier 结构体实现了一个简单的tcp代理
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">type</span> Proxier <span style="color:#069;font-weight:bold">struct</span> {
+    loadBalancer LoadBalancer
+    mu           sync.Mutex <span style="color:#09f;font-style:italic">// 保护下面的serviceMap数据结构
+</span><span style="color:#09f;font-style:italic"></span>    serviceMap   <span style="color:#069;font-weight:bold">map</span>[<span style="color:#078;font-weight:bold">string</span>]<span style="color:#555">*</span>serviceInfo
+    listenIP     net.IP
+    iptables     iptables.Interface
+    hostIP       net.IP
+}
+<span style="color:#09f;font-style:italic">// NewProxier 新建并返回一个Proxier结构体
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">func</span> <span style="color:#c0f">NewProxier</span>(loadBalancer LoadBalancer, listenIP net.IP, iptables iptables.Interface) <span style="color:#555">*</span>Proxier {
+    <span style="color:#555">...</span>
+    hostIP, err <span style="color:#555">:=</span> <span style="color:#c0f">chooseHostInterface</span>()
+    <span style="color:#555">...</span>
+    <span style="color:#09f;font-style:italic">// 清楚旧的iptables rules.
+</span><span style="color:#09f;font-style:italic"></span>    <span style="color:#c0f">iptablesDeleteOld</span>(iptables)
+    <span style="color:#09f;font-style:italic">// 初始化 iptables.
+</span><span style="color:#09f;font-style:italic"></span>    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> <span style="color:#c0f">iptablesInit</span>(iptables); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        glog.<span style="color:#c0f">Errorf</span>(<span style="color:#c30">&#34;Failed to initialize iptables: %v&#34;</span>, err)
+        <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>
+    }
+    
+    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> <span style="color:#c0f">iptablesFlush</span>(iptables); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        glog.<span style="color:#c0f">Errorf</span>(<span style="color:#c30">&#34;Failed to flush iptables: %v&#34;</span>, err)
+        <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>
+    }
+    <span style="color:#069;font-weight:bold">return</span> <span style="color:#555">&amp;</span>Proxier{
+        loadBalancer: loadBalancer,
+        serviceMap:   <span style="color:#366">make</span>(<span style="color:#069;font-weight:bold">map</span>[<span style="color:#078;font-weight:bold">string</span>]<span style="color:#555">*</span>serviceInfo),
+        listenIP:     listenIP,
+        iptables:     iptables,
+        hostIP:       hostIP,
+    }
+}</code></pre></div>
+<p>如上面的代码注释所说NewProxier函数初始化主机上的iptables信息. proxier组成的元素主要包含刚刚创建的loadBalancer对象和一个iptables的执行器,他负责根据service的变化信息更新iptables设置.</p>
+
+<p><strong>6. 将刚刚新建的proxier和loadBalancer分别向servicesConfig和endpointsConfig绑定</strong></p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">serviceConfig.<span style="color:#c0f">RegisterHandler</span>(proxier)
+endpointsConfig.<span style="color:#c0f">RegisterHandler</span>(loadBalancer)</code></pre></div>
+<p>他的作用是当service或endpoint的配置信息发生变化时，就调用proxier或loadbalancer的相关函数．</p>
+
+<p>下面先介绍serviceConfig.RegisterHandler(proxier),源代码如下:</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> (c <span style="color:#555">*</span>ServiceConfig) <span style="color:#c0f">RegisterHandler</span>(handler ServiceConfigHandler) {
+    c.bcaster.<span style="color:#c0f">Add</span>(config.<span style="color:#c0f">ListenerFunc</span>(<span style="color:#069;font-weight:bold">func</span>(instance <span style="color:#069;font-weight:bold">interface</span>{}) {
+        handler.<span style="color:#c0f">OnUpdate</span>(instance.([]api.Service))
+    }))
+}</code></pre></div>
+<p>这个函数的功能是将proxier的OnUpdate函数注册添加到上文说的serviceConfig的bcaster的Listener[] slice里,当从channel收到新的可用信息,　实际调用的是下面的OnUpdate()函数即Proxier对象的OnUpdate(). 这个函数很重要，由于代码段比较长,下面分段解释，他定义在pkg/proxy/proxier.go 中.</p>
+
+<p>首先看一下传进参数services的值</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> (proxier <span style="color:#555">*</span>Proxier) <span style="color:#c0f">OnUpdate</span>(services []api.Service) {
+    glog.<span style="color:#c0f">V</span>(<span style="color:#f60">4</span>).<span style="color:#c0f">Infof</span>(<span style="color:#c30">&#34;Received update notice: %+v&#34;</span>, services)</code></pre></div>
+<p>从后端的一台minion机器上的kube-proxy.log查看一下传进来的services信息如下:</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">I0112 <span style="color:#f60">09</span>:<span style="color:#f60">48</span>:<span style="color:#f60">02.876275</span>   <span style="color:#f60">23642</span> proxier.<span style="color:#069;font-weight:bold">go</span>:<span style="color:#f60">443</span>] Received update notice: [<span style="color:#555">...</span> ObjectMeta:{Name:redis<span style="color:#555">-</span>master <span style="color:#555">...</span> 
+Spec:{Port:<span style="color:#f60">6379</span> Protocol:TCP Selector:<span style="color:#069;font-weight:bold">map</span>[name:redis<span style="color:#555">-</span>master] PortalIP:<span style="color:#f60">11.1.1.83</span> ProxyPort:<span style="color:#f60">0</span> CreateExternalLoadBalancer:<span style="color:#069;font-weight:bold">false</span> 
+PublicIPs:[] ContainerPort:{Kind:<span style="color:#f60">0</span> IntVal:<span style="color:#f60">6379</span> StrVal:} SessionAffinity:}]</code></pre></div>
+<p>如上展示的是kubernetes官方guest-example的redis-master的service, 他的重要参数是Spec这个字段，他包含service portal信息. 再继续往下进行,下面的代码段将刚收到的services信息和本地已有的通过info, exists := proxier.getServiceInfo(service.Name) 函数获得的info作比较. 如果service有更改,　则在后台重启或使用addServiceOnPort()函数新增代理:</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">activeServices <span style="color:#555">:=</span> util.StringSet{}
+        <span style="color:#069;font-weight:bold">for</span> _, service <span style="color:#555">:=</span> <span style="color:#069;font-weight:bold">range</span> services {
+            activeServices.<span style="color:#c0f">Insert</span>(service.Name)
+            info, exists <span style="color:#555">:=</span> proxier.<span style="color:#c0f">getServiceInfo</span>(service.Name)
+            serviceIP <span style="color:#555">:=</span> net.<span style="color:#c0f">ParseIP</span>(service.Spec.PortalIP)
+            
+            <span style="color:#09f;font-style:italic">//service 信息完全不变，不做任何操作
+</span><span style="color:#09f;font-style:italic"></span>            <span style="color:#069;font-weight:bold">if</span> exists <span style="color:#555">&amp;&amp;</span> info.portalPort <span style="color:#555">==</span> service.Spec.Port <span style="color:#555">&amp;&amp;</span> info.portalIP.<span style="color:#c0f">Equal</span>(serviceIP) {
+                <span style="color:#069;font-weight:bold">continue</span>
+            }
+            <span style="color:#09f;font-style:italic">// service 信息发生改变，如portalPort或portalIＰ发生变化时，则重启
+</span><span style="color:#09f;font-style:italic"></span>            <span style="color:#069;font-weight:bold">if</span> exists <span style="color:#555">&amp;&amp;</span> (info.portalPort <span style="color:#555">!=</span> service.Spec.Port <span style="color:#555">||</span> !info.portalIP.<span style="color:#c0f">Equal</span>(serviceIP) <span style="color:#555">||</span> !<span style="color:#c0f">ipsEqual</span>(service.Spec.PublicIPs, info.publicIP)) {
+                glog.<span style="color:#c0f">V</span>(<span style="color:#f60">4</span>).<span style="color:#c0f">Infof</span>(<span style="color:#c30">&#34;Something changed for service %q: stopping it&#34;</span>, service.Name)
+                err <span style="color:#555">:=</span> proxier.<span style="color:#c0f">closePortal</span>(service.Name, info)
+                <span style="color:#555">...</span>
+                err = proxier.<span style="color:#c0f">stopProxy</span>(service.Name, info)
+                <span style="color:#555">...</span>
+            }
+            <span style="color:#555">...</span>
+            info, err <span style="color:#555">:=</span> proxier.<span style="color:#c0f">addServiceOnPort</span>(service.Name, service.Spec.Protocol, service.Spec.ProxyPort, udpIdleTimeout)</code></pre></div>
+<p>其中核心的addServiceOnPort()函数源代码如下, 他的最主要的作用是为每个service开启一个代理socket, 其中分配一个随机的port号为portNum, 并启动一个goroutine sock.ProxyLoop() 进行代理循环，这个函数定义在pkg/proxy/proxier.go中，它实现了一个round robin代理的逻辑，供读者自行阅读，这里由于篇幅所限不赘述:</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> (proxier <span style="color:#555">*</span>Proxier) <span style="color:#c0f">addServiceOnPort</span>(service <span style="color:#078;font-weight:bold">string</span>, protocol api.Protocol, proxyPort <span style="color:#078;font-weight:bold">int</span>, timeout time.Duration) (<span style="color:#555">*</span>serviceInfo, <span style="color:#078;font-weight:bold">error</span>) {
+    <span style="color:#09f;font-style:italic">// 新建一个代理socket
+</span><span style="color:#09f;font-style:italic"></span>    sock, err <span style="color:#555">:=</span> <span style="color:#c0f">newProxySocket</span>(protocol, proxier.listenIP, proxyPort)
+    <span style="color:#555">...</span>
+    _, portStr, err <span style="color:#555">:=</span> net.<span style="color:#c0f">SplitHostPort</span>(sock.<span style="color:#c0f">Addr</span>().<span style="color:#c0f">String</span>())
+    <span style="color:#555">...</span>
+    portNum, err <span style="color:#555">:=</span> strconv.<span style="color:#c0f">Atoi</span>(portStr)
+    <span style="color:#555">...</span>
+    <span style="color:#09f;font-style:italic">//将sessionAffinityType设置为None, 默认没有sessionAffinity
+</span><span style="color:#09f;font-style:italic"></span>    si <span style="color:#555">:=</span> <span style="color:#555">&amp;</span>serviceInfo{
+        proxyPort:           portNum,
+        protocol:            protocol,
+        socket:              sock,
+        timeout:             timeout,
+        sessionAffinityType: api.AffinityTypeNone,
+        stickyMaxAgeMinutes: <span style="color:#f60">180</span>,
+    }
+   　<span style="color:#09f;font-style:italic">//将新建的serviceInfo保存进proxier的serviceMap数据结构里
+</span><span style="color:#09f;font-style:italic"></span>    proxier.<span style="color:#c0f">setServiceInfo</span>(service, si)
+
+    glog.<span style="color:#c0f">V</span>(<span style="color:#f60">1</span>).<span style="color:#c0f">Infof</span>(<span style="color:#c30">&#34;Proxying for service %q on %s port %d&#34;</span>, service, protocol, portNum)
+    <span style="color:#069;font-weight:bold">go</span> <span style="color:#069;font-weight:bold">func</span>(service <span style="color:#078;font-weight:bold">string</span>, proxier <span style="color:#555">*</span>Proxier) {
+        <span style="color:#069;font-weight:bold">defer</span> util.<span style="color:#c0f">HandleCrash</span>()
+        sock.<span style="color:#c0f">ProxyLoop</span>(service, proxier)
+    }(service, proxier)
+
+    <span style="color:#069;font-weight:bold">return</span> si, <span style="color:#069;font-weight:bold">nil</span>
+}</code></pre></div>
+<p>观察后台kube-proxy log 如下, 49263 就是个随机分配的port：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">I0114 <span style="color:#f60">14</span>:<span style="color:#f60">50</span>:<span style="color:#f60">18.388765</span>   <span style="color:#f60">21305</span> proxier.<span style="color:#069;font-weight:bold">go</span>:<span style="color:#f60">427</span>] Proxying <span style="color:#069;font-weight:bold">for</span> service <span style="color:#c30">&#34;redis-master&#34;</span> on TCP port <span style="color:#f60">49623</span></code></pre></div>
+<p>回到OnUpdate函数里，之后将最新的service信息保存到info数据, 　由于proxier.getServiceInfo(service.Name) 返回的是指针, 所以最后实际上保存到了proxier.serviceMap这个数据结构里.</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">info.portalIP = serviceIP
+info.portalPort = service.Spec.Port
+info.publicIP = service.Spec.PublicIPs
+info.sessionAffinityType = service.Spec.SessionAffinity
+info.stickyMaxAgeMinutes = <span style="color:#f60">180</span></code></pre></div>
+<p>最后调用openPortal函数打开servicePortal</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">err = proxier.<span style="color:#c0f">openPortal</span>(service.Name, info)</code></pre></div>
+<p>他实际调用的是如下的openOnePortal函数,他的源码如下,定义在pkg/proxy/proxier.go中</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> (proxier <span style="color:#555">*</span>Proxier) <span style="color:#c0f">openOnePortal</span>(portalIP net.IP, portalPort <span style="color:#078;font-weight:bold">int</span>, protocol api.Protocol, proxyIP net.IP, proxyPort <span style="color:#078;font-weight:bold">int</span>, name <span style="color:#078;font-weight:bold">string</span>) <span style="color:#078;font-weight:bold">error</span> {
+        <span style="color:#09f;font-style:italic">// 处理containers之间的流量.
+</span><span style="color:#09f;font-style:italic"></span>        args <span style="color:#555">:=</span> proxier.<span style="color:#c0f">iptablesContainerPortalArgs</span>(portalIP, portalPort, protocol, proxyIP, proxyPort, name)
+        existed, err <span style="color:#555">:=</span> proxier.iptables.<span style="color:#c0f">EnsureRule</span>(iptables.TableNAT, iptablesContainerPortalChain, args<span style="color:#555">...</span>)
+        <span style="color:#555">...</span>
+        <span style="color:#069;font-weight:bold">if</span> !existed {
+            glog.<span style="color:#c0f">Infof</span>(<span style="color:#c30">&#34;Opened iptables from-containers portal for service %q on %s %s:%d&#34;</span>, name, protocol, portalIP, portalPort)
+        } 
+        <span style="color:#555">...</span>
+    }</code></pre></div>
+<p>他的作用是保证根据上文的service信息添加了正确的iptables rule,　并将相应的规则添加到iptables NAT表里, 最后调用的是pkg/util/iptables/iptables.go中的run函数,源代码如下:</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> (runner <span style="color:#555">*</span>runner) <span style="color:#c0f">run</span>(op operation, args []<span style="color:#078;font-weight:bold">string</span>) ([]<span style="color:#078;font-weight:bold">byte</span>, <span style="color:#078;font-weight:bold">error</span>) {
+    iptablesCmd <span style="color:#555">:=</span> runner.<span style="color:#c0f">iptablesCommand</span>()
+
+    fullArgs <span style="color:#555">:=</span> <span style="color:#366">append</span>([]<span style="color:#078;font-weight:bold">string</span>{<span style="color:#366">string</span>(op)}, args<span style="color:#555">...</span>)
+    glog.<span style="color:#c0f">V</span>(<span style="color:#f60">1</span>).<span style="color:#c0f">Infof</span>(<span style="color:#c30">&#34;running iptables %s %v&#34;</span>, <span style="color:#366">string</span>(op), args)
+    <span style="color:#069;font-weight:bold">return</span> runner.exec.<span style="color:#c0f">Command</span>(iptablesCmd, fullArgs<span style="color:#555">...</span>).<span style="color:#c0f">CombinedOutput</span>()
+
+}</code></pre></div>
+<p>从后台的kube-proxy log中可以看到下面的iptables操作</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">I0112 <span style="color:#f60">12</span>:<span style="color:#f60">38</span>:<span style="color:#f60">03.870741</span>    <span style="color:#f60">7284</span> iptables.<span style="color:#069;font-weight:bold">go</span>:<span style="color:#f60">169</span>] running iptables <span style="color:#555">-</span>N [KUBE<span style="color:#555">-</span>PROXY <span style="color:#555">-</span>t nat]
+ I0112 <span style="color:#f60">12</span>:<span style="color:#f60">38</span>:<span style="color:#f60">03.877783</span>    <span style="color:#f60">7284</span> iptables.<span style="color:#069;font-weight:bold">go</span>:<span style="color:#f60">169</span>] running iptables <span style="color:#555">-</span>C [PREROUTING <span style="color:#555">-</span>t nat <span style="color:#555">-</span>j KUBE<span style="color:#555">-</span>PROXY]
+ I0112 <span style="color:#f60">12</span>:<span style="color:#f60">38</span>:<span style="color:#f60">03.885954</span>    <span style="color:#f60">7284</span> iptables.<span style="color:#069;font-weight:bold">go</span>:<span style="color:#f60">169</span>] running iptables <span style="color:#555">-</span>C [OUTPUT <span style="color:#555">-</span>t nat <span style="color:#555">-</span>j KUBE<span style="color:#555">-</span>PROXY]
+ I0112 <span style="color:#f60">12</span>:<span style="color:#f60">38</span>:<span style="color:#f60">03.893237</span>    <span style="color:#f60">7284</span> iptables.<span style="color:#069;font-weight:bold">go</span>:<span style="color:#f60">169</span>] running iptables <span style="color:#555">-</span>C [KUBE<span style="color:#555">-</span>PROXY <span style="color:#555">-</span>t nat <span style="color:#555">-</span>m comment <span style="color:#555">--</span>comment redis<span style="color:#555">-</span>master <span style="color:#555">-</span>p tcp <span style="color:#555">-</span>m tcp <span style="color:#555">-</span>d <span style="color:#f60">11.1.1.83</span><span style="color:#555">/</span><span style="color:#f60">32</span> <span style="color:#555">--</span>dport <span style="color:#f60">6379</span> <span style="color:#555">-</span>j REDIRECT <span style="color:#555">--</span>to<span style="color:#555">-</span>ports <span style="color:#f60">37292</span>]
+ I0112 <span style="color:#f60">12</span>:<span style="color:#f60">38</span>:<span style="color:#f60">03.904520</span>    <span style="color:#f60">7284</span> iptables.<span style="color:#069;font-weight:bold">go</span>:<span style="color:#f60">169</span>] running iptables <span style="color:#555">-</span>C [KUBE<span style="color:#555">-</span>PROXY <span style="color:#555">-</span>t nat <span style="color:#555">-</span>m comment <span style="color:#555">--</span>comment redisslave <span style="color:#555">-</span>p tcp <span style="color:#555">-</span>m tcp <span style="color:#555">-</span>d <span style="color:#f60">11.1.1.176</span><span style="color:#555">/</span><span style="color:#f60">32</span> <span style="color:#555">--</span>dport <span style="color:#f60">6379</span> <span style="color:#555">-</span>j REDIRECT <span style="color:#555">--</span>to<span style="color:#555">-</span>ports <span style="color:#f60">37334</span>]</code></pre></div>
+<p>使用命令$ iptables -t nat -L 可以看到结果如下:</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">Chain KUBE<span style="color:#555">-</span><span style="color:#c0f">PROXY</span> (<span style="color:#f60">2</span> references)
+target     prot opt source               destination         
+REDIRECT   tcp  <span style="color:#555">--</span>  anywhere             <span style="color:#f60">11.1.1.83</span>            <span style="color:#09f;font-style:italic">/* redis-master */</span> tcp dpt:<span style="color:#f60">6379</span> redir ports <span style="color:#f60">37292</span>
+REDIRECT   tcp  <span style="color:#555">--</span>  anywhere             <span style="color:#f60">11.1.1.176</span>           <span style="color:#09f;font-style:italic">/* redisslave */</span> tcp dpt:<span style="color:#f60">6379</span> redir ports <span style="color:#f60">37334</span>
+REDIRECT   tcp  <span style="color:#555">--</span>  anywhere             <span style="color:#f60">11.1.1.1</span>             <span style="color:#09f;font-style:italic">/* redis-master2 */</span> tcp dpt:<span style="color:#f60">6379</span> redir ports <span style="color:#f60">41074</span>
+REDIRECT   tcp  <span style="color:#555">--</span>  anywhere             <span style="color:#f60">11.1.1.169</span>           <span style="color:#09f;font-style:italic">/* kubernetes */</span> tcp dpt:https redir ports <span style="color:#f60">54541</span>
+REDIRECT   tcp  <span style="color:#555">--</span>  anywhere             <span style="color:#f60">11.1.1.91</span>            <span style="color:#09f;font-style:italic">/* kubernetes-ro */</span> tcp dpt:http redir ports <span style="color:#f60">35201</span></code></pre></div>
+<p>可以看到minion主机上的iptable新增了KUBE-PROXY CHAIN , 并且采用的是REDIRECT target. 这个CHAIN有两个引用, 分别是PREROUTING 和 OUTPUT CHAIN. 最后的结果是容器里的应用如果想通过11.1.1.176：6379 访问redisslave服务时,流量被REDIRECT到了本机的37334端口, 通过这个本地37334端口，再使用刚刚说到的每个service提供的代理socket导向到真正后端. 如下面的终端输出所示.这里的 11.1.1.176相当于一个虚拟的ip. 这个ip范围可在启动 kube-apiserver时指定portal_net参数指定.</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">vcap@224:~$ nc -zv 11.1.1.176 <span style="color:#f60">6379</span>
+Connection to 11.1.1.176 <span style="color:#f60">6379</span> port <span style="color:#555">[</span>tcp/*<span style="color:#555">]</span> succeeded!</code></pre></div>
+<p>再使用proxier.loadBalancer.NewService函数</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">proxier.loadBalancer.<span style="color:#c0f">NewService</span>(service.Name, info.sessionAffinityType, info.stickyMaxAgeMinutes)</code></pre></div>
+<p>源代码定义在pkg/proxy/roundrobin.go中,源代码如下:</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> (lb <span style="color:#555">*</span>LoadBalancerRR) <span style="color:#c0f">NewService</span>(service <span style="color:#078;font-weight:bold">string</span>, sessionAffinityType api.AffinityType, stickyMaxAgeMinutes <span style="color:#078;font-weight:bold">int</span>) <span style="color:#078;font-weight:bold">error</span> {
+        <span style="color:#069;font-weight:bold">if</span> stickyMaxAgeMinutes <span style="color:#555">==</span> <span style="color:#f60">0</span> {
+            stickyMaxAgeMinutes = <span style="color:#f60">180</span> <span style="color:#09f;font-style:italic">//单位分钟
+</span><span style="color:#09f;font-style:italic"></span>    　　　}
+        <span style="color:#069;font-weight:bold">if</span> _, exists <span style="color:#555">:=</span> lb.serviceDtlMap[service]; !exists {
+            lb.serviceDtlMap[service] = <span style="color:#555">*</span><span style="color:#c0f">newServiceDetail</span>(service, sessionAffinityType, stickyMaxAgeMinutes)
+            glog.<span style="color:#c0f">V</span>(<span style="color:#f60">4</span>).<span style="color:#c0f">Infof</span>(<span style="color:#c30">&#34;NewService.  Service does not exist.  So I created it: %+v&#34;</span>, lb.serviceDtlMap[service])
+        }
+        <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>
+    }</code></pre></div>
+<p>可以看到一个很重要的操作是维护serviceDtlMap这样一个golang map数据结构, key是相应service name. 这里sessionAffinityType有基于clientIPAddress的方式，也有最普通的None模式，也就是常用的round robin方式无sessionAffinity, 如下面的log就是创建了一个名为redis-master的sessionAffinityType为 None的 service.</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">I0112 <span style="color:#f60">12</span>:<span style="color:#f60">37</span>:<span style="color:#f60">53.824530</span>    <span style="color:#f60">7284</span> roundrobin.<span style="color:#069;font-weight:bold">go</span>:<span style="color:#f60">83</span>] NewService.  Service does not exist.  So I created it: {name:redis<span style="color:#555">-</span>master sessionAffinityType:None sessionAffinityMap:<span style="color:#069;font-weight:bold">map</span>[] stickyMaxAgeMinutes:<span style="color:#f60">180</span>}</code></pre></div>
+<p>OnUpdate函数最后的活动是对未活动的service, 即要被删除掉的service 关闭portal,　删除指定的iptables rule,　关闭代理套接字.　代码如下:</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">　　proxier.mu.<span style="color:#c0f">Lock</span>()
+　　<span style="color:#069;font-weight:bold">defer</span> proxier.mu.<span style="color:#c0f">Unlock</span>()
+　　<span style="color:#069;font-weight:bold">for</span> name, info <span style="color:#555">:=</span> <span style="color:#069;font-weight:bold">range</span> proxier.serviceMap {
+        <span style="color:#069;font-weight:bold">if</span> !activeServices.<span style="color:#c0f">Has</span>(name) {
+            <span style="color:#555">...</span>
+            err <span style="color:#555">:=</span> proxier.<span style="color:#c0f">closePortal</span>(name, info)
+            <span style="color:#555">...</span>
+            err = proxier.<span style="color:#c0f">stopProxyInternal</span>(name, info)
+            <span style="color:#555">...</span>
+        }
+    }</code></pre></div>
+<p><strong>7.回到main函数，下一步指定变化的源 ,一般采用etcd_server ,即调用下面代码的else部分</strong></p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">if</span> clientConfig.Host <span style="color:#555">!=</span> <span style="color:#c30">&#34;&#34;</span> {
+        <span style="color:#555">...</span>
+    } <span style="color:#069;font-weight:bold">else</span> {
+        <span style="color:#069;font-weight:bold">var</span> etcdClient <span style="color:#555">*</span>etcd.Client
+
+        <span style="color:#09f;font-style:italic">// 创建 etcd client
+</span><span style="color:#09f;font-style:italic"></span>        <span style="color:#069;font-weight:bold">if</span> <span style="color:#366">len</span>(etcdServerList) &gt; <span style="color:#f60">0</span> {
+            <span style="color:#555">...</span>
+            etcdClient = etcd.<span style="color:#c0f">NewClient</span>(etcdServerList)
+        } <span style="color:#555">...</span>
+        
+        <span style="color:#069;font-weight:bold">if</span> etcdClient <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+            glog.<span style="color:#c0f">Infof</span>(<span style="color:#c30">&#34;Using etcd servers %v&#34;</span>, etcdClient.<span style="color:#c0f">GetCluster</span>())
+
+            config.<span style="color:#c0f">NewConfigSourceEtcd</span>(etcdClient,
+                serviceConfig.<span style="color:#c0f">Channel</span>(<span style="color:#c30">&#34;etcd&#34;</span>),
+                endpointsConfig.<span style="color:#c0f">Channel</span>(<span style="color:#c30">&#34;etcd&#34;</span>))
+        }
+    }</code></pre></div>
+<p>流程为 7.1 先使用给定的命令行参数etcd_servers 创建一个新的etcdClient对象, 使用的pkg是coreos的github.com/coreos/go-etcd/etcd pkg. 查看后端kube-proxy的log如下</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">I0107 <span style="color:#f60">10</span>:<span style="color:#f60">30</span>:<span style="color:#f60">25.561301</span>    <span style="color:#f60">5921</span> proxy.<span style="color:#069;font-weight:bold">go</span>:<span style="color:#f60">117</span>] Using etcd servers [http:<span style="color:#555">//</span><span style="color:#f60">127.0.0.1</span>:<span style="color:#f60">4001</span>]</code></pre></div>
+<p>7.2 之后使用config.NewConfigSourceEtcd(etcdClient, serviceConfig.Channel(&ldquo;etcd&rdquo;), endpointsConfig.Channel(&ldquo;etcd&rdquo;))函数. 注意到这个函数的后两个参数是serviceConfig.Channel(&ldquo;etcd&rdquo;)和endpointsConfig.Channel(&ldquo;etcd&rdquo;)的返回值. 这两个函数除了make创建出相应的channel之外还做了一些额外的操作值得注意! 下面介绍其中的一个serviceConfig.Channel(&ldquo;etcd&rdquo;),　endpointsConfig.Channel(&ldquo;etcd&rdquo;)雷同.</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> (c <span style="color:#555">*</span>ServiceConfig) <span style="color:#c0f">Channel</span>(source <span style="color:#078;font-weight:bold">string</span>) <span style="color:#069;font-weight:bold">chan</span> ServiceUpdate {
+    ch <span style="color:#555">:=</span> c.mux.<span style="color:#c0f">Channel</span>(source)
+    serviceCh <span style="color:#555">:=</span> <span style="color:#366">make</span>(<span style="color:#069;font-weight:bold">chan</span> ServiceUpdate)
+    <span style="color:#069;font-weight:bold">go</span> <span style="color:#069;font-weight:bold">func</span>() {
+        <span style="color:#069;font-weight:bold">for</span> update <span style="color:#555">:=</span> <span style="color:#069;font-weight:bold">range</span> serviceCh {
+            ch <span style="color:#555">&lt;-</span> update
+        }
+        <span style="color:#366">close</span>(ch)
+    }()
+    <span style="color:#069;font-weight:bold">return</span> serviceCh
+}</code></pre></div>
+<p>他调用Mux里的Channel函数创建一个新的channel ch,　并且创建一个传送ServiceUpdate 的channel serviceCh, 一旦serviceCh有可用的信息如update就将他写入ch. 之后再回来看一下ConfigSourceEtcd结构体和相关的NewConfigSourceEtcd函数，它的源代码定义在pkg/proxy/config/etcd.go, 代码如下:</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">type</span> ConfigSourceEtcd <span style="color:#069;font-weight:bold">struct</span> {
+        client           <span style="color:#555">*</span>etcd.Client
+        serviceChannel   <span style="color:#069;font-weight:bold">chan</span> ServiceUpdate
+        endpointsChannel <span style="color:#069;font-weight:bold">chan</span> EndpointsUpdate
+        interval         time.Duration
+}
+ 　<span style="color:#069;font-weight:bold">func</span> <span style="color:#c0f">NewConfigSourceEtcd</span>(client <span style="color:#555">*</span>etcd.Client, serviceChannel <span style="color:#069;font-weight:bold">chan</span> ServiceUpdate, endpointsChannel <span style="color:#069;font-weight:bold">chan</span> EndpointsUpdate) ConfigSourceEtcd {
+        config <span style="color:#555">:=</span> ConfigSourceEtcd{
+            client:           client,
+            serviceChannel:   serviceChannel,
+            endpointsChannel: endpointsChannel,
+            interval:         <span style="color:#f60">2</span> <span style="color:#555">*</span> time.Second,
+        }
+        <span style="color:#069;font-weight:bold">go</span> config.<span style="color:#c0f">Run</span>()
+        <span style="color:#069;font-weight:bold">return</span> config
+    }</code></pre></div>
+<p>NewConfigSourceEtcd作用是创建一个新的ConfigSourceEtcd结构体, 这个结构体里封装了etcdClient和两个传输信息的Channel: 1 serviceChannel 2 endpointsChannel.并启动一个goroutine config.Run()函数.源代码如下:</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// Run函数watch　etcd 上与service 和endpoint相关的key的变化，并将新的处理好的serviceUpdate和endpointUpate值输出到指定channel
+</span><span style="color:#09f;font-style:italic">// 如刚刚提到的1 serviceChannel 2 endpointsChannel.
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">func</span> (s ConfigSourceEtcd) <span style="color:#c0f">Run</span>() {
+　　　<span style="color:#555">...</span>
+    <span style="color:#069;font-weight:bold">for</span> {
+    　　<span style="color:#09f;font-style:italic">// 通过查询etcd上/registry/services/specs下的相关key获得service 和endpoint列表
+</span><span style="color:#09f;font-style:italic"></span>        services, endpoints, err = s.<span style="color:#c0f">GetServices</span>()
+        <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+            <span style="color:#555">...</span>
+    　　} <span style="color:#069;font-weight:bold">else</span> {
+         　<span style="color:#09f;font-style:italic">// 传输到相应channel，如刚刚说到的(c *ServiceConfig) Channel函数里的所谓serviceCh　channel
+</span><span style="color:#09f;font-style:italic"></span>            <span style="color:#069;font-weight:bold">if</span> <span style="color:#366">len</span>(services) &gt; <span style="color:#f60">0</span> {
+                serviceUpdate <span style="color:#555">:=</span> ServiceUpdate{Op: SET, Services: services}
+                s.serviceChannel <span style="color:#555">&lt;-</span> serviceUpdate
+            }
+            <span style="color:#555">...</span>
+
+        }
+        time.<span style="color:#c0f">Sleep</span>(<span style="color:#f60">30</span> <span style="color:#555">*</span> time.Second)
+    }
+}</code></pre></div>
+<p><strong>8.启动health监控</strong></p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">if</span> <span style="color:#555">*</span>healthz_port &gt; <span style="color:#f60">0</span> {
+            <span style="color:#069;font-weight:bold">go</span> util.<span style="color:#c0f">Forever</span>(<span style="color:#069;font-weight:bold">func</span>() {
+                err <span style="color:#555">:=</span> http.<span style="color:#c0f">ListenAndServe</span>(bindAddress.<span style="color:#c0f">String</span>()<span style="color:#555">+</span><span style="color:#c30">&#34;:&#34;</span><span style="color:#555">+</span>strconv.<span style="color:#c0f">Itoa</span>(<span style="color:#555">*</span>healthz_port), <span style="color:#069;font-weight:bold">nil</span>)
+                <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+                    glog.<span style="color:#c0f">Errorf</span>(<span style="color:#c30">&#34;Starting health server failed: %v&#34;</span>, err)
+                }
+            }, <span style="color:#f60">5</span><span style="color:#555">*</span>time.Second)
+        }</code></pre></div>
+<p>目前什么http的HandleFunc都没有,访问healthz_port会遇到404 not found error.</p>
+
+<p><strong>9.最后调用SyncLoop()</strong></p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// Just loop forever for now...
+</span><span style="color:#09f;font-style:italic"></span>    proxier.<span style="color:#c0f">SyncLoop</span>()</code></pre></div>
+<p>其源代码定义在pkg/proxy/proxier.go中，如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> (proxier <span style="color:#555">*</span>Proxier) <span style="color:#c0f">SyncLoop</span>() {
+    <span style="color:#069;font-weight:bold">for</span> {
+        <span style="color:#069;font-weight:bold">select</span> {
+        <span style="color:#09f;font-style:italic">// 每隔syncInterval　默认值是５s进行一次，保证iptables设置及portal正常工作
+</span><span style="color:#09f;font-style:italic"></span>        <span style="color:#09f;font-style:italic">// 并清理除AffinityTypeNone之外的超时session
+</span><span style="color:#09f;font-style:italic"></span>        <span style="color:#069;font-weight:bold">case</span> <span style="color:#555">&lt;-</span>time.<span style="color:#c0f">After</span>(syncInterval):
+            glog.<span style="color:#c0f">V</span>(<span style="color:#f60">2</span>).<span style="color:#c0f">Infof</span>(<span style="color:#c30">&#34;Periodic sync&#34;</span>)
+            <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> <span style="color:#c0f">iptablesInit</span>(proxier.iptables); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+                glog.<span style="color:#c0f">Errorf</span>(<span style="color:#c30">&#34;Failed to ensure iptables: %v&#34;</span>, err)
+            }
+            proxier.<span style="color:#c0f">ensurePortals</span>()
+            proxier.<span style="color:#c0f">cleanupStaleStickySessions</span>()
+        }
+    }
+}</code></pre></div>
+<p><strong>总结:</strong></p>
+
+<p>1 每个Kubernetes节点都运行一个kube-proxy这么一个服务代理,它 watch kubernetes 集群里 service 和 endpoints(label是某一特定条件的pods)这两个对象的增加或删除,　并且维护一个service 到 endpoints的映射. 他使用iptables REDIRECT target将对服务的请求流量转接到本地的一个port上,　然后再将流量发到后端,　这样的转发还支持一些策略,　如round robin等，所以我们可以把他看成是一个具有高级功能的反向代理。</p>
+
+<p>2 下面为Kube-proxy内部goroutine及channel 使用图，以service信息传递为例
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605835425/sel/serviceChannel_sxqhle.png" alt="serviceChannel" style="zoom:67%;" />
+</center></p>
+                        </div>
+                        
+                        
+                        
+                        
+                        
+                        
+
+                        
+                        <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+                        <script src="https://unpkg.com/gitalk@latest/dist/gitalk.min.js"></script> 
+                        <script type="text/javascript" src="/assets/js/md5.min.js"></script>
+                        <div id="gitalk-container"></div>     
+                        <script type="text/javascript">
+                            var gitalk = new Gitalk({
+                              clientID: '835183d2dcbd1167ac28', 
+                            
+                              clientSecret: 'd873919fac3cc76921ee0800172c2279bc612f8d', 
+                            
+                              repo: 'Sel-Website-talk',
+                              owner: 'Peeknut',
+                              admin: ['Peeknut','Rachel-Shao'],
+                              id: location.href.split("/").pop().substring(0, 49),      
+                              distractionFreeMode: false  
+                            })
+                            gitalk.render('gitalk-container')
+                        </script> 
+                        
+
+                    </div>
+                    
+
+                    
+
+                    
+
+                    <div class="col-md-3">
+
+                        
+
+                        
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+      <h3 class="panel-title">搜索栏</h3>
+      
+    </div>
+
+    <div class="panel-body">
+        
+        <div class="search" id="search">
+            <div class="input-group">
+                <input type="text" name="q" class="form-control" placeholder="请输入文章标题或摘要..." id="search-key">
+                <input type="hidden" name="sitesearch" value="https://Congrool.github.io/">
+                <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main" onclick="search()"><i class="fas fa-search"></i></button>
+                </span>
+            </div>
+            <h1 id="search-tip" style="color: red;text-align: center;display: none;font-size: medium;">搜索中，请稍后 ...</h1>
+        </div>
+        <script type="text/javascript">
+            
+            window.onload = function() {
+                      document.onkeydown = function(ev) {
+                        var event = ev || event
+                        if (event.keyCode == 13) {
+                          search()
+                        }
+                      }
+                    }
+            
+            function search() {
+                    
+                      key = document.getElementById("search-key").value;
+                      if (key === "") {
+                        
+                        return;
+                      }
+                      key = key.toLowerCase();
+                      document.getElementById("search-key").value = "";
+                  
+                      
+                      document.getElementById("search-tip").innerText = "搜索中，请稍后 ...";
+                      document.getElementById("search-tip").style.display = "block";
+                  
+                      
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      var childs = el.childNodes;
+                      for (var i = childs.length - 1; i >= 0; i--) {
+                        el.removeChild(childs[i]);
+                      }
+                  
+                      
+                      xmltext = new XMLHttpRequest;
+                      xmltext.open("GET", "/index.xml", false);
+                      xmltext.send();
+                      resp = xmltext.responseXML;
+                      
+                      items = resp.getElementsByTagName("item");
+                      
+                      var i = 0;
+                      haveResult = false;
+                      while (i < items.length) {
+                        txt = items[i].getElementsByTagName("title")[0].innerHTML + items[i].getElementsByTagName("description")[0].innerHTML
+                        txt = txt.toLowerCase();
+                        if (txt.indexOf(key) > -1) {
+                          haveResult = true;
+                          title = items[i].getElementsByTagName("title")[0].innerHTML;
+                          link = items[i].getElementsByTagName("link")[0].innerHTML;
+                          time = items[i].getElementsByTagName("pubDate")[0].innerHTML;
+                          mark = items[i].getElementsByTagName("description")[0].innerHTML;
+                          time = time.slice(0, -5);
+                          addItem(title, link, time, mark)
+                        }
+                        i++;
+                      }
+                      if (!haveResult) {
+                        document.getElementById("search-tip").innerText = "搜索完毕，未发现结果 ...";
+                        document.getElementById("search-tip").style.display = "block";
+                      }
+
+                      
+                      var el = document.getElementById("blog-head");
+                      el.innerHTML="Blogs"
+                    }
+                  
+                    
+                    function addItem(title, link, time, mark) {
+                      document.getElementById("search-tip").style.display = "none";
+                      tmpl = "<article class=\"post\" style=\"border-bottom: 1px solid #e6e6e6;\" >" +
+                        "<header class=\"post-header\">" +
+                        "<h1 class=\"post-title\"><a class=\"post-link\" href=\"" + link + "\" target=\"_blank\">" + title + "</a></h1>" +
+                        "<div class=\"post-meta\">" +
+                        " <span class=\"post-time\">" + time + "</span>" +
+                        "</div>" +
+                        " </header>" +
+                        "<div class=\"post-content\">" +
+                        "<div class=\"post-summary\">" + mark + "</div>" +
+                        "<div class=\"read-more\">" +
+                        "<a href=" + link + " class=\"read-more-link\" target=\"_blank\">阅读更多</a>" +
+                        "</div>" +
+                        " </div>" +
+                        "</article>"
+                      div = document.createElement("div")
+                      div.innerHTML = tmpl;
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      el.appendChild(div)
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+
+        </script>
+        
+    </div>
+</div>
+
+
+
+
+
+
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">归档栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="nav nav-pills nav-stacked">
+            
+            
+            <li>
+                <a href="/categories/bosh">bosh (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloud_controller_ng">cloud_controller_ng (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloudfoundry">cloudfoundry (15)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/containerd">containerd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/docker">docker (19)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/etcd">etcd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/haproxy">haproxy (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/healthmanager">healthmanager (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/karmada">karmada (4)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubeedge">kubeedge (5)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubernetes">kubernetes (14)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/network">network (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/openyurt">openyurt (2)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/service-mesh">service-mesh (4)</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+<div class="panel sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">标签栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="tag-cloud">
+            
+            
+            <li>
+                <a href="/tags/agent"><i class="fas fa-tags"></i> agent</a>
+            </li>
+            
+            <li>
+                <a href="/tags/apiserver"><i class="fas fa-tags"></i> apiserver</a>
+            </li>
+            
+            <li>
+                <a href="/tags/books"><i class="fas fa-tags"></i> books</a>
+            </li>
+            
+            <li>
+                <a href="/tags/bosh"><i class="fas fa-tags"></i> bosh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/ccng"><i class="fas fa-tags"></i> ccng</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cf-release"><i class="fas fa-tags"></i> cf-release</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cgroups"><i class="fas fa-tags"></i> cgroups</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudfoundry"><i class="fas fa-tags"></i> cloudfoundry</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudnative"><i class="fas fa-tags"></i> cloudnative</a>
+            </li>
+            
+            <li>
+                <a href="/tags/collector"><i class="fas fa-tags"></i> collector</a>
+            </li>
+            
+            <li>
+                <a href="/tags/containerd"><i class="fas fa-tags"></i> containerd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cri"><i class="fas fa-tags"></i> cri</a>
+            </li>
+            
+            <li>
+                <a href="/tags/dea"><i class="fas fa-tags"></i> dea</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker"><i class="fas fa-tags"></i> docker</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker-network"><i class="fas fa-tags"></i> docker-network</a>
+            </li>
+            
+            <li>
+                <a href="/tags/edgecomputing"><i class="fas fa-tags"></i> edgecomputing</a>
+            </li>
+            
+            <li>
+                <a href="/tags/etcd"><i class="fas fa-tags"></i> etcd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/gorouter"><i class="fas fa-tags"></i> gorouter</a>
+            </li>
+            
+            <li>
+                <a href="/tags/haproxy"><i class="fas fa-tags"></i> haproxy</a>
+            </li>
+            
+            <li>
+                <a href="/tags/healthmanager"><i class="fas fa-tags"></i> healthmanager</a>
+            </li>
+            
+            <li>
+                <a href="/tags/istio"><i class="fas fa-tags"></i> istio</a>
+            </li>
+            
+            <li>
+                <a href="/tags/karmada"><i class="fas fa-tags"></i> karmada</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubeedge"><i class="fas fa-tags"></i> kubeedge</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubelet"><i class="fas fa-tags"></i> kubelet</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubernetes"><i class="fas fa-tags"></i> kubernetes</a>
+            </li>
+            
+            <li>
+                <a href="/tags/libcontainer"><i class="fas fa-tags"></i> libcontainer</a>
+            </li>
+            
+            <li>
+                <a href="/tags/micro-service"><i class="fas fa-tags"></i> micro-service</a>
+            </li>
+            
+            <li>
+                <a href="/tags/namespace"><i class="fas fa-tags"></i> namespace</a>
+            </li>
+            
+            <li>
+                <a href="/tags/nats"><i class="fas fa-tags"></i> nats</a>
+            </li>
+            
+            <li>
+                <a href="/tags/news"><i class="fas fa-tags"></i> news</a>
+            </li>
+            
+            <li>
+                <a href="/tags/openyurt"><i class="fas fa-tags"></i> openyurt</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pipework"><i class="fas fa-tags"></i> pipework</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pouch"><i class="fas fa-tags"></i> pouch</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runc"><i class="fas fa-tags"></i> runc</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runtime"><i class="fas fa-tags"></i> runtime</a>
+            </li>
+            
+            <li>
+                <a href="/tags/security"><i class="fas fa-tags"></i> security</a>
+            </li>
+            
+            <li>
+                <a href="/tags/serverless"><i class="fas fa-tags"></i> serverless</a>
+            </li>
+            
+            <li>
+                <a href="/tags/service-mesh"><i class="fas fa-tags"></i> service-mesh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/syslog_aggregator"><i class="fas fa-tags"></i> syslog_aggregator</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+                        
+
+                    </div>
+                    
+
+                    
+
+                </div>
+                
+
+            </div>
+            
+        </div>
+        
+
+        <footer id="footer">
+    <div class="container">
+
+        
+        <div class="col-md-4 col-sm-6">
+            <h4></h4>
+
+            <p><strong>关于我们：<strong> <p>浙大SEL实验室</p><p>地址：杭州市浙大路38号曹光彪西楼405室</p><p><strong></strong>
+            <a href="/contact" class="btn btn-small btn-template-main" >跳转到关于</a>
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+        <div class="col-md-4 col-sm-6">
+
+             
+            <h4>最新博客</h4>
+            
+
+            <div class="blog-entries">
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/27/overview.png" class="img-responsive" alt="基于KubeEdge的边缘节点分组管理设计与实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">基于KubeEdge的边缘节点分组管理设计与实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/20/karmada-scheduler.png" class="img-responsive" alt="多云环境下的资源调度：karmada scheduler的框架和实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">多云环境下的资源调度：karmada scheduler的框架和实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">
+                          
+                            <img src="/img/blogs/19/karmada-arch.jpg" class="img-responsive" alt="多云环境下的成员集群管理，看看开源项目karmada是如何做到的">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">多云环境下的成员集群管理，看看开源项目karmada是如何做到的</a></h5>
+                    </div>
+                </div>
+                
+            </div>
+
+            <hr class="hidden-md hidden-lg">
+             
+
+        </div>
+        
+
+        
+        <div class="col-md-4 col-sm-6">
+
+          <h4></h4>
+
+            <p><strong>联系我们: 
+                                    <p>团队负责人：丁轶群 yiqunding@zju.edu.cn</p>
+                                    <p>网站维护人：刘佳文 839809484@qq.com</p>                
+    </strong>
+
+            
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+    </div>
+    
+</footer>
+
+
+
+
+
+
+
+<div id="copyright">
+    <div class="container">
+        <div class="col-md-12">
+            
+            <p class="pull-left">Copyright ©️ 2020 SEL Laboratory , ZJ University all rights reserved.</p>
+            
+            <p class="pull-right">
+               <a href="https://bootstrapious.com/p/universal-business-e-commerce-template">Bootstrapious</a>.
+              
+
+               <a href="https://github.com/devcows/hugo-universal-theme">DevCows</a>.
+            </p>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+    </div>
+    
+
+    
+
+
+<script src="/js/jquery.min.js"></script>
+<script src="/js/bootstrap.min.js"></script>
+
+
+
+<script src="/js/jquery.cookie.min.js"></script>
+<script src="/js/jquery.waypoints.min.js"></script>
+<script src="/js/jquery.counterup.min.js"></script>
+<script src="/js/jquery-parallax.js"></script>
+
+
+<script src="/js/front.js"></script>
+
+
+<script src="/js/owl.carousel.min.js"></script>
+
+
+
+  </body>
+</html>

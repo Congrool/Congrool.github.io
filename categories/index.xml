@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Categories on 浙大SEL实验室</title>
+    <link>https://Congrool.github.io/categories/</link>
+    <description>Recent content in Categories on 浙大SEL实验室</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Fri, 26 Aug 2022 20:09:00 +0000</lastBuildDate>
+    
+	<atom:link href="https://Congrool.github.io/categories/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>kubeedge</title>
+      <link>https://Congrool.github.io/categories/kubeedge/</link>
+      <pubDate>Fri, 26 Aug 2022 20:09:00 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/categories/kubeedge/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>karmada</title>
+      <link>https://Congrool.github.io/categories/karmada/</link>
+      <pubDate>Wed, 22 Sep 2021 10:00:11 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/categories/karmada/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>openyurt</title>
+      <link>https://Congrool.github.io/categories/openyurt/</link>
+      <pubDate>Thu, 13 May 2021 10:00:11 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/categories/openyurt/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>Kubernetes</title>
+      <link>https://Congrool.github.io/categories/kubernetes/</link>
+      <pubDate>Thu, 29 Nov 2018 16:55:37 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/categories/kubernetes/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>service mesh</title>
+      <link>https://Congrool.github.io/categories/service-mesh/</link>
+      <pubDate>Thu, 11 Oct 2018 20:11:02 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/categories/service-mesh/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>containerd</title>
+      <link>https://Congrool.github.io/categories/containerd/</link>
+      <pubDate>Sun, 05 Aug 2018 19:03:13 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/categories/containerd/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>Docker</title>
+      <link>https://Congrool.github.io/categories/docker/</link>
+      <pubDate>Thu, 10 May 2018 10:16:40 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/categories/docker/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>network</title>
+      <link>https://Congrool.github.io/categories/network/</link>
+      <pubDate>Wed, 14 Mar 2018 11:23:35 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/categories/network/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>etcd</title>
+      <link>https://Congrool.github.io/categories/etcd/</link>
+      <pubDate>Sun, 01 Feb 2015 15:27:24 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/categories/etcd/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>cloudfoundry</title>
+      <link>https://Congrool.github.io/categories/cloudfoundry/</link>
+      <pubDate>Wed, 17 Dec 2014 16:03:01 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/categories/cloudfoundry/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>haproxy</title>
+      <link>https://Congrool.github.io/categories/haproxy/</link>
+      <pubDate>Tue, 28 Oct 2014 17:02:26 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/categories/haproxy/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>healthmanager</title>
+      <link>https://Congrool.github.io/categories/healthmanager/</link>
+      <pubDate>Tue, 15 Apr 2014 15:14:56 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/categories/healthmanager/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>Bosh</title>
+      <link>https://Congrool.github.io/categories/bosh/</link>
+      <pubDate>Fri, 11 Apr 2014 10:49:01 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/categories/bosh/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>cloud_controller_ng</title>
+      <link>https://Congrool.github.io/categories/cloud_controller_ng/</link>
+      <pubDate>Thu, 03 Apr 2014 14:15:12 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/categories/cloud_controller_ng/</guid>
+      <description></description>
+    </item>
+    
+  </channel>
+</rss>

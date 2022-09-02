@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="robots" content="all,follow">
+  <meta name="googlebot" content="index,follow,snippet,archive">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <title>Google Kubernetes设计文档之网络篇</title>
+  <meta name="author" content="杜军" />
+  
+  
+  
+  
+  <meta name="keywords" content="Kubernetes">
+  
+  
+  <meta name="description" content="Kubernetes是Google开源的容器集群管理系统，构建于Docker之上，为容器化的应用提供资源调度、部署运行、服务发现、扩容缩容等功能。其从Docker默认网络模型中独立出来形成了一套自己的网络模型，本文将详细介绍。">
+
+  <meta name="generator" content="Hugo 0.68.3" />
+
+  
+  <link href='//fonts.googleapis.com/css?family=Roboto:400,100,100italic,300,300italic,500,700,800' rel='stylesheet' type='text/css'>
+
+  
+  
+  
+  
+  
+
+  <link href="/css/all.css" rel="stylesheet">
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+
+  
+  <link href="/css/animate.css" rel="stylesheet">
+
+  
+  
+    <link href="/css/style.default.css" rel="stylesheet" id="theme-stylesheet">
+  
+
+  
+  <link href="/css/custom.css" rel="stylesheet">
+
+  
+  
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+        <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  
+
+  
+  <link rel="shortcut icon" href="/img/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
+
+  
+  <link href="/css/owl.carousel.css" rel="stylesheet">
+  <link href="/css/owl.theme.css" rel="stylesheet">
+
+  
+  <link rel="alternate" href="https://Congrool.github.io/index.xml" type="application/rss+xml" title="浙大SEL实验室">
+
+  
+  
+  
+  
+  
+  
+  <meta property="og:updated_time" content="2014-12-29T15:32:24Z">
+  
+    
+    
+    <meta property="article:section" content="Kubernetes">
+    <meta property="article:tag" content="Kubernetes">
+    
+    
+    <meta property="article:published_time" content="2014-12-29T15:32:24Z">
+    <meta property="article:modified_time" content="2014-12-29T15:32:24Z">
+  
+
+  
+  <meta name="twitter:card" content="summary">
+  
+  <meta name="twitter:title" content="Google Kubernetes设计文档之网络篇">
+  
+  <meta name="twitter:description" content="Kubernetes是Google开源的容器集群管理系统，构建于Docker之上，为容器化的应用提供资源调度、部署运行、服务发现、扩容缩容等功能。其从Docker默认网络模型中独立出来形成了一套自己的网络模型，本文将详细介绍。">
+  
+  
+</head>
+
+
+  <body>
+
+    <div id="all">
+
+        <header class="navbar-affixed-top" data-spy="affix" data-offset-top="62">
+    <div class="navbar navbar-default yamm" role="navigation" id="navbar" style="background-color:white;">    
+        <div class="container">
+            <div class="navbar-header">
+                <a class="navbar-brand home" href="/">
+                    <img src="/img/sel.png" alt="Google Kubernetes设计文档之网络篇" class="hidden-xs hidden-sm img-responsive">
+                    
+                    <span class="sr-only">Google Kubernetes设计文档之网络篇 - </span>
+                </a>
+                <div class="navbar-buttons">
+                    <button type="button" class="navbar-toggle btn-template-main" data-toggle="collapse" data-target="#navigation">
+                      <span class="sr-only"></span>
+                        <i class="fas fa-align-justify"></i>
+                    </button>
+                </div>
+            </div>
+            
+
+            <div class="navbar-collapse collapse" id="navigation">
+                <ul class="nav navbar-nav navbar-right">
+                  
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/">主页</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/blog/">博客</a>
+                    
+                  </li>
+
+                  <li class="dropdown">
+                    
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">社区 <span class="caret"></span></a>
+                  <ul class="dropdown-menu">
+                    
+                      <li><a href="https://www.servicemesher.com/">ServiceMesh社区</a></li>
+                    
+                      <li><a href="">kubeedge社区</a></li>
+
+                      <li><a href="http://www.icsoft.zju.edu.cn/index.php">浙江大学智能计算与软件中心</a></li>
+                    
+                  </ul>
+
+                  <li class="dropdown">
+                    
+                    <a href="/archives/">归档</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/contact/">关于</a>
+                    
+                  </li>
+                  
+                </li>
+
+                
+                
+
+                
+                </ul>
+            </div>
+            
+
+            <div class="collapse clearfix" id="search">    
+                <form class="navbar-form" role="search">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search">
+                        <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main"><i class="fas fa-search"></i></button>
+                </span>
+                    </div>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+
+    
+</header>
+
+
+
+
+        <div id="heading-breadcrumbs">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h1>Google Kubernetes设计文档之网络篇</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+        <div id="content">
+            <div class="container">
+
+                <div class="row">
+
+                    
+
+                    <div class="col-md-9" id="blog-post">
+
+                        
+                          <p class="text-muted text-uppercase mb-small text-right">
+                             <a href="#">杜军</a>
+                             | 
+                            2014-12-29
+                          </p>
+                        
+
+                        <div id="post-content">
+                          <p><strong>摘要</strong>： Kubernetes是Google开源的容器集群管理系统，构建于Docker之上，为容器化的应用提供资源调度、部署运行、服务发现、扩容缩容等功能。其从Docker默认网络模型中独立出来形成了一套自己的网络模型，本文将详细介绍。</p>
+
+<h1 id="模型和动机"><strong>模型和动机</strong></h1>
+
+<p>Kubernetes从Docker默认的网络模型中独立出来形成一套自己的网络模型。该网络模型的目标是：每一个pod都拥有一个扁平化共享网络命名空间的IP，通过该IP，pod就能够跨网络与其它物理机和容器进行通信。一个pod一个IP模型创建了一个干净、反向兼容的模型，在该模型中，从端口分配、网络、域名解析、服务发现、负载均衡、应用配置和迁移等角度，pod都能够被看成虚拟机或物理机。</p>
+
+<p>另一方面，动态端口分配需要以下方面的支持： 1，固定端口（例如：用于外部可访问服务）和动态分配端口； 2，分割集中分配和本地获取的动态端口； 不过，这不但使调度复杂化（因为端口是一种稀缺资源），而且应用程序的配置也将变得复杂，具体表现为端口冲突、重用和耗尽。 3，使用非标准方法进行域名解析（例如：etcd而不是DNS）； 4，对使用标准域名/地址解析机制的程序（例如：web浏览器）使用代理和/或重定向。 5，除了监控和缓存实例的非法地址/端口变化外，还要监控用户组成员变化以及阻止容器/pod迁移（例如：使用CRIU）。 NAT将地址空间分段的做法引入了额外的复杂性，这将带来诸如破坏自注册机制等问题。</p>
+
+<p>在一个pod一个IP模型中，从网络角度看，在一个pod中的所有用户容器都像是在同一台宿主机中那样。它们能够在本地访问其它用户容器的端口。暴露给主机网卡的端口是通过普通Docker方式实现的。所有pod中的容器能够通过他们“10”网段（10.x.x.x）的IP地址进行通信。</p>
+
+<p>除了能够避免上述动态端口分配带来的问题，该方案还能使应用平滑地从非容器环境（物理机或虚拟机）迁移到同一个pod内的容器环境。在同一台宿主机上运行应用程序栈这种场景已经找到避免端口冲突的方法（例如：通过配置环境变量）并使客户端能够找到这些端口。 该方案确实降低了pod中容器之间的隔离性&ndash;尽管端口可能存在冲突而且也不存在pod内跨容器的私有端口，但是对于需要自己的端口范围的应用程序可以运行在不同的pod中，而对于需要进行私有通信的进程则可以运行在同一个容器内。另外，该方案假定的前提条件是：在同一个pod中的容器共享一些资源（例如：磁盘卷、处理器、内存等），因此损失部分隔离性也在可接受范围之内。此外，尽管用户能够指定不同容器归属到同一个pod，但一般情况下不能指定不同pod归属于同一台主机。</p>
+
+<p>当任意一个容器调用SIOCGIFADDR（发起一个获取网卡IP地址的请求）时，它所获得的IP和与之通信的容器看到的IP是一样的&ndash;每个pod都有一个能够被其它pod识别的IP。通过无差别地对待容器和pdo内外部的IP和端口，我们创建了一个非NAT的扁平化地址空间。&rdquo;ip addr show&rdquo;能够像预期那样正常工作。该方案能够使所有现有的域名解析/服务发现机制：包括自注册机制和分配IP地址的应用程序在容器外能够正常运行（我们应该用etcd、Euraka（用于Acme Air）或Consul等软件测试该方案）。对pod之间的网络通信，我们应该持乐观态度。在同一个pod中的容器之间更倾向于通过内存卷（例如：tmpfs）或IPC（进程间通信）的方式进行通信。</p>
+
+<p>该模型与标准Docker模型不同。在该模型中，每个容器会得到一个“172”网段（172.x.x.x）的IP地址，而且通过SIOCGIFADDR也只能看到一个“172”网段（172.x.x.x）的IP地址。如果这些容器与其它容器连接，对方容器看到的IP地址与该容器自己通过SIOCGIFADDR请求获取的IP地址不同。简单地说，你永远无法在容器中注册任何东西或服务，因为一个容器不可能通过其私有IP地址被外界访问到。</p>
+
+<p>我们想到的一个解决方案是增加额外的地址层：以pod为中心的一个容器一个IP模式。每个容器只拥有一个本地IP地址，且只在pod内可见。这将使得容器化应用程序能够更加容易地从物理/虚拟机迁移到pod，但实现起来很复杂（例如：要求为每个pod创建网桥，水平分割/虚拟私有的 DNS），而且可以预见的是，由于新增了额外的地址转换层，将破坏现有的自注册和IP分配机制。</p>
+
+<h1 id="当前实现"><strong>当前实现</strong></h1>
+
+<p>Google计算引擎（GCE）集群配置了<a href="https://cloud.google.com/compute/docs/networking#routing">高级路由</a>，使得每个虚拟机都有额外的256个可路由IP地址。这些是除了分配给虚拟机的通过NAT用于访问互联网的“主”IP之外的IP。该实现在Docker外部创建了一个叫做cbr0的网桥（为了与docker0网桥区别开），该网桥只负责对从容器内部流向外部的网络流量进行NAT转发。</p>
+
+<p>目前，从“主”IP（即互联网，如果制定了正确的防火墙规则的话）发到映射端口的流量由Docker的用户模式进行代理转发。未来，端口转发应该由Kubelet或Docker通过<code>iptables</code>进行：<a href="https://github.com/GoogleCloudPlatform/kubernetes/issues/15">Issue #15</a>。</p>
+
+<p>启动Docker时附加参数：DOCKER_OPTS=&ldquo;&ndash;bridge cbr0 &ndash;iptables=false&rdquo;。</p>
+
+<p>并用SaltStack在每个node中创建一个网桥，代码见container_bridge.py：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python">cbr0:
+  container_bridge<span style="color:#555">.</span>ensure:
+  <span style="color:#555">-</span> cidr: {{ grains[<span style="color:#c30">&#39;cbr-cidr&#39;</span>] }}
+<span style="color:#555">...</span>
+grains:
+  roles:
+  <span style="color:#555">-</span> kubernetes<span style="color:#555">-</span>pool
+  cbr<span style="color:#555">-</span>cidr: <span style="color:#a00;background-color:#faa">$</span>MINION_IP_RANGE</code></pre></div>
+<p>在GCE中，我们让以下IP地址可路由：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">gcloud compute routes add <span style="color:#c30">&#34;</span><span style="color:#a00">${</span><span style="color:#033">MINION_NAMES</span>[<span style="color:#033">$i</span>]<span style="color:#a00">}</span><span style="color:#c30">&#34;</span> <span style="color:#c30;font-weight:bold">\
+</span><span style="color:#c30;font-weight:bold"></span>  --project <span style="color:#c30">&#34;</span><span style="color:#a00">${</span><span style="color:#033">PROJECT</span><span style="color:#a00">}</span><span style="color:#c30">&#34;</span> <span style="color:#c30;font-weight:bold">\
+</span><span style="color:#c30;font-weight:bold"></span>  --destination-range <span style="color:#c30">&#34;</span><span style="color:#a00">${</span><span style="color:#033">MINION_IP_RANGES</span>[<span style="color:#033">$i</span>]<span style="color:#a00">}</span><span style="color:#c30">&#34;</span> <span style="color:#c30;font-weight:bold">\
+</span><span style="color:#c30;font-weight:bold"></span>  --network <span style="color:#c30">&#34;</span><span style="color:#a00">${</span><span style="color:#033">NETWORK</span><span style="color:#a00">}</span><span style="color:#c30">&#34;</span> <span style="color:#c30;font-weight:bold">\
+</span><span style="color:#c30;font-weight:bold"></span>  --next-hop-instance <span style="color:#c30">&#34;</span><span style="color:#a00">${</span><span style="color:#033">MINION_NAMES</span>[<span style="color:#033">$i</span>]<span style="color:#a00">}</span><span style="color:#c30">&#34;</span> <span style="color:#c30;font-weight:bold">\
+</span><span style="color:#c30;font-weight:bold"></span>  --next-hop-instance-zone <span style="color:#c30">&#34;</span><span style="color:#a00">${</span><span style="color:#033">ZONE</span><span style="color:#a00">}</span><span style="color:#c30">&#34;</span> &amp;</code></pre></div>
+<p>以上代码中的<code>MINION_IP_RANGES</code>是以10.开头的24位网络号IP地址空间（10.x.x.x/24）。</p>
+
+<p>尽管如此，GCE本身并不知道这些IP地址的任何信息。</p>
+
+<p>这些IP地址不是外部可路由的，因此，那些有与外界通信需求的容器需要使用宿主机的网络。如果外部流量要转发给虚拟机，它只会被转发给虚拟机的主IP（该IP不会被分配给任何一个pod），因此我们使用docker的-p标记把暴露的端口映射到主网卡上。该方案的带来的副作用是不允许两个不同的pod暴露同一个端口（更多相关讨论见<a href="https://github.com/GoogleCloudPlatform/kubernetes/issues/390">Issue #390</a>）。</p>
+
+<p>我们创建了一个容器用于管理pod的网络命名空间，该网络容器内有一个本地回环设备和一块虚拟以太网卡。所有的用户容器从该pod的网络容器那里获取他们的网络命名空间。</p>
+
+<p>Docker在它的“container”网络模式下从网桥（我们为每个节点上创建了一个网桥）那里分配IP地址，具体步骤如下：</p>
+
+<p>1，使用最小镜像创建一个普通容器（从网络角度）并运行一条永远阻塞的命令。这不是一个用户定义的容器，给它一个特别的众所周知的名字。</p>
+
+<ul>
+<li>创建一个新的网络命名空间（netns）和本地回路设备</li>
+<li>创建一对新的虚拟以太网设备并将它绑定到刚刚创建的网络命名空间</li>
+<li>从docker的IP地址空间中自动分配一个IP</li>
+</ul>
+
+<p>2，在创建用户容器时指定网络容器的名字作为它们的“net”参数。Docker会找到在网络容器中运行的命令的PID并将它绑定到该PID的网络命名空间去。</p>
+
+<h1 id="其他网络实现例子"><strong>其他网络实现例子</strong></h1>
+
+<p>其他实现方案用于在GCE外部实现一个pod一个IP模型的目标。</p>
+
+<ul>
+<li><a href="https://github.com/GoogleCloudPlatform/kubernetes/blob/master/docs/ovs-networking.md">OpenVSwitch with GRE/VxLAN</a></li>
+<li><a href="https://github.com/coreos/flannel#flannel">Flannel</a></li>
+</ul>
+
+<h1 id="挑战和未来的工作"><strong>挑战和未来的工作</strong></h1>
+
+<h2 id="docker-api"><strong>Docker API</strong></h2>
+
+<p>目前，docker inspect并不展示容器的网络配置信息，因为它们从另一个容器提取该信息。该信息应该以某种方式暴露出来。</p>
+
+<h2 id="外部ip分配"><strong>外部IP分配</strong></h2>
+
+<p>我们希望能够从Docker外部分配IP地址（<a href="https://github.com/dotcloud/docker/issues/6743">Docker issue #6743</a>），这样我们就不必静态地分配固定大小的IP范围给每个节点，而且即使网络容器重启也能保持容器IP地址固定不变（<a href="https://github.com/dotcloud/docker/issues/2801">Docker issue #2801</a>），这样就使得pod易于迁移。目前，如果网络容器挂掉，所有的用户容器必须关闭再重启，因为网络容器重启后其网络命名空间会发生变化而且任何一个随后重启的用户容器会加入新的网络命名空间进而导致无法与对方容器通信。另外，IP地址的改变将会引发DNS缓存/生存时间问题。外部IP分配方案会简化DNS支持（见下文）。</p>
+
+<h2 id="域名解析-服务发现和负载均衡"><strong>域名解析，服务发现和负载均衡</strong></h2>
+
+<p>除了利用第三方的发现机制来启用自注册外，我们还希望自动建立DDNS（<a href="https://github.com/GoogleCloudPlatform/kubernetes/issues/146">Issue #146</a>）。hostname方法，$HOSTNAME等应该返回一个pod的名字（<a href="https://github.com/GoogleCloudPlatform/kubernetes/issues/298">Issue #298</a>），gethostbyname方法应该要能够解析其他pod的名字。我们可能会建立一个DNS解析服务器来做这些事情（<a href="https://github.com/dotcloud/docker/issues/2267">Docker issue #2267)</a>），所以我们不必动态更新/etc/hosts文件。</p>
+
+<p>端点目前是通过环境变量获取的。<a href="https://docs.docker.com/userguide/dockerlinks/">Docker链接兼容</a>变量和kubernetes指定变量（{NAME}_SERVICE_HOST和{NAME}_SERVICE_BAR）都是支持的，并会被解析成由服务代理打开的端口。事实上，我们并不使用<a href="https://docs.docker.com/articles/ambassador_pattern_linking/">docker特使模式</a>来链接容器因为我们不需要应用程序在配置阶段识别所有客户端。虽然如今的服务都是由服务代理管理的，但是这是一个应用程序不应该依赖的实现细节，客户端应该使用服务入口IP（以上环境变量会被解析成该IP）。然而，一个扁平化的服务命名空间无法伸缩而且环境变量不允许动态更新，这使得通过应用隐性的顺序限制进行服务部署变得复杂。我们打算在DNS中为每个服务注册入口IP，并且希望这种方式能够成为首选解决方案。</p>
+
+<p>我们也希望适应其它的负载均衡方案（例如：HAProxy），非负载均衡服务（<a href="https://github.com/GoogleCloudPlatform/kubernetes/issues/260">Issue #260</a>）和其它类型的分组（例如：线程池等）。提供监测应用到pod地址的标记选择器的能力使有效地监控用户组成员状态变得可能，这些监控数据将直接被服务发现机制消费或同步。用于监听/取消监听事件的事件钩（<a href="https://github.com/GoogleCloudPlatform/kubernetes/issues/140">Issue #140</a>）将使上述目标更容易实现。</p>
+
+<h2 id="外部可路由性"><strong>外部可路由性</strong></h2>
+
+<p>我们希望跨节点的容器间网络通信使用pod IP地址。假设节点A的容器IP地址空间是10.244.1.0/24，节点B的容器的IP地址空间是10.244.2.0/24，且容器A1的的IP地址是10.244.1.1，容器B1的IP地址是10.244.2.1。现在，我们希望容器A1能够直接与容器B1通信而不通过NAT，那么容器B1看到IP包的源IP应该是10.244.1.1而不是节点A的主宿主机IP。这意味着我们希望关闭用于容器之间（以及容器和虚拟机之间）通信的NAT。</p>
+
+<p>我们也希望从外部互联网能够直接路由到pod。然而，我们还无法提供额外的用于直接访问互联网的容器IP。因此，我们不将外部IP映射到容器IP。我们通过让终点不是内部网络（!10.0.0.0/8）的流量经过主宿主机IP走NAT来解决这个问题，这样与因特网通信时就能通过GCE网络实现1：1NAT转换。类似地，从因特网流向内部网络的流量也能够经宿主机IP实现NAT转换/代理。 因此，让我们用三个用例场景结束上面的讨论：</p>
+
+<ol>
+<li>容器-&gt;容器或容器虚拟机。该场景需要直接使用以10.开头的地址（10.x.x.x）并且不需要用到NAT。</li>
+<li>容器-&gt;因特网。容器IP需要映射到主宿主机IP好让GCE知道如何向外发送这些流量。这里就有两层NAT：容器IP-&gt;内部宿主机IP-&gt;外部主机IP。第一层结合IP表发生在客户容器上，第二层则是GCE网络的一部分。第一层（容器IP-&gt;内部宿主机IP）进行了动态端口分配，而第二层的端口映射是1：1的。</li>
+<li>因特网-&gt;容器。该场景的流量必须通过主宿主机IP而且理想状态下也拥有两层NAT。但是，目前的流量路径是：外部主机IP -&gt; 内部主机IP -&gt; Docker) -&gt; (Docker -&gt; 容器IP)，即Docker是中间代理。一旦（<a href="https://github.com/GoogleCloudPlatform/kubernetes/issues/15">issue #15</a>）被解决，那么就应该是：外部主机IP -&gt; 内部主机IP -&gt; 容器IP。但是，为了实现后者，就必须为每个管理的端口建立端口转发的防火墙（iptables）。</li>
+</ol>
+
+<p>如果我们有办法让外部IP路由到集群中的pod，我们就可以采用为每个pod创建一个新的宿主机网卡别名的方案。该方案能够消除使用宿主机IP地址带来的调度限制。</p>
+
+<p><strong>IPv6</strong></p>
+
+<p>IPv6将会是一个有意思的选项，但我们还没法使用它。支持IPv6已经被提到Docker的日程上了： <a href="https://github.com/dotcloud/docker/issues/2974">Docker issue #2974</a>, <a href="https://github.com/dotcloud/docker/issues/6923">Docker issue #6923</a>, <a href="https://github.com/dotcloud/docker/issues/6975">Docker issue #6975</a>。另外，主流云服务提供商（例如：AWS EC2，GCE）目前也不支持直接给虚拟机绑定IPv6地址。尽管如此，我们将很高兴接受在物理机上运行Kubernetes的用户提交的代码。:)</p>
+
+<p><strong>原文链接：</strong><a href="https://github.com/GoogleCloudPlatform/kubernetes/blob/master/docs/design/networking.md">Networking</a>（编译/杜军 审校/张磊）</p>
+                        </div>
+                        
+                        
+                        
+                        
+                        
+                        
+
+                        
+                        <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+                        <script src="https://unpkg.com/gitalk@latest/dist/gitalk.min.js"></script> 
+                        <script type="text/javascript" src="/assets/js/md5.min.js"></script>
+                        <div id="gitalk-container"></div>     
+                        <script type="text/javascript">
+                            var gitalk = new Gitalk({
+                              clientID: '835183d2dcbd1167ac28', 
+                            
+                              clientSecret: 'd873919fac3cc76921ee0800172c2279bc612f8d', 
+                            
+                              repo: 'Sel-Website-talk',
+                              owner: 'Peeknut',
+                              admin: ['Peeknut','Rachel-Shao'],
+                              id: location.href.split("/").pop().substring(0, 49),      
+                              distractionFreeMode: false  
+                            })
+                            gitalk.render('gitalk-container')
+                        </script> 
+                        
+
+                    </div>
+                    
+
+                    
+
+                    
+
+                    <div class="col-md-3">
+
+                        
+
+                        
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+      <h3 class="panel-title">搜索栏</h3>
+      
+    </div>
+
+    <div class="panel-body">
+        
+        <div class="search" id="search">
+            <div class="input-group">
+                <input type="text" name="q" class="form-control" placeholder="请输入文章标题或摘要..." id="search-key">
+                <input type="hidden" name="sitesearch" value="https://Congrool.github.io/">
+                <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main" onclick="search()"><i class="fas fa-search"></i></button>
+                </span>
+            </div>
+            <h1 id="search-tip" style="color: red;text-align: center;display: none;font-size: medium;">搜索中，请稍后 ...</h1>
+        </div>
+        <script type="text/javascript">
+            
+            window.onload = function() {
+                      document.onkeydown = function(ev) {
+                        var event = ev || event
+                        if (event.keyCode == 13) {
+                          search()
+                        }
+                      }
+                    }
+            
+            function search() {
+                    
+                      key = document.getElementById("search-key").value;
+                      if (key === "") {
+                        
+                        return;
+                      }
+                      key = key.toLowerCase();
+                      document.getElementById("search-key").value = "";
+                  
+                      
+                      document.getElementById("search-tip").innerText = "搜索中，请稍后 ...";
+                      document.getElementById("search-tip").style.display = "block";
+                  
+                      
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      var childs = el.childNodes;
+                      for (var i = childs.length - 1; i >= 0; i--) {
+                        el.removeChild(childs[i]);
+                      }
+                  
+                      
+                      xmltext = new XMLHttpRequest;
+                      xmltext.open("GET", "/index.xml", false);
+                      xmltext.send();
+                      resp = xmltext.responseXML;
+                      
+                      items = resp.getElementsByTagName("item");
+                      
+                      var i = 0;
+                      haveResult = false;
+                      while (i < items.length) {
+                        txt = items[i].getElementsByTagName("title")[0].innerHTML + items[i].getElementsByTagName("description")[0].innerHTML
+                        txt = txt.toLowerCase();
+                        if (txt.indexOf(key) > -1) {
+                          haveResult = true;
+                          title = items[i].getElementsByTagName("title")[0].innerHTML;
+                          link = items[i].getElementsByTagName("link")[0].innerHTML;
+                          time = items[i].getElementsByTagName("pubDate")[0].innerHTML;
+                          mark = items[i].getElementsByTagName("description")[0].innerHTML;
+                          time = time.slice(0, -5);
+                          addItem(title, link, time, mark)
+                        }
+                        i++;
+                      }
+                      if (!haveResult) {
+                        document.getElementById("search-tip").innerText = "搜索完毕，未发现结果 ...";
+                        document.getElementById("search-tip").style.display = "block";
+                      }
+
+                      
+                      var el = document.getElementById("blog-head");
+                      el.innerHTML="Blogs"
+                    }
+                  
+                    
+                    function addItem(title, link, time, mark) {
+                      document.getElementById("search-tip").style.display = "none";
+                      tmpl = "<article class=\"post\" style=\"border-bottom: 1px solid #e6e6e6;\" >" +
+                        "<header class=\"post-header\">" +
+                        "<h1 class=\"post-title\"><a class=\"post-link\" href=\"" + link + "\" target=\"_blank\">" + title + "</a></h1>" +
+                        "<div class=\"post-meta\">" +
+                        " <span class=\"post-time\">" + time + "</span>" +
+                        "</div>" +
+                        " </header>" +
+                        "<div class=\"post-content\">" +
+                        "<div class=\"post-summary\">" + mark + "</div>" +
+                        "<div class=\"read-more\">" +
+                        "<a href=" + link + " class=\"read-more-link\" target=\"_blank\">阅读更多</a>" +
+                        "</div>" +
+                        " </div>" +
+                        "</article>"
+                      div = document.createElement("div")
+                      div.innerHTML = tmpl;
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      el.appendChild(div)
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+
+        </script>
+        
+    </div>
+</div>
+
+
+
+
+
+
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">归档栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="nav nav-pills nav-stacked">
+            
+            
+            <li>
+                <a href="/categories/bosh">bosh (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloud_controller_ng">cloud_controller_ng (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloudfoundry">cloudfoundry (15)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/containerd">containerd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/docker">docker (19)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/etcd">etcd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/haproxy">haproxy (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/healthmanager">healthmanager (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/karmada">karmada (4)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubeedge">kubeedge (5)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubernetes">kubernetes (14)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/network">network (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/openyurt">openyurt (2)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/service-mesh">service-mesh (4)</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+<div class="panel sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">标签栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="tag-cloud">
+            
+            
+            <li>
+                <a href="/tags/agent"><i class="fas fa-tags"></i> agent</a>
+            </li>
+            
+            <li>
+                <a href="/tags/apiserver"><i class="fas fa-tags"></i> apiserver</a>
+            </li>
+            
+            <li>
+                <a href="/tags/books"><i class="fas fa-tags"></i> books</a>
+            </li>
+            
+            <li>
+                <a href="/tags/bosh"><i class="fas fa-tags"></i> bosh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/ccng"><i class="fas fa-tags"></i> ccng</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cf-release"><i class="fas fa-tags"></i> cf-release</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cgroups"><i class="fas fa-tags"></i> cgroups</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudfoundry"><i class="fas fa-tags"></i> cloudfoundry</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudnative"><i class="fas fa-tags"></i> cloudnative</a>
+            </li>
+            
+            <li>
+                <a href="/tags/collector"><i class="fas fa-tags"></i> collector</a>
+            </li>
+            
+            <li>
+                <a href="/tags/containerd"><i class="fas fa-tags"></i> containerd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cri"><i class="fas fa-tags"></i> cri</a>
+            </li>
+            
+            <li>
+                <a href="/tags/dea"><i class="fas fa-tags"></i> dea</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker"><i class="fas fa-tags"></i> docker</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker-network"><i class="fas fa-tags"></i> docker-network</a>
+            </li>
+            
+            <li>
+                <a href="/tags/edgecomputing"><i class="fas fa-tags"></i> edgecomputing</a>
+            </li>
+            
+            <li>
+                <a href="/tags/etcd"><i class="fas fa-tags"></i> etcd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/gorouter"><i class="fas fa-tags"></i> gorouter</a>
+            </li>
+            
+            <li>
+                <a href="/tags/haproxy"><i class="fas fa-tags"></i> haproxy</a>
+            </li>
+            
+            <li>
+                <a href="/tags/healthmanager"><i class="fas fa-tags"></i> healthmanager</a>
+            </li>
+            
+            <li>
+                <a href="/tags/istio"><i class="fas fa-tags"></i> istio</a>
+            </li>
+            
+            <li>
+                <a href="/tags/karmada"><i class="fas fa-tags"></i> karmada</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubeedge"><i class="fas fa-tags"></i> kubeedge</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubelet"><i class="fas fa-tags"></i> kubelet</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubernetes"><i class="fas fa-tags"></i> kubernetes</a>
+            </li>
+            
+            <li>
+                <a href="/tags/libcontainer"><i class="fas fa-tags"></i> libcontainer</a>
+            </li>
+            
+            <li>
+                <a href="/tags/micro-service"><i class="fas fa-tags"></i> micro-service</a>
+            </li>
+            
+            <li>
+                <a href="/tags/namespace"><i class="fas fa-tags"></i> namespace</a>
+            </li>
+            
+            <li>
+                <a href="/tags/nats"><i class="fas fa-tags"></i> nats</a>
+            </li>
+            
+            <li>
+                <a href="/tags/news"><i class="fas fa-tags"></i> news</a>
+            </li>
+            
+            <li>
+                <a href="/tags/openyurt"><i class="fas fa-tags"></i> openyurt</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pipework"><i class="fas fa-tags"></i> pipework</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pouch"><i class="fas fa-tags"></i> pouch</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runc"><i class="fas fa-tags"></i> runc</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runtime"><i class="fas fa-tags"></i> runtime</a>
+            </li>
+            
+            <li>
+                <a href="/tags/security"><i class="fas fa-tags"></i> security</a>
+            </li>
+            
+            <li>
+                <a href="/tags/serverless"><i class="fas fa-tags"></i> serverless</a>
+            </li>
+            
+            <li>
+                <a href="/tags/service-mesh"><i class="fas fa-tags"></i> service-mesh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/syslog_aggregator"><i class="fas fa-tags"></i> syslog_aggregator</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+                        
+
+                    </div>
+                    
+
+                    
+
+                </div>
+                
+
+            </div>
+            
+        </div>
+        
+
+        <footer id="footer">
+    <div class="container">
+
+        
+        <div class="col-md-4 col-sm-6">
+            <h4></h4>
+
+            <p><strong>关于我们：<strong> <p>浙大SEL实验室</p><p>地址：杭州市浙大路38号曹光彪西楼405室</p><p><strong></strong>
+            <a href="/contact" class="btn btn-small btn-template-main" >跳转到关于</a>
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+        <div class="col-md-4 col-sm-6">
+
+             
+            <h4>最新博客</h4>
+            
+
+            <div class="blog-entries">
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/27/overview.png" class="img-responsive" alt="基于KubeEdge的边缘节点分组管理设计与实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">基于KubeEdge的边缘节点分组管理设计与实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/20/karmada-scheduler.png" class="img-responsive" alt="多云环境下的资源调度：karmada scheduler的框架和实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">多云环境下的资源调度：karmada scheduler的框架和实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">
+                          
+                            <img src="/img/blogs/19/karmada-arch.jpg" class="img-responsive" alt="多云环境下的成员集群管理，看看开源项目karmada是如何做到的">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">多云环境下的成员集群管理，看看开源项目karmada是如何做到的</a></h5>
+                    </div>
+                </div>
+                
+            </div>
+
+            <hr class="hidden-md hidden-lg">
+             
+
+        </div>
+        
+
+        
+        <div class="col-md-4 col-sm-6">
+
+          <h4></h4>
+
+            <p><strong>联系我们: 
+                                    <p>团队负责人：丁轶群 yiqunding@zju.edu.cn</p>
+                                    <p>网站维护人：刘佳文 839809484@qq.com</p>                
+    </strong>
+
+            
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+    </div>
+    
+</footer>
+
+
+
+
+
+
+
+<div id="copyright">
+    <div class="container">
+        <div class="col-md-12">
+            
+            <p class="pull-left">Copyright ©️ 2020 SEL Laboratory , ZJ University all rights reserved.</p>
+            
+            <p class="pull-right">
+               <a href="https://bootstrapious.com/p/universal-business-e-commerce-template">Bootstrapious</a>.
+              
+
+               <a href="https://github.com/devcows/hugo-universal-theme">DevCows</a>.
+            </p>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+    </div>
+    
+
+    
+
+
+<script src="/js/jquery.min.js"></script>
+<script src="/js/bootstrap.min.js"></script>
+
+
+
+<script src="/js/jquery.cookie.min.js"></script>
+<script src="/js/jquery.waypoints.min.js"></script>
+<script src="/js/jquery.counterup.min.js"></script>
+<script src="/js/jquery-parallax.js"></script>
+
+
+<script src="/js/front.js"></script>
+
+
+<script src="/js/owl.carousel.min.js"></script>
+
+
+
+  </body>
+</html>

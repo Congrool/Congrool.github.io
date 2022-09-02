@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>runc on 浙大SEL实验室</title>
+    <link>https://Congrool.github.io/tags/runc/</link>
+    <description>Recent content in runc on 浙大SEL实验室</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Thu, 10 May 2018 10:16:40 +0000</lastBuildDate>
+    
+	<atom:link href="https://Congrool.github.io/tags/runc/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>深入理解Docker容器引擎runC执行框架</title>
+      <link>https://Congrool.github.io/blog/2018/05/10/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3docker%E5%AE%B9%E5%99%A8%E5%BC%95%E6%93%8Erunc%E6%89%A7%E8%A1%8C%E6%A1%86%E6%9E%B6/</link>
+      <pubDate>Thu, 10 May 2018 10:16:40 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2018/05/10/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3docker%E5%AE%B9%E5%99%A8%E5%BC%95%E6%93%8Erunc%E6%89%A7%E8%A1%8C%E6%A1%86%E6%9E%B6/</guid>
+      <description>&lt;h2 id=&#34;1-简介&#34;&gt;1 简介&lt;/h2&gt;
+
+&lt;p&gt;根据官方的定义：runC是一个根据OCI标准创建并运行容器的CLI tool。&lt;/p&gt;
+
+&lt;p&gt;Docker就是基于runC创建的，简单地说，runC是Docker中最为核心的部分，容器的创建，运行，销毁等等操作最终都将通过调用runC完成。下面我们将演示如何使用runC，以最精简的方式创建并运行一个容器。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>Docker背后的标准化容器执行引擎——runC</title>
+      <link>https://Congrool.github.io/blog/2015/10/21/docker%E8%83%8C%E5%90%8E%E7%9A%84%E6%A0%87%E5%87%86%E5%8C%96%E5%AE%B9%E5%99%A8%E6%89%A7%E8%A1%8C%E5%BC%95%E6%93%8E-runc/</link>
+      <pubDate>Wed, 21 Oct 2015 19:44:38 +0000</pubDate>
+      
+      <guid>https://Congrool.github.io/blog/2015/10/21/docker%E8%83%8C%E5%90%8E%E7%9A%84%E6%A0%87%E5%87%86%E5%8C%96%E5%AE%B9%E5%99%A8%E6%89%A7%E8%A1%8C%E5%BC%95%E6%93%8E-runc/</guid>
+      <description>&lt;p&gt;随着容器技术发展的愈发火热，Linux基金会于2015年6月成立&lt;a href=&#34;https://www.opencontainers.org/&#34;&gt;OCI（Open Container Initiative）&lt;/a&gt;组织，旨在围绕容器格式和运行时制定一个开放的工业化标准。该组织一成立便得到了包括谷歌、微软、亚马逊、华为等一系列云计算厂商的支持。而runC就是Docker贡献出来的，按照该开放容器格式标准（OCF, Open Container Format）制定的一种具体实现。&lt;/p&gt;</description>
+    </item>
+    
+  </channel>
+</rss>

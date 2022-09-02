@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="robots" content="all,follow">
+  <meta name="googlebot" content="index,follow,snippet,archive">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <title>《Docker容器与容器云》第2版推荐</title>
+  <meta name="author" content="丁轶群" />
+  
+  
+  
+  
+  <meta name="keywords" content="Docker, Kubernetes, books, news">
+  
+  
+  <meta name="description" content="自Docker容器与容器云第1版出版以来，销量达到10000多本，得到了广大技术人员的认可，并且翻译成繁体，进入台湾市场。本书对Docker和Kubernetes的源码解析深入细致，是国内Docker界的良心之作。 经过作者们多年的实践经验积累及近一年的精心准备，浙江大学SEL实验室出版的《Docker容器与容器云》第2版，终于与我们见面了。">
+
+  <meta name="generator" content="Hugo 0.68.3" />
+
+  
+  <link href='//fonts.googleapis.com/css?family=Roboto:400,100,100italic,300,300italic,500,700,800' rel='stylesheet' type='text/css'>
+
+  
+  
+  
+  
+  
+
+  <link href="/css/all.css" rel="stylesheet">
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+
+  
+  <link href="/css/animate.css" rel="stylesheet">
+
+  
+  
+    <link href="/css/style.default.css" rel="stylesheet" id="theme-stylesheet">
+  
+
+  
+  <link href="/css/custom.css" rel="stylesheet">
+
+  
+  
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+        <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  
+
+  
+  <link rel="shortcut icon" href="/img/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
+
+  
+  <link href="/css/owl.carousel.css" rel="stylesheet">
+  <link href="/css/owl.theme.css" rel="stylesheet">
+
+  
+  <link rel="alternate" href="https://Congrool.github.io/index.xml" type="application/rss+xml" title="浙大SEL实验室">
+
+  
+  
+  
+  
+  
+  
+  <meta property="og:updated_time" content="2016-11-30T17:41:43Z">
+  
+    
+    
+    <meta property="article:section" content="Docker">
+    <meta property="article:tag" content="Docker">
+    <meta property="article:tag" content="Kubernetes">
+    <meta property="article:tag" content="books">
+    <meta property="article:tag" content="news">
+    
+    
+    <meta property="article:published_time" content="2016-11-30T17:41:43Z">
+    <meta property="article:modified_time" content="2016-11-30T17:41:43Z">
+  
+
+  
+  <meta name="twitter:card" content="summary">
+  
+  <meta name="twitter:title" content="《Docker容器与容器云》第2版推荐">
+  
+  <meta name="twitter:description" content="自Docker容器与容器云第1版出版以来，销量达到10000多本，得到了广大技术人员的认可，并且翻译成繁体，进入台湾市场。本书对Docker和Kubernetes的源码解析深入细致，是国内Docker界的良心之作。 经过作者们多年的实践经验积累及近一年的精心准备，浙江大学SEL实验室出版的《Docker容器与容器云》第2版，终于与我们见面了。">
+  
+  
+</head>
+
+
+  <body>
+
+    <div id="all">
+
+        <header class="navbar-affixed-top" data-spy="affix" data-offset-top="62">
+    <div class="navbar navbar-default yamm" role="navigation" id="navbar" style="background-color:white;">    
+        <div class="container">
+            <div class="navbar-header">
+                <a class="navbar-brand home" href="/">
+                    <img src="/img/sel.png" alt="《Docker容器与容器云》第2版推荐" class="hidden-xs hidden-sm img-responsive">
+                    
+                    <span class="sr-only">《Docker容器与容器云》第2版推荐 - </span>
+                </a>
+                <div class="navbar-buttons">
+                    <button type="button" class="navbar-toggle btn-template-main" data-toggle="collapse" data-target="#navigation">
+                      <span class="sr-only"></span>
+                        <i class="fas fa-align-justify"></i>
+                    </button>
+                </div>
+            </div>
+            
+
+            <div class="navbar-collapse collapse" id="navigation">
+                <ul class="nav navbar-nav navbar-right">
+                  
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/">主页</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/blog/">博客</a>
+                    
+                  </li>
+
+                  <li class="dropdown">
+                    
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">社区 <span class="caret"></span></a>
+                  <ul class="dropdown-menu">
+                    
+                      <li><a href="https://www.servicemesher.com/">ServiceMesh社区</a></li>
+                    
+                      <li><a href="">kubeedge社区</a></li>
+
+                      <li><a href="http://www.icsoft.zju.edu.cn/index.php">浙江大学智能计算与软件中心</a></li>
+                    
+                  </ul>
+
+                  <li class="dropdown">
+                    
+                    <a href="/archives/">归档</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/contact/">关于</a>
+                    
+                  </li>
+                  
+                </li>
+
+                
+                
+
+                
+                </ul>
+            </div>
+            
+
+            <div class="collapse clearfix" id="search">    
+                <form class="navbar-form" role="search">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search">
+                        <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main"><i class="fas fa-search"></i></button>
+                </span>
+                    </div>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+
+    
+</header>
+
+
+
+
+        <div id="heading-breadcrumbs">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h1>《Docker容器与容器云》第2版推荐</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+        <div id="content">
+            <div class="container">
+
+                <div class="row">
+
+                    
+
+                    <div class="col-md-9" id="blog-post">
+
+                        
+                          <p class="text-muted text-uppercase mb-small text-right">
+                             <a href="#">丁轶群</a>
+                             | 
+                            2016-11-30
+                          </p>
+                        
+
+                        <div id="post-content">
+                          <h2 id="介绍">介绍</h2>
+
+<p>本书根据Docker 1.10版和Kubernetes 1.2版对第1版进行了全面更新，从实践者的角度出发，以Docker和Kubernetes为重点，沿着“基本用法介绍”到“核心原理解读”到“高级实践技巧”的思路，一本书讲透当前主流的容器和容器云技术，有助于读者在实际场景中利用Docker容器和容器云解决问题并启发新的思考。</p>
+
+<p>全书包括两部分，第一部分深入解读Docker容器技术，包括Docker架构与设计、核心源码解读和高级实践技巧；第二部分归纳和比较了三类基于Docker的主流容器云项目，包括专注Docker容器编排与部署的容器云、专注应用支撑的容器云以及一切皆容器的Kubernetes，进而详细解读了Kubernetes核心源码的设计与实现，最后介绍了几种典型场景下的Kubernetes最佳实践。</p>
+
+<p>自本书第1版出版以来，容器生态圈已经发生了翻天覆地的变化。新的开源项目层出不穷，各个开源项目都在快速迭代演进。Docker已经从本书第1版里的1.6.2发展为当前的1.10。Kubernetes也从本书第1版里的0.16发展到了现在的1.2，并且在1.0.1版本时宣布其已经正式进入可投入生产环境（production ready）的状态。 </p>
+
+<p>第3章是本书第一部分的重点。Docker 1.10版相对于本书第1版中的1.6.2版，主要的更新包括如下几个方面：</p>
+
+<ul>
+<li>Docker在架构方面不断将自身解耦，逐步发展成容器运行时（runtime）、镜像构建（builder）、镜像分发（distribution）、网络（networking）、数据卷（volume）等独立的功能组件，提供daemon来管理，并通过Engine暴露一组标准的API来操作这些组件（详见本书3.2节）；</li>
+<li>将网络和数据卷提升为“一等公民”，提供了独立子命令进行操作，网络和数据卷具备独立的生命周期，不再依赖容器的生命周期（详见本书3.7节、3.8节）；</li>
+<li>网络实现方面，Docker将网络相关的实现解耦为独立的组件libnetwork，抽象出一个通用的容器网络模型（CNM），功能上也终于原生支持了跨主机通信（详见本书3.8节）；</li>
+<li>在扩展性方面，在1.7.0版本后就开始支持网络、volume和存储驱动（仍处于实验阶段）的插件化，开发者可以通过实现Docker提供的插件标准来定制自己的插件（详见本书3.6节、3.7节、3.8节）；</li>
+<li>在Docker安全方面，Docker支持了user namespace和seccomp来提高容器运行时的安全，在全新的镜像分发组件中引入可信赖的分发和基于内容存储的机制，从而提高镜像的安全性（详见本书3.5节、3.6节、3.9节）。</li>
+</ul>
+
+<p>需要特别指出的一点是，随着容器如火如荼的发展，为了推动容器生态的健康发展，促进生态系统内各组织间的协同合作，容器的标准化也显得越来越重要。Linux基金会于2015年6月成立OCI（Open Container Initiative）组织，并针对容器格式和运行时制定了一个开放的工业化标准，即OCI标准。Docker公司率先贡献出满足OCI标准的容器运行时runC，HyperHQ公司也开源了自己的OCI容器运行时runV，相信业界会有越来越多的公司加入这个标准化浪潮中。</p>
+
+<p>Docker公司虽然没有在Docker 1.10版本中直接使用runC作为容器的运行时，但是已经将“修改Docker engine来直接调用runC的二进制文件为Docker提供容器引擎”写入到了1.10版本的roadmap中。本书在3.4.3节中对runC的构建和使用进行了介绍。   第8章是本书第二部分的重点。由于Kubernetes的代码始终处于积极更新之中，自本书第1版截稿以来，Kubernetes又相继发布了0.17、0.18、0.19、0.20、0.21、1.0、1.1与1.2等几个版本。主要的更新包括如下几个方面：</p>
+
+<ul>
+<li>大大丰富了支撑的应用运行场景。从全面重构的long-running service的replicaSet，到呼声渐高的支持batch job的Job、可类比为守护进程的DaemonSet、负责进行应用更新的Deployment、具备自动扩展能力的HPA（Horizontal Pod Autoscaler），乃至于有状态服务的petSet，都已经或者即将涵盖在Kubernetes的支撑场景中（详见本书8.2节）。</li>
+<li>加强各个组件的功能扩展或者性能调优。apiserver和controller manager为应对全新的resource和API有显著的扩展；scheduler也在丰富调度策略和多调度器协同调度上有积极的动作；kubelet在性能上也有长足的进步，使得目前单个节点上支持的pod从原来的30个增长到了110个，集群工作节点的规模也从100个跃升为1000个；多为人诟病的kube-proxy如今也鸟枪换炮，默认升级为iptables模式，在吞吐量上也更为乐观；在可以预期的未来，rescheduler将成为Kubernetes家庭中的新成员，使得重调度成为可能（详见本书8.3节）；</li>
+<li>兼容更多的容器后端模型、网络及存储方案。从Docker到rkt，Kubernetes展示了对容器后端开放姿态，同时它还准备以C/S模式实现对其他容器的支撑。在网络方面，Kubernetes引入了网络插件，其中最为瞩目的当属CNI；存储上的解决方案更是层出不穷，flocker、Cinder、CephFS不一而足，还增加了许多特殊用途的volume，如secret、configmap等（详见本书8.4节、8.5节）；</li>
+<li>增加了OpenID、Keystone等认证机制、Webhook等授权机制，以及更为丰富的多维资源管理机制admissioncontroller（详见本书8.6节）；</li>
+<li>另外，作为Kubernetes社区的积极参与者，我们还专门增加了8.8节，讨论当前社区正在酝酿中的一些新特性，如Ubernetes、petSet、rescheduler。我们还讨论了Kubernetes性能优化，以及Kubernetes与OCI的关系等话题。 </li>
+</ul>
+
+<p>除了全面更新这两个重点章节之外，我们还在第1章中更新了Docker近期的“大事记”并重新整理了容器生态圈，加入了许多重要的容器云技术开源项目，以及OCI、CNCF等国际标准化组织；在第2章
+中，我们将Docker命令行工具的基础用法更新到了Docker 1.10版；在第4章中完善了对时下火热的“容器化思维”和“微服务”的讨论；在第6章中更新了对Docker“三剑客”——Compose、Swarm和Machine的讨论；在附录中以Docker 1.10版为标准更新了附录A的Docker安装指南，以Kubernetes 1.2为标准，更新了附录F中Kubernetes的安装指南。</p>
+
+<p>如果你是初级程序员，本书可以帮助你熟悉Docker与kubernetes的基本使用；如果你正在IT领域进行高级进阶修炼，那本书也可以与你一起探索Docker与kubernetes的工作原理。无论是架构师、开发者、运维人员，还是对Docker比较好奇的读者，本书都是一本不可多得的带你从入门向高级进阶的精品书，值得大家选择！</p>
+
+<p><center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605616381/sel/docker2_dy0k4p.png" alt="《Docker容器与容器云》第2版封面" style="zoom:100%;" />
+</center></p>
+
+<p>最后，摘录一些读者的推荐如下——  </p>
+
+<blockquote>
+<p>—— 许式伟，七牛云存储CEO ： “虽然在此之前已经有了由Docker团队出的第一本Docker书，但是这是国内第一本深入解读Docker与Kubernetes原理的原创图书，这一点意义重大。本书比较完整地介绍了Docker与Kubernetes的工作原理和生态，非常有借鉴意义。” </p>
+
+<p>——肖德时，数人科技CTO： “Docker容器技术已经在国内如火如荼地流行起来，浙江大学SEL实验室目前是国内掌握Docker技术最熟练的技术团队之一，他们在国内Docker技术界一直产生着重要影响。这次他们把Docker的实战经验汇编成书，可以帮助更多的Docker爱好者学习到一手的实战经验。”</p>
+
+<p>——程显峰，火币网CTO ： “本书非常细致地讲解了Docker技术的来龙去脉和技术细节，更为难得是还加入了Docker生态当中的其他技术。Docker这项技术本身就是将多种思想和技术融合的产物，从生态的视角去解读技术的来龙去脉将极大地促进读者对云计算和容器技术的重新思考。”</p>
+
+<p>—— 刘俊，百度运维部高级架构师，两次百度最高奖获得者 ： “本书宏观上描绘了容器和容器云技术发展的浪潮和生态系统，微观上以Docker和Kubernetes为典型进行了深度分析。无论是Docker技术爱好者，还是系统架构师、云端开发者、系统管理和运维人员，都能在本书中找到适合自己阅读的要点。浙江大学SEL实验室云计算团队是一支非常优秀的云计算研究团队，很多85后、90后人才活跃在顶级社区前沿，感谢他们能将多年的知识和智慧积累分享出来！”</p>
+
+<p>——郝林，微影时代架构师，《Go并发编程实战》作者 ： “本书是浙江大学SEL实验室云计算团队多年深耕Docker及背后的容器技术的结晶。最大的特点就是深入，并且有各种实用案例和细致讲解。另外，这本书在怎样真正地把Docker及周边产品落地以构建灵活多变的云平台方面也进行了生动的阐释。”  </p>
+
+<p>——网友 Monster-Z： “自本书第一版出版以来，Docker社区又经过了如火如荼的发展，特别是网络部分的实现已经发生了翻天覆地的变化，而本书在第一版的基础之上及时地对网络部分的内容进行了更新。本书对于docker网络最新内容深入透彻的分析，让我们这些急于想要对Docker网络部分实现原理有所了解的开发人员如醍醐灌顶。相信对Docker技术感兴趣的读者在读完本书之后会与我有相同的感受。”</p>
+
+<p>——网友 XiaoYu： “之前对于浙江大学的SEL实验室早有耳闻，也深知他们在云计算领域有着深厚的积淀。这次对他们著作的第二版进行了深入的研读，可以看得出，在保持了第一版架构的同时，对各个章节的内容又进行了大量的扩充，紧紧跟随着Docker以及k8s社区的发展步伐。相信不论是对于初涉容器领域的新人，还是希望深入理解Docker容器实现原理的开发人员，这都是一本不可多得的好书。” </p>
+
+<p>——网友 Mongo： “在学习了本书的第一版之后，就一直期待着本书第二版的出版。于是当得到第二版出版的消息之后，就迫不及待入手了一本。捧读之后，发现在内容上与第一版有了较大的变化，这应该与Docker本身快速的发展有关，当然也从侧面反应了容器技术在时下的热度。相信对于像我这样Docker技术的一线使用者来说，本书固有的深度以及第二版的时效性都将让我们对Docker的使用和理解都更上一层楼。”</p>
+
+<p>——网友 YaoDD： “之前在学习k8s的过程中，一直苦于没有深入到代码层面的书籍可供参考。国内出版的大多数图书更多的是对官方文档的&rdquo;翻译&rdquo;，而并没有进一步深入的解读。直到发现了浙江大学SEL实验室出版的《Docker容器与容器云》一书，其中对k8s的各个组件做到了深入源码级的原理分析，让人直呼过瘾。所以在该书第二版出版的第一时间就购买并阅读了，发现在保持第一版分析深度的同时，又加入了许多社区最新的研发成果。如果你想对k8s有着更加深入的理解，那么本书将是你的不二选择。”   </p>
+
+<p>——网友 DockerLover： “作为一名Kubernetes企业级应用的一线实践者，早就对浙大的SEL实验室慕名已久。该实验室的研究人员为Kubernetes社区共享了大量的代码，数量上堪比华为等巨头企业，尤其是其中的张磊博士，更是Kubernetes的member，技术实力可见一斑。因此本书不论是深度广度，还是对于学习容器技术的指导意义都是毋庸置疑的。” </p>
+
+<p>——网友 GaryRong： “自Docker出现以来，一股容器热潮已经席卷了整个互联网，如火如荼，方兴未艾。而浙大SEL实验室在云计算和PaaS领域深耕多年，作为docker技术在国内第一批的学习者和实践者，积累了丰富的经验。而出版的《Docker 容器与容器云》从第一版到第二版，对低到底层容器技术的实现，高到整个容器生态圈的发展都有着独到而深刻的理解。相信本书一定不会让你失望。 </p>
+</blockquote>
+                        </div>
+                        
+                        
+                        
+                        
+                        
+                        
+
+                        
+                        <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+                        <script src="https://unpkg.com/gitalk@latest/dist/gitalk.min.js"></script> 
+                        <script type="text/javascript" src="/assets/js/md5.min.js"></script>
+                        <div id="gitalk-container"></div>     
+                        <script type="text/javascript">
+                            var gitalk = new Gitalk({
+                              clientID: '835183d2dcbd1167ac28', 
+                            
+                              clientSecret: 'd873919fac3cc76921ee0800172c2279bc612f8d', 
+                            
+                              repo: 'Sel-Website-talk',
+                              owner: 'Peeknut',
+                              admin: ['Peeknut','Rachel-Shao'],
+                              id: location.href.split("/").pop().substring(0, 49),      
+                              distractionFreeMode: false  
+                            })
+                            gitalk.render('gitalk-container')
+                        </script> 
+                        
+
+                    </div>
+                    
+
+                    
+
+                    
+
+                    <div class="col-md-3">
+
+                        
+
+                        
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+      <h3 class="panel-title">搜索栏</h3>
+      
+    </div>
+
+    <div class="panel-body">
+        
+        <div class="search" id="search">
+            <div class="input-group">
+                <input type="text" name="q" class="form-control" placeholder="请输入文章标题或摘要..." id="search-key">
+                <input type="hidden" name="sitesearch" value="https://Congrool.github.io/">
+                <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main" onclick="search()"><i class="fas fa-search"></i></button>
+                </span>
+            </div>
+            <h1 id="search-tip" style="color: red;text-align: center;display: none;font-size: medium;">搜索中，请稍后 ...</h1>
+        </div>
+        <script type="text/javascript">
+            
+            window.onload = function() {
+                      document.onkeydown = function(ev) {
+                        var event = ev || event
+                        if (event.keyCode == 13) {
+                          search()
+                        }
+                      }
+                    }
+            
+            function search() {
+                    
+                      key = document.getElementById("search-key").value;
+                      if (key === "") {
+                        
+                        return;
+                      }
+                      key = key.toLowerCase();
+                      document.getElementById("search-key").value = "";
+                  
+                      
+                      document.getElementById("search-tip").innerText = "搜索中，请稍后 ...";
+                      document.getElementById("search-tip").style.display = "block";
+                  
+                      
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      var childs = el.childNodes;
+                      for (var i = childs.length - 1; i >= 0; i--) {
+                        el.removeChild(childs[i]);
+                      }
+                  
+                      
+                      xmltext = new XMLHttpRequest;
+                      xmltext.open("GET", "/index.xml", false);
+                      xmltext.send();
+                      resp = xmltext.responseXML;
+                      
+                      items = resp.getElementsByTagName("item");
+                      
+                      var i = 0;
+                      haveResult = false;
+                      while (i < items.length) {
+                        txt = items[i].getElementsByTagName("title")[0].innerHTML + items[i].getElementsByTagName("description")[0].innerHTML
+                        txt = txt.toLowerCase();
+                        if (txt.indexOf(key) > -1) {
+                          haveResult = true;
+                          title = items[i].getElementsByTagName("title")[0].innerHTML;
+                          link = items[i].getElementsByTagName("link")[0].innerHTML;
+                          time = items[i].getElementsByTagName("pubDate")[0].innerHTML;
+                          mark = items[i].getElementsByTagName("description")[0].innerHTML;
+                          time = time.slice(0, -5);
+                          addItem(title, link, time, mark)
+                        }
+                        i++;
+                      }
+                      if (!haveResult) {
+                        document.getElementById("search-tip").innerText = "搜索完毕，未发现结果 ...";
+                        document.getElementById("search-tip").style.display = "block";
+                      }
+
+                      
+                      var el = document.getElementById("blog-head");
+                      el.innerHTML="Blogs"
+                    }
+                  
+                    
+                    function addItem(title, link, time, mark) {
+                      document.getElementById("search-tip").style.display = "none";
+                      tmpl = "<article class=\"post\" style=\"border-bottom: 1px solid #e6e6e6;\" >" +
+                        "<header class=\"post-header\">" +
+                        "<h1 class=\"post-title\"><a class=\"post-link\" href=\"" + link + "\" target=\"_blank\">" + title + "</a></h1>" +
+                        "<div class=\"post-meta\">" +
+                        " <span class=\"post-time\">" + time + "</span>" +
+                        "</div>" +
+                        " </header>" +
+                        "<div class=\"post-content\">" +
+                        "<div class=\"post-summary\">" + mark + "</div>" +
+                        "<div class=\"read-more\">" +
+                        "<a href=" + link + " class=\"read-more-link\" target=\"_blank\">阅读更多</a>" +
+                        "</div>" +
+                        " </div>" +
+                        "</article>"
+                      div = document.createElement("div")
+                      div.innerHTML = tmpl;
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      el.appendChild(div)
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+
+        </script>
+        
+    </div>
+</div>
+
+
+
+
+
+
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">归档栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="nav nav-pills nav-stacked">
+            
+            
+            <li>
+                <a href="/categories/bosh">bosh (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloud_controller_ng">cloud_controller_ng (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloudfoundry">cloudfoundry (15)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/containerd">containerd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/docker">docker (19)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/etcd">etcd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/haproxy">haproxy (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/healthmanager">healthmanager (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/karmada">karmada (4)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubeedge">kubeedge (5)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubernetes">kubernetes (14)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/network">network (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/openyurt">openyurt (2)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/service-mesh">service-mesh (4)</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+<div class="panel sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">标签栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="tag-cloud">
+            
+            
+            <li>
+                <a href="/tags/agent"><i class="fas fa-tags"></i> agent</a>
+            </li>
+            
+            <li>
+                <a href="/tags/apiserver"><i class="fas fa-tags"></i> apiserver</a>
+            </li>
+            
+            <li>
+                <a href="/tags/books"><i class="fas fa-tags"></i> books</a>
+            </li>
+            
+            <li>
+                <a href="/tags/bosh"><i class="fas fa-tags"></i> bosh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/ccng"><i class="fas fa-tags"></i> ccng</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cf-release"><i class="fas fa-tags"></i> cf-release</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cgroups"><i class="fas fa-tags"></i> cgroups</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudfoundry"><i class="fas fa-tags"></i> cloudfoundry</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudnative"><i class="fas fa-tags"></i> cloudnative</a>
+            </li>
+            
+            <li>
+                <a href="/tags/collector"><i class="fas fa-tags"></i> collector</a>
+            </li>
+            
+            <li>
+                <a href="/tags/containerd"><i class="fas fa-tags"></i> containerd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cri"><i class="fas fa-tags"></i> cri</a>
+            </li>
+            
+            <li>
+                <a href="/tags/dea"><i class="fas fa-tags"></i> dea</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker"><i class="fas fa-tags"></i> docker</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker-network"><i class="fas fa-tags"></i> docker-network</a>
+            </li>
+            
+            <li>
+                <a href="/tags/edgecomputing"><i class="fas fa-tags"></i> edgecomputing</a>
+            </li>
+            
+            <li>
+                <a href="/tags/etcd"><i class="fas fa-tags"></i> etcd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/gorouter"><i class="fas fa-tags"></i> gorouter</a>
+            </li>
+            
+            <li>
+                <a href="/tags/haproxy"><i class="fas fa-tags"></i> haproxy</a>
+            </li>
+            
+            <li>
+                <a href="/tags/healthmanager"><i class="fas fa-tags"></i> healthmanager</a>
+            </li>
+            
+            <li>
+                <a href="/tags/istio"><i class="fas fa-tags"></i> istio</a>
+            </li>
+            
+            <li>
+                <a href="/tags/karmada"><i class="fas fa-tags"></i> karmada</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubeedge"><i class="fas fa-tags"></i> kubeedge</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubelet"><i class="fas fa-tags"></i> kubelet</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubernetes"><i class="fas fa-tags"></i> kubernetes</a>
+            </li>
+            
+            <li>
+                <a href="/tags/libcontainer"><i class="fas fa-tags"></i> libcontainer</a>
+            </li>
+            
+            <li>
+                <a href="/tags/micro-service"><i class="fas fa-tags"></i> micro-service</a>
+            </li>
+            
+            <li>
+                <a href="/tags/namespace"><i class="fas fa-tags"></i> namespace</a>
+            </li>
+            
+            <li>
+                <a href="/tags/nats"><i class="fas fa-tags"></i> nats</a>
+            </li>
+            
+            <li>
+                <a href="/tags/news"><i class="fas fa-tags"></i> news</a>
+            </li>
+            
+            <li>
+                <a href="/tags/openyurt"><i class="fas fa-tags"></i> openyurt</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pipework"><i class="fas fa-tags"></i> pipework</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pouch"><i class="fas fa-tags"></i> pouch</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runc"><i class="fas fa-tags"></i> runc</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runtime"><i class="fas fa-tags"></i> runtime</a>
+            </li>
+            
+            <li>
+                <a href="/tags/security"><i class="fas fa-tags"></i> security</a>
+            </li>
+            
+            <li>
+                <a href="/tags/serverless"><i class="fas fa-tags"></i> serverless</a>
+            </li>
+            
+            <li>
+                <a href="/tags/service-mesh"><i class="fas fa-tags"></i> service-mesh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/syslog_aggregator"><i class="fas fa-tags"></i> syslog_aggregator</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+                        
+
+                    </div>
+                    
+
+                    
+
+                </div>
+                
+
+            </div>
+            
+        </div>
+        
+
+        <footer id="footer">
+    <div class="container">
+
+        
+        <div class="col-md-4 col-sm-6">
+            <h4></h4>
+
+            <p><strong>关于我们：<strong> <p>浙大SEL实验室</p><p>地址：杭州市浙大路38号曹光彪西楼405室</p><p><strong></strong>
+            <a href="/contact" class="btn btn-small btn-template-main" >跳转到关于</a>
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+        <div class="col-md-4 col-sm-6">
+
+             
+            <h4>最新博客</h4>
+            
+
+            <div class="blog-entries">
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/27/overview.png" class="img-responsive" alt="基于KubeEdge的边缘节点分组管理设计与实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">基于KubeEdge的边缘节点分组管理设计与实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/20/karmada-scheduler.png" class="img-responsive" alt="多云环境下的资源调度：karmada scheduler的框架和实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">多云环境下的资源调度：karmada scheduler的框架和实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">
+                          
+                            <img src="/img/blogs/19/karmada-arch.jpg" class="img-responsive" alt="多云环境下的成员集群管理，看看开源项目karmada是如何做到的">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">多云环境下的成员集群管理，看看开源项目karmada是如何做到的</a></h5>
+                    </div>
+                </div>
+                
+            </div>
+
+            <hr class="hidden-md hidden-lg">
+             
+
+        </div>
+        
+
+        
+        <div class="col-md-4 col-sm-6">
+
+          <h4></h4>
+
+            <p><strong>联系我们: 
+                                    <p>团队负责人：丁轶群 yiqunding@zju.edu.cn</p>
+                                    <p>网站维护人：刘佳文 839809484@qq.com</p>                
+    </strong>
+
+            
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+    </div>
+    
+</footer>
+
+
+
+
+
+
+
+<div id="copyright">
+    <div class="container">
+        <div class="col-md-12">
+            
+            <p class="pull-left">Copyright ©️ 2020 SEL Laboratory , ZJ University all rights reserved.</p>
+            
+            <p class="pull-right">
+               <a href="https://bootstrapious.com/p/universal-business-e-commerce-template">Bootstrapious</a>.
+              
+
+               <a href="https://github.com/devcows/hugo-universal-theme">DevCows</a>.
+            </p>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+    </div>
+    
+
+    
+
+
+<script src="/js/jquery.min.js"></script>
+<script src="/js/bootstrap.min.js"></script>
+
+
+
+<script src="/js/jquery.cookie.min.js"></script>
+<script src="/js/jquery.waypoints.min.js"></script>
+<script src="/js/jquery.counterup.min.js"></script>
+<script src="/js/jquery-parallax.js"></script>
+
+
+<script src="/js/front.js"></script>
+
+
+<script src="/js/owl.carousel.min.js"></script>
+
+
+
+  </body>
+</html>

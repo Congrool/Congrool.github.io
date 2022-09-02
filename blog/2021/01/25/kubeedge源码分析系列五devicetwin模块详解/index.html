@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="robots" content="all,follow">
+  <meta name="googlebot" content="index,follow,snippet,archive">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <title>kubeedge源码分析系列（五）：DeviceTwin模块详解</title>
+  <meta name="author" content="毛金勇" />
+  
+  
+  
+  
+  <meta name="keywords" content="kubeedge">
+  
+  
+  <meta name="description" content="本篇主要从DeviceTwin组件的源码出发，剖析DeviceTwin模块的内部实现，同时也对其四个子模块（membership、communication、device和twin）的具体执行逻辑进行具体分析。">
+
+  <meta name="generator" content="Hugo 0.68.3" />
+
+  
+  <link href='//fonts.googleapis.com/css?family=Roboto:400,100,100italic,300,300italic,500,700,800' rel='stylesheet' type='text/css'>
+
+  
+  
+  
+  
+  
+
+  <link href="/css/all.css" rel="stylesheet">
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+
+  
+  <link href="/css/animate.css" rel="stylesheet">
+
+  
+  
+    <link href="/css/style.default.css" rel="stylesheet" id="theme-stylesheet">
+  
+
+  
+  <link href="/css/custom.css" rel="stylesheet">
+
+  
+  
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+        <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  
+
+  
+  <link rel="shortcut icon" href="/img/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
+
+  
+  <link href="/css/owl.carousel.css" rel="stylesheet">
+  <link href="/css/owl.theme.css" rel="stylesheet">
+
+  
+  <link rel="alternate" href="https://Congrool.github.io/index.xml" type="application/rss+xml" title="浙大SEL实验室">
+
+  
+  
+  
+  
+  
+  
+  <meta property="og:updated_time" content="2021-01-25T10:05:11Z">
+  
+    
+    
+    <meta property="article:section" content="kubeedge">
+    <meta property="article:tag" content="kubeedge">
+    
+    
+    <meta property="article:published_time" content="2021-01-25T10:05:11Z">
+    <meta property="article:modified_time" content="2021-01-25T10:05:11Z">
+  
+
+  
+  <meta name="twitter:card" content="summary">
+  
+  <meta name="twitter:title" content="kubeedge源码分析系列（五）：DeviceTwin模块详解">
+  
+  <meta name="twitter:description" content="本篇主要从DeviceTwin组件的源码出发，剖析DeviceTwin模块的内部实现，同时也对其四个子模块（membership、communication、device和twin）的具体执行逻辑进行具体分析。">
+  
+  
+</head>
+
+
+  <body>
+
+    <div id="all">
+
+        <header class="navbar-affixed-top" data-spy="affix" data-offset-top="62">
+    <div class="navbar navbar-default yamm" role="navigation" id="navbar" style="background-color:white;">    
+        <div class="container">
+            <div class="navbar-header">
+                <a class="navbar-brand home" href="/">
+                    <img src="/img/sel.png" alt="kubeedge源码分析系列（五）：DeviceTwin模块详解" class="hidden-xs hidden-sm img-responsive">
+                    
+                    <span class="sr-only">kubeedge源码分析系列（五）：DeviceTwin模块详解 - </span>
+                </a>
+                <div class="navbar-buttons">
+                    <button type="button" class="navbar-toggle btn-template-main" data-toggle="collapse" data-target="#navigation">
+                      <span class="sr-only"></span>
+                        <i class="fas fa-align-justify"></i>
+                    </button>
+                </div>
+            </div>
+            
+
+            <div class="navbar-collapse collapse" id="navigation">
+                <ul class="nav navbar-nav navbar-right">
+                  
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/">主页</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/blog/">博客</a>
+                    
+                  </li>
+
+                  <li class="dropdown">
+                    
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">社区 <span class="caret"></span></a>
+                  <ul class="dropdown-menu">
+                    
+                      <li><a href="https://www.servicemesher.com/">ServiceMesh社区</a></li>
+                    
+                      <li><a href="">kubeedge社区</a></li>
+
+                      <li><a href="http://www.icsoft.zju.edu.cn/index.php">浙江大学智能计算与软件中心</a></li>
+                    
+                  </ul>
+
+                  <li class="dropdown">
+                    
+                    <a href="/archives/">归档</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/contact/">关于</a>
+                    
+                  </li>
+                  
+                </li>
+
+                
+                
+
+                
+                </ul>
+            </div>
+            
+
+            <div class="collapse clearfix" id="search">    
+                <form class="navbar-form" role="search">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search">
+                        <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main"><i class="fas fa-search"></i></button>
+                </span>
+                    </div>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+
+    
+</header>
+
+
+
+
+        <div id="heading-breadcrumbs">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h1>kubeedge源码分析系列（五）：DeviceTwin模块详解</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+        <div id="content">
+            <div class="container">
+
+                <div class="row">
+
+                    
+
+                    <div class="col-md-9" id="blog-post">
+
+                        
+                          <p class="text-muted text-uppercase mb-small text-right">
+                             <a href="#">毛金勇</a>
+                             | 
+                            2021-01-25
+                          </p>
+                        
+
+                        <div id="post-content">
+                          <p>本篇主要从DeviceTwin组件的源码出发，剖析DeviceTwin模块的内部实现，同时也对其四个子模块（membership、communication、device和twin）的具体执行逻辑进行具体分析。</p>
+
+<h2 id="1-概述">1. 概述</h2>
+
+<p>首先，明确DeviceTwin模块在KubeEdge架构中所处的位置，如下图所示：</p>
+
+<p><center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1611580230/sel/kubeedge-devicetwin-1_nge9uz.png" alt="kubeedge设备管理链路" style="zoom:70%;" />
+</center></p>
+
+<p>其中，黄色部分是KubEedge设备管理链路相关的组件。</p>
+
+<p>DeviceTwin组件主要负责设备相关的处理工作，比如同步设备的收集的实时数据、绑定设备与边缘节点的关系，等等。其内部又分为四个子模块，分别是membership、communication、device和twin。如下图所示：</p>
+
+<p><center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1611580230/sel/kubeedge-devicetwin-2_zdqifk.png" alt="devicetwin设计原理" style="zoom:70%;" />
+</center></p>
+
+<p>在进一步理解DeviceTwin之前，这里需要读者先明确的几个概念，即：</p>
+
+<ul>
+<li><strong>设备属性(device attribute/property)</strong>：设备属性可以理解为设备的元数据（或称之为静态属性），负责描述设备的详细信息，定义好之后一般是不会变的。比如说温度计设备，它的作用是负责采集环境温度。显然，这种设备一般会有一个名为“temperature”的属性，该属性的类型也许是“float”类型，表示温度的数据类型，等等。</li>
+<li><strong>设备状态(device status)</strong>：设备状态指的是设备是否在线，一般有“online”、“offline”和“unknown”3种定义。</li>
+<li><strong>设备孪生(device twin)</strong>：设备孪生则是设备的动态属性，表示具体设备的专有实时数据，例如灯的开/关状态、温度计真实采集到的温度值，等等。在设备孪生（twin）中，进一步定义了“desired value(期望值)”和“reported value(真实值)”。其中，“desired value”指的是控制面希望设备达到的状态，比如，用户远程打开灯，由用户发出的指令即属于期望值；而“reported value”指的是设备上报给控制面的真实值，比如，温度计采集的温度值。需要注意的是，并不是每种设备都必须存在“desired value”，但一般都会有“reported value”。对于灯这类读写（readwrite）设备而言，我们既可以读取其上报的真实值（开或关），也可以控制它的状态（开或关）；而对于温度计这类只读（readonly）设备而言，我们只能读取其上报的真实值，而无需设置其期望值。</li>
+</ul>
+
+<p>明确以上3个概念是理解KubeEdge中Device API设计的核心，也有助于理解DeviceTwin组件的源码。</p>
+
+<p>总的来说，DeviceTwin组件负责沟通协调四个子模块的工作，具体包含4个方面，即：1）同步设备数据；2）注册并启动子模块；3）根据消息类型分别向子模块进行消息分发；4）对子模块进行健康检查。更具体的，四个子模块的作用分别如下：</p>
+
+<ul>
+<li><strong>Membership Module</strong>：该模块主要负责绑定新加入的设备与指定的边缘节点（其实就是NodeSelector的体现）。比如温度传感器关联在边缘节点node-A上，蓝牙音箱关联在了节点node-B上，如果云端要控制蓝牙音箱，那就要把数据准确的推到node-B上。</li>
+<li><strong>Twin Module</strong>：该模块主要负责所有设备孪生相关的操作。比如，设备孪生更新（device twin update）、设备孪生获取（device twin get）和设备孪生同步至云端（device twin sync-to-cloud）。</li>
+<li><strong>Communication Module</strong>：该模块主要负责各个子模块之间的通信。</li>
+<li><strong>Device Module</strong>：该模块主要负责执行设备相关的操作，比如处理设备状态（device status）更新和设备属性（device attribute）更新。</li>
+</ul>
+
+<p>（PS. 如果不搞清楚“设备属性”、“设备状态”和“设备孪生”的概念，那么初学者很容易混淆Twin Module和Device Module这两个子模块的功能职责。事实上，我不太明白如此设计的原因是什么，总觉得这部分的设计稍有欠妥）</p>
+
+<p>此外，DeviceTwin模块会在本地数据库（SQLite）中创建3张表，即Device Table、Device Attribute Table和Device Twin Table，分别记录设备的基本信息、设备的属性信息和设备孪生信息。表的具体字段设计详见<a href="https://github.com/kubeedge/kubeedge/blob/master/docs/components/edge/devicetwin.md#tables">这里</a>。</p>
+
+<h2 id="2-源码分析">2. 源码分析</h2>
+
+<p>本节从源码出发，剖析DeviceTwin模块的内部实现。为了避免篇幅冗长，在不影响说明的前提下，会适当删减代码。</p>
+
+<p>为了方便理解，读者需要提前了解：</p>
+
+<ul>
+<li>从前一小节我们已经知道，DeviceTwin模块会在本地数据库中创建3张表，即Device Table、Device Attribute Table和Device Twin Table，分别记录设备的基本信息、设备的属性信息和设备孪生信息。这里需要注意，Device Table中存储的Device并不是云端基于Kubernetes CRD机制定义的<a href="https://github.com/kubeedge/kubeedge/blob/master/cloud/pkg/apis/devices/v1alpha2/device_instance_types.go#L360">Device API</a>，而是重新定义了一个名字同为<a href="https://github.com/kubeedge/kubeedge/blob/master/edge/pkg/devicetwin/dttype/types.go#L16">Device</a>的结构体，用以存储标准Device API中的<strong>部分信息</strong>。</li>
+</ul>
+
+<p>当前，CloudHub与EdgeHub中传递的设备并不是完整的Device API，而是另外重新定义了一个同名的结构体，用于云边的设备信息同步。具体如下所示：</p>
+
+<p>（1）基于Kubernetes CRD机制定义的Device API，位于cloud/pkg/apis/devices/v1alpha2/device_instance_types.go：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">  <span style="color:#09f;font-style:italic">// Device is the Schema for the devices API
+</span><span style="color:#09f;font-style:italic"></span>  <span style="color:#09f;font-style:italic">// +k8s:openapi-gen=true
+</span><span style="color:#09f;font-style:italic"></span>  <span style="color:#069;font-weight:bold">type</span> Device <span style="color:#069;font-weight:bold">struct</span> {
+  	metav1.TypeMeta   <span style="color:#c30">`json:&#34;,inline&#34;`</span>
+  	metav1.ObjectMeta <span style="color:#c30">`json:&#34;metadata,omitempty&#34;`</span>
+  
+  	Spec   DeviceSpec   <span style="color:#c30">`json:&#34;spec,omitempty&#34;`</span>
+  	Status DeviceStatus <span style="color:#c30">`json:&#34;status,omitempty&#34;`</span>
+  }
+  <span style="color:#09f;font-style:italic">// DeviceSpec represents a single device instance. It is an instantation of a device model.
+</span><span style="color:#09f;font-style:italic"></span>  <span style="color:#069;font-weight:bold">type</span> DeviceSpec <span style="color:#069;font-weight:bold">struct</span> {
+  	<span style="color:#09f;font-style:italic">// Required: DeviceModelRef is reference to the device model used as a template
+</span><span style="color:#09f;font-style:italic"></span>  	<span style="color:#09f;font-style:italic">// to create the device instance.
+</span><span style="color:#09f;font-style:italic"></span>  	DeviceModelRef <span style="color:#555">*</span>v1.LocalObjectReference <span style="color:#c30">`json:&#34;deviceModelRef,omitempty&#34;`</span>
+  	<span style="color:#09f;font-style:italic">// Required: The protocol configuration used to connect to the device.
+</span><span style="color:#09f;font-style:italic"></span>  	Protocol ProtocolConfig <span style="color:#c30">`json:&#34;protocol,omitempty&#34;`</span>
+  	<span style="color:#09f;font-style:italic">// List of property visitors which describe how to access the device properties.
+</span><span style="color:#09f;font-style:italic"></span>  	<span style="color:#09f;font-style:italic">// PropertyVisitors must unique by propertyVisitor.propertyName.
+</span><span style="color:#09f;font-style:italic"></span>  	<span style="color:#09f;font-style:italic">// +optional
+</span><span style="color:#09f;font-style:italic"></span>  	PropertyVisitors []DevicePropertyVisitor <span style="color:#c30">`json:&#34;propertyVisitors,omitempty&#34;`</span>
+  	<span style="color:#09f;font-style:italic">// Data section describe a list of time-series properties which should be processed
+</span><span style="color:#09f;font-style:italic"></span>  	<span style="color:#09f;font-style:italic">// on edge node.
+</span><span style="color:#09f;font-style:italic"></span>  	<span style="color:#09f;font-style:italic">// +optional
+</span><span style="color:#09f;font-style:italic"></span>  	Data DeviceData <span style="color:#c30">`json:&#34;data,omitempty&#34;`</span>
+  	<span style="color:#09f;font-style:italic">// NodeSelector indicates the binding preferences between devices and nodes.
+</span><span style="color:#09f;font-style:italic"></span>  	<span style="color:#09f;font-style:italic">// Refer to k8s.io/kubernetes/pkg/apis/core NodeSelector for more details
+</span><span style="color:#09f;font-style:italic"></span>  	<span style="color:#09f;font-style:italic">// +optional
+</span><span style="color:#09f;font-style:italic"></span>  	NodeSelector <span style="color:#555">*</span>v1.NodeSelector <span style="color:#c30">`json:&#34;nodeSelector,omitempty&#34;`</span>
+  }
+  <span style="color:#09f;font-style:italic">// DeviceStatus reports the device state and the desired/reported values of twin attributes.
+</span><span style="color:#09f;font-style:italic"></span>  <span style="color:#069;font-weight:bold">type</span> DeviceStatus <span style="color:#069;font-weight:bold">struct</span> {
+  	<span style="color:#09f;font-style:italic">// A list of device twins containing desired/reported desired/reported values of twin properties..
+</span><span style="color:#09f;font-style:italic"></span>  	<span style="color:#09f;font-style:italic">// Optional: A passive device won&#39;t have twin properties and this list could be empty.
+</span><span style="color:#09f;font-style:italic"></span>  	<span style="color:#09f;font-style:italic">// +optional
+</span><span style="color:#09f;font-style:italic"></span>  	Twins []Twin <span style="color:#c30">`json:&#34;twins,omitempty&#34;`</span>
+  }</code></pre></div>
+<p>（2）用于云边消息同步的Device结构体，分别位于cloud/pkg/devicecontroller/types/device.go和edge/pkg/devicetwin/dttype/types.go：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">  <span style="color:#09f;font-style:italic">//Device the struct of device
+</span><span style="color:#09f;font-style:italic"></span>  <span style="color:#069;font-weight:bold">type</span> Device <span style="color:#069;font-weight:bold">struct</span> {
+  	ID          <span style="color:#078;font-weight:bold">string</span>              <span style="color:#c30">`json:&#34;id,omitempty&#34;`</span>
+  	Name        <span style="color:#078;font-weight:bold">string</span>              <span style="color:#c30">`json:&#34;name,omitempty&#34;`</span>
+  	Description <span style="color:#078;font-weight:bold">string</span>              <span style="color:#c30">`json:&#34;description,omitempty&#34;`</span>
+  	State       <span style="color:#078;font-weight:bold">string</span>              <span style="color:#c30">`json:&#34;state,omitempty&#34;`</span>
+  	LastOnline  <span style="color:#078;font-weight:bold">string</span>              <span style="color:#c30">`json:&#34;last_online,omitempty&#34;`</span>
+  	Attributes  <span style="color:#069;font-weight:bold">map</span>[<span style="color:#078;font-weight:bold">string</span>]<span style="color:#555">*</span>MsgAttr <span style="color:#c30">`json:&#34;attributes,omitempty&#34;`</span>
+  	Twin        <span style="color:#069;font-weight:bold">map</span>[<span style="color:#078;font-weight:bold">string</span>]<span style="color:#555">*</span>MsgTwin <span style="color:#c30">`json:&#34;twin,omitempty&#34;`</span>
+  }
+  <span style="color:#09f;font-style:italic">//MsgAttr the struct of device attr
+</span><span style="color:#09f;font-style:italic"></span>  <span style="color:#069;font-weight:bold">type</span> MsgAttr <span style="color:#069;font-weight:bold">struct</span> {
+  	Value    <span style="color:#078;font-weight:bold">string</span>        <span style="color:#c30">`json:&#34;value&#34;`</span>
+  	Optional <span style="color:#555">*</span><span style="color:#078;font-weight:bold">bool</span>         <span style="color:#c30">`json:&#34;optional,omitempty&#34;`</span>
+  	Metadata <span style="color:#555">*</span>TypeMetadata <span style="color:#c30">`json:&#34;metadata,omitempty&#34;`</span>
+  }
+  <span style="color:#09f;font-style:italic">//MsgTwin the struct of device twin
+</span><span style="color:#09f;font-style:italic"></span>  <span style="color:#069;font-weight:bold">type</span> MsgTwin <span style="color:#069;font-weight:bold">struct</span> {
+  	Expected        <span style="color:#555">*</span>TwinValue    <span style="color:#c30">`json:&#34;expected,omitempty&#34;`</span>
+  	Actual          <span style="color:#555">*</span>TwinValue    <span style="color:#c30">`json:&#34;actual,omitempty&#34;`</span>
+  	Optional        <span style="color:#555">*</span><span style="color:#078;font-weight:bold">bool</span>         <span style="color:#c30">`json:&#34;optional,omitempty&#34;`</span>
+  	Metadata        <span style="color:#555">*</span>TypeMetadata <span style="color:#c30">`json:&#34;metadata,omitempty&#34;`</span>
+  	ExpectedVersion <span style="color:#555">*</span>TwinVersion  <span style="color:#c30">`json:&#34;expected_version,omitempty&#34;`</span>
+  	ActualVersion   <span style="color:#555">*</span>TwinVersion  <span style="color:#c30">`json:&#34;actual_version,omitempty&#34;`</span>
+  }</code></pre></div>
+<ul>
+<li><p>对于边缘侧存储的Device Table（对应<code>Device</code>结构体）、Device Attribute Table（对应<code>MsgAttr</code>结构体）和Device Twin Table（对应<code>MsgTwin</code>结构体），可以理解为，它们将Device CRD中的字段拆开并分别存储。目前，对Device这一自定义资源的处理方式与对内置资源（比如Pod、Service）的处理方式不同，后者将一个完整的API对象存储在名为<a href="https://github.com/kubeedge/kubeedge/blob/master/edge/pkg/metamanager/dao/meta.go#L17"><code>Meta</code></a>的表中。（至于为何这样设计，而不统一起来，原因不得而知）</p></li>
+
+<li><p>另外需要指出的是，在当前的Device CRD设计中，并不包含<code>State</code>（表示设备的状态，即“online”、“offline”和“unknown”）和<code>LastOnline</code>（设备的最后在线时间戳）这两个字段；而在云与边的设备信息同步中（即<code>Device</code>结构体）却又包含了这两个字段。后期是否要考虑把这两个字段加入到Device CRD中呢？（此处存疑）</p></li>
+
+<li><p>云边通信（即CloudHub与EdgeHub之间）的消息结构体是<code>model.Message</code>，如下所示：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// Message struct
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">type</span> Message <span style="color:#069;font-weight:bold">struct</span> {
+	Header  MessageHeader <span style="color:#c30">`json:&#34;header&#34;`</span>
+	Router  MessageRoute  <span style="color:#c30">`json:&#34;route,omitempty&#34;`</span>
+	Content <span style="color:#069;font-weight:bold">interface</span>{}   <span style="color:#c30">`json:&#34;content&#34;`</span>
+}</code></pre></div></li>
+</ul>
+
+<p>但在DeviceTwin模块中，传输的消息结构体为<code>DTMessage</code>，如下所示：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">  <span style="color:#09f;font-style:italic">//DTMessage the struct of message for communicating between cloud and edge
+</span><span style="color:#09f;font-style:italic"></span>  <span style="color:#069;font-weight:bold">type</span> DTMessage <span style="color:#069;font-weight:bold">struct</span> {
+  	Msg      <span style="color:#555">*</span>model.Message
+  	Identity <span style="color:#078;font-weight:bold">string</span> <span style="color:#09f;font-style:italic">//表示节点ID
+</span><span style="color:#09f;font-style:italic"></span>  	Action   <span style="color:#078;font-weight:bold">string</span> <span style="color:#09f;font-style:italic">//代表该条消息执行的动作，根据不同的Action将消息转发至对应的DeviceTwin子模块
+</span><span style="color:#09f;font-style:italic"></span>  	Type     <span style="color:#078;font-weight:bold">string</span> <span style="color:#09f;font-style:italic">//这个貌似也没啥用
+</span><span style="color:#09f;font-style:italic"></span>  }</code></pre></div>
+<h3 id="2-1-代码入口">2.1. 代码入口</h3>
+
+<p>代码入口：edge/pkg/devicetwin/devicetwin.go</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// Start run the module
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">func</span> (dt <span style="color:#555">*</span>DeviceTwin) <span style="color:#c0f">Start</span>() {
+	dtContexts, _ <span style="color:#555">:=</span> dtcontext.<span style="color:#c0f">InitDTContext</span>()
+	dt.DTContexts = dtContexts
+  err <span style="color:#555">:=</span> <span style="color:#c0f">SyncSqlite</span>(dt.DTContexts) <span style="color:#09f;font-style:italic">//将存储在本地数据库中的device信息载入DTContexts
+</span><span style="color:#09f;font-style:italic"></span>	<span style="color:#555">...</span>
+	dt.<span style="color:#c0f">runDeviceTwin</span>() <span style="color:#09f;font-style:italic">//运行各个子模块
+</span><span style="color:#09f;font-style:italic"></span>}</code></pre></div>
+<p>可以看到，DeviceTwin模块的启动主要做了两件事情，一是将存储在本地数据库（sqlite）中的设备信息载入至<code>DTContexts</code>中；二是运行各个子模块。</p>
+
+<p>（1）<code>SyncSqlite()</code>负责同步设备元数据，即从本地数据库中查询所有设备，并将这些设备载入至<code>DTContext</code>中。<code>DTContext</code>是一个关键的数据结构，负责存储在DeviceTwin模块中的上下文信息。具体在之后的讨论涉及。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">// SyncSqlite sync sqlite
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">func</span> <span style="color:#c0f">SyncSqlite</span>(context <span style="color:#555">*</span>dtcontext.DTContext) <span style="color:#078;font-weight:bold">error</span> {
+	<span style="color:#555">...</span>
+	rows, queryErr <span style="color:#555">:=</span> dtclient.<span style="color:#c0f">QueryDeviceAll</span>() <span style="color:#09f;font-style:italic">//从本地数据库中查询所有设备
+</span><span style="color:#09f;font-style:italic"></span>	<span style="color:#555">...</span>
+	<span style="color:#069;font-weight:bold">for</span> _, device <span style="color:#555">:=</span> <span style="color:#069;font-weight:bold">range</span> <span style="color:#555">*</span>rows {
+		err <span style="color:#555">:=</span> <span style="color:#c0f">SyncDeviceFromSqlite</span>(context, device.ID) <span style="color:#09f;font-style:italic">//将设备保存至DTContext中
+</span><span style="color:#09f;font-style:italic"></span>		<span style="color:#555">...</span>
+	}
+	<span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>
+}</code></pre></div>
+<p>（2）<code>runDeviceTwin()</code>则包含3个方面的内容，分别是 1）注册并启动子模块；2）向子模块分发消息；3）健康检查。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> (dt <span style="color:#555">*</span>DeviceTwin) <span style="color:#c0f">runDeviceTwin</span>() {
+	moduleNames <span style="color:#555">:=</span> []<span style="color:#078;font-weight:bold">string</span>{dtcommon.MemModule, dtcommon.TwinModule, dtcommon.DeviceModule, dtcommon.CommModule}
+  <span style="color:#09f;font-style:italic">//1.注册并启动子模块
+</span><span style="color:#09f;font-style:italic"></span>	<span style="color:#069;font-weight:bold">for</span> _, v <span style="color:#555">:=</span> <span style="color:#069;font-weight:bold">range</span> moduleNames {
+		dt.<span style="color:#c0f">RegisterDTModule</span>(v)
+		<span style="color:#069;font-weight:bold">go</span> dt.DTModules[v].<span style="color:#c0f">Start</span>()
+	}
+	<span style="color:#069;font-weight:bold">go</span> <span style="color:#069;font-weight:bold">func</span>() {
+		<span style="color:#069;font-weight:bold">for</span> {
+			<span style="color:#555">...</span>
+			<span style="color:#069;font-weight:bold">if</span> msg, ok <span style="color:#555">:=</span> beehiveContext.<span style="color:#c0f">Receive</span>(<span style="color:#c30">&#34;twin&#34;</span>); ok <span style="color:#555">==</span> <span style="color:#069;font-weight:bold">nil</span> {
+				klog.<span style="color:#c0f">Info</span>(<span style="color:#c30">&#34;DeviceTwin receive msg&#34;</span>)
+        <span style="color:#09f;font-style:italic">//2.消息转发
+</span><span style="color:#09f;font-style:italic"></span>				err <span style="color:#555">:=</span> dt.<span style="color:#c0f">distributeMsg</span>(msg)
+				<span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+					klog.<span style="color:#c0f">Warningf</span>(<span style="color:#c30">&#34;distributeMsg failed: %v&#34;</span>, err)
+				}
+			}
+		}
+	}()
+
+  <span style="color:#09f;font-style:italic">//3.健康检查，如有必要则会重启子模块
+</span><span style="color:#09f;font-style:italic"></span>	<span style="color:#069;font-weight:bold">for</span> {
+		<span style="color:#069;font-weight:bold">select</span> {
+		<span style="color:#069;font-weight:bold">case</span> <span style="color:#555">&lt;-</span>time.<span style="color:#c0f">After</span>((time.Duration)(<span style="color:#f60">60</span>) <span style="color:#555">*</span> time.Second):
+			<span style="color:#09f;font-style:italic">//range to check whether has bug
+</span><span style="color:#09f;font-style:italic"></span>			<span style="color:#069;font-weight:bold">for</span> dtmName <span style="color:#555">:=</span> <span style="color:#069;font-weight:bold">range</span> dt.DTModules {
+				health, ok <span style="color:#555">:=</span> dt.DTContexts.ModulesHealth.<span style="color:#c0f">Load</span>(dtmName)
+				<span style="color:#069;font-weight:bold">if</span> ok {
+					now <span style="color:#555">:=</span> time.<span style="color:#c0f">Now</span>().<span style="color:#c0f">Unix</span>()
+					<span style="color:#069;font-weight:bold">if</span> now<span style="color:#555">-</span>health.(<span style="color:#078;font-weight:bold">int64</span>) &gt; <span style="color:#f60">60</span><span style="color:#555">*</span><span style="color:#f60">2</span> {
+						klog.<span style="color:#c0f">Infof</span>(<span style="color:#c30">&#34;%s health %v is old, and begin restart&#34;</span>, dtmName, health)
+						<span style="color:#069;font-weight:bold">go</span> dt.DTModules[dtmName].<span style="color:#c0f">Start</span>()
+					}
+				}
+			}
+			<span style="color:#069;font-weight:bold">for</span> _, v <span style="color:#555">:=</span> <span style="color:#069;font-weight:bold">range</span> dt.HeartBeatToModule {
+				v <span style="color:#555">&lt;-</span> <span style="color:#c30">&#34;ping&#34;</span>
+			}
+		<span style="color:#069;font-weight:bold">case</span> <span style="color:#555">&lt;-</span>beehiveContext.<span style="color:#c0f">Done</span>():
+			<span style="color:#069;font-weight:bold">for</span> _, v <span style="color:#555">:=</span> <span style="color:#069;font-weight:bold">range</span> dt.HeartBeatToModule {
+				v <span style="color:#555">&lt;-</span> <span style="color:#c30">&#34;stop&#34;</span>
+			}
+			klog.<span style="color:#c0f">Warning</span>(<span style="color:#c30">&#34;Stop DeviceTwin ModulesHealth load loop&#34;</span>)
+			<span style="color:#069;font-weight:bold">return</span>
+		}
+	}
+}</code></pre></div>
+<h3 id="2-2-消息转发">2.2. 消息转发</h3>
+
+<p>函数入口：edge/pkg/devicetwin/process.go</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">//distributeMsg distribute message to diff module
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">func</span> (dt <span style="color:#555">*</span>DeviceTwin) <span style="color:#c0f">distributeMsg</span>(m <span style="color:#069;font-weight:bold">interface</span>{}) <span style="color:#078;font-weight:bold">error</span> {
+   msg, ok <span style="color:#555">:=</span> m.(model.Message)
+   <span style="color:#555">...</span>
+   message <span style="color:#555">:=</span> dttype.DTMessage{Msg: <span style="color:#555">&amp;</span>msg}
+   <span style="color:#09f;font-style:italic">//如果msg的parentID不为空，说明该消息是一个确认消息(response message)
+</span><span style="color:#09f;font-style:italic"></span>   <span style="color:#09f;font-style:italic">//如果是云端下发的消息，parentID均为空
+</span><span style="color:#09f;font-style:italic"></span>   <span style="color:#069;font-weight:bold">if</span> message.Msg.<span style="color:#c0f">GetParentID</span>() <span style="color:#555">!=</span> <span style="color:#c30">&#34;&#34;</span> {
+      klog.<span style="color:#c0f">Infof</span>(<span style="color:#c30">&#34;Send msg to the %s module in twin&#34;</span>, dtcommon.CommModule)
+      confirmMsg <span style="color:#555">:=</span> dttype.DTMessage{Msg: model.<span style="color:#c0f">NewMessage</span>(message.Msg.<span style="color:#c0f">GetParentID</span>()), 
+                                     Action: dtcommon.Confirm}
+      <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> dt.DTContexts.<span style="color:#c0f">CommTo</span>(dtcommon.CommModule, <span style="color:#555">&amp;</span>confirmMsg); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+         <span style="color:#069;font-weight:bold">return</span> err
+      }
+   }
+   <span style="color:#09f;font-style:italic">//根据msg的source和resource type进行分类
+</span><span style="color:#09f;font-style:italic"></span>   <span style="color:#09f;font-style:italic">//并填充message
+</span><span style="color:#09f;font-style:italic"></span>   <span style="color:#069;font-weight:bold">if</span> !<span style="color:#c0f">classifyMsg</span>(<span style="color:#555">&amp;</span>message) { <span style="color:#09f;font-style:italic">//关键~
+</span><span style="color:#09f;font-style:italic"></span>      <span style="color:#069;font-weight:bold">return</span> errors.<span style="color:#c0f">New</span>(<span style="color:#c30">&#34;Not found action&#34;</span>)
+   }
+   <span style="color:#069;font-weight:bold">if</span> ActionModuleMap <span style="color:#555">==</span> <span style="color:#069;font-weight:bold">nil</span> {
+      <span style="color:#c0f">initActionModuleMap</span>()
+   }
+	
+   <span style="color:#09f;font-style:italic">//根据消息的Action，将消息转发至对应的子模块中
+</span><span style="color:#09f;font-style:italic"></span>   <span style="color:#069;font-weight:bold">if</span> moduleName, exist <span style="color:#555">:=</span> ActionModuleMap[message.Action]; exist {
+   		<span style="color:#555">...</span>	
+      <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> dt.DTContexts.<span style="color:#c0f">CommTo</span>(moduleName, <span style="color:#555">&amp;</span>message); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+         <span style="color:#069;font-weight:bold">return</span> err
+      }
+   } 
+   <span style="color:#555">...</span>
+   <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>
+}</code></pre></div>
+<p>具体来看<code>classifyMsg()</code>这一方法，搞懂它至关重要。</p>
+
+<p>首先，会根据消息源(<code>msg.Router.Source</code>)判断进入哪个分支。比如，设备的信息是由云端的<code>devicecontroller</code>组件发送过来的，因此<code>msg.Router.Resource</code>就等于<code>devicecontroller</code>。紧接着，会根据消息体所传送的资源类型(<code>msg.Router.Resource</code>)进一步分类，从而确定对应的<code>Action</code>是什么，最后根据不同的<code>Action</code>将消息转发至不同的子模块中。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#069;font-weight:bold">func</span> <span style="color:#c0f">classifyMsg</span>(message <span style="color:#555">*</span>dttype.DTMessage) <span style="color:#078;font-weight:bold">bool</span> {
+	<span style="color:#069;font-weight:bold">if</span> EventActionMap <span style="color:#555">==</span> <span style="color:#069;font-weight:bold">nil</span> {
+		<span style="color:#c0f">initEventActionMap</span>()
+	}
+	<span style="color:#069;font-weight:bold">var</span> identity <span style="color:#078;font-weight:bold">string</span>
+	<span style="color:#069;font-weight:bold">var</span> action <span style="color:#078;font-weight:bold">string</span>
+	msgSource <span style="color:#555">:=</span> message.Msg.<span style="color:#c0f">GetSource</span>()
+	<span style="color:#069;font-weight:bold">if</span> strings.<span style="color:#c0f">Compare</span>(msgSource, <span style="color:#c30">&#34;bus&#34;</span>) <span style="color:#555">==</span> <span style="color:#f60">0</span> { <span style="color:#09f;font-style:italic">//如果消息源来自”eventbus“
+</span><span style="color:#09f;font-style:italic"></span>		<span style="color:#555">...</span>
+	}
+  <span style="color:#09f;font-style:italic">//如果消息源来自&#34;edgemgr&#34;或&#34;devicecontroller&#34;
+</span><span style="color:#09f;font-style:italic"></span>  <span style="color:#069;font-weight:bold">else</span> <span style="color:#069;font-weight:bold">if</span> (strings.<span style="color:#c0f">Compare</span>(msgSource, <span style="color:#c30">&#34;edgemgr&#34;</span>) <span style="color:#555">==</span> <span style="color:#f60">0</span>) <span style="color:#555">||</span> 
+            (strings.<span style="color:#c0f">Compare</span>(msgSource, <span style="color:#c30">&#34;devicecontroller&#34;</span>) <span style="color:#555">==</span> <span style="color:#f60">0</span>) {
+		<span style="color:#555">...</span>
+    <span style="color:#09f;font-style:italic">//根据message.Msg.Router.Resource进行分类
+</span><span style="color:#09f;font-style:italic"></span>		<span style="color:#069;font-weight:bold">if</span> strings.<span style="color:#c0f">Contains</span>(message.Msg.Router.Resource, <span style="color:#c30">&#34;membership/detail&#34;</span>) {
+			message.Action = dtcommon.MemDetailResult
+			<span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">true</span>
+		} <span style="color:#069;font-weight:bold">else</span> <span style="color:#069;font-weight:bold">if</span> strings.<span style="color:#c0f">Contains</span>(message.Msg.Router.Resource, <span style="color:#c30">&#34;membership&#34;</span>) { <span style="color:#09f;font-style:italic">// 标记1
+</span><span style="color:#09f;font-style:italic"></span>			message.Action = dtcommon.MemUpdated
+			<span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">true</span>
+		} <span style="color:#069;font-weight:bold">else</span> <span style="color:#069;font-weight:bold">if</span> strings.<span style="color:#c0f">Contains</span>(message.Msg.Router.Resource, <span style="color:#c30">&#34;twin/cloud_updated&#34;</span>) {
+			message.Action = dtcommon.TwinCloudSync
+			resources <span style="color:#555">:=</span> strings.<span style="color:#c0f">Split</span>(message.Msg.Router.Resource, <span style="color:#c30">&#34;/&#34;</span>)
+			message.Identity = resources[<span style="color:#f60">1</span>] <span style="color:#09f;font-style:italic">//nodeID
+</span><span style="color:#09f;font-style:italic"></span>			<span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">true</span>
+		} <span style="color:#069;font-weight:bold">else</span> <span style="color:#069;font-weight:bold">if</span> strings.<span style="color:#c0f">Contains</span>(message.Msg.Router.Operation, <span style="color:#c30">&#34;updated&#34;</span>) {
+			resources <span style="color:#555">:=</span> strings.<span style="color:#c0f">Split</span>(message.Msg.Router.Resource, <span style="color:#c30">&#34;/&#34;</span>)
+			<span style="color:#069;font-weight:bold">if</span> <span style="color:#366">len</span>(resources) <span style="color:#555">==</span> <span style="color:#f60">2</span> <span style="color:#555">&amp;&amp;</span> strings.<span style="color:#c0f">Compare</span>(resources[<span style="color:#f60">0</span>], <span style="color:#c30">&#34;device&#34;</span>) <span style="color:#555">==</span> <span style="color:#f60">0</span> {
+				message.Action = dtcommon.DeviceUpdated
+				message.Identity = resources[<span style="color:#f60">1</span>]
+			}
+			<span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">true</span>
+		}
+		<span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">false</span>
+	} <span style="color:#069;font-weight:bold">else</span> <span style="color:#069;font-weight:bold">if</span> strings.<span style="color:#c0f">Compare</span>(msgSource, <span style="color:#c30">&#34;edgehub&#34;</span>) <span style="color:#555">==</span> <span style="color:#f60">0</span> {
+		<span style="color:#555">...</span>
+}</code></pre></div>
+<p>我们以云端DeviceController与边缘端通信作为示例，加以说明。（DeviceController分析详见xx）</p>
+
+<p>假设云端<a href="https://github.com/kubeedge/kubeedge/blob/master/cloud/pkg/devicecontroller/controller/downstream.go#L388">新增一个设备</a>，就会构造这样一条消息，并发送至边缘端。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">//cloud/pkg/devicecontroller/controller/downstream.go -&gt; deviceAdded()
+</span><span style="color:#09f;font-style:italic"></span>msg <span style="color:#555">:=</span> model.<span style="color:#c0f">NewMessage</span>(<span style="color:#c30">&#34;&#34;</span>)
+resource, err <span style="color:#555">:=</span> messagelayer.<span style="color:#c0f">BuildResource</span>(device.Spec.NodeSelector.NodeSelectorTerms[<span style="color:#f60">0</span>].MatchExpressions[<span style="color:#f60">0</span>].Values[<span style="color:#f60">0</span>], <span style="color:#c30">&#34;membership&#34;</span>, <span style="color:#c30">&#34;&#34;</span>)
+msg.<span style="color:#c0f">BuildRouter</span>(modules.DeviceControllerModuleName, constants.GroupTwin, resource, model.UpdateOperation)
+msg.Content = xxx <span style="color:#555">//</span>这里存放消息传递的有效数据</code></pre></div>
+<p>其中，<code>device.Spec.NodeSelector.NodeSelectorTerms[0].MatchExpressions[0].Values[0]</code>表示在创建设备实例时通过<code>NodeSelector</code>所绑定的边缘节点，假设为”edgenode_1“，那么，就会构造出：</p>
+<pre><code>resource = &#34;node/edgenode_1/membership&#34;</code></pre>
+<p>而<code>msg.BuildRouter(modules.DeviceControllerModuleName, constants.GroupTwin, resource, model.UpdateOperation)</code>则定义了消息的路由信息，如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">msg.Router.Source = <span style="color:#c30">&#34;devicecontroller&#34;</span>  <span style="color:#09f;font-style:italic">//表示消息源
+</span><span style="color:#09f;font-style:italic"></span>msg.Router.Group = <span style="color:#c30">&#34;twin&#34;</span>               <span style="color:#09f;font-style:italic">//表示消息发送的组别
+</span><span style="color:#09f;font-style:italic"></span>msg.Router.Resource = <span style="color:#c30">&#34;node/edgenode_1/membership&#34;</span> <span style="color:#09f;font-style:italic">//表示消息的资源类型，也表示topic类型
+</span><span style="color:#09f;font-style:italic"></span>msg.Router.Operation = <span style="color:#c30">&#34;update&#34;</span></code></pre></div>
+<p>基于此，消息的路由信息就很明确了。我们再回过头看上边的<code>classifyMsg()</code>方法，不难发现，这条消息会进入到「标记1」所处的分支，从而标记该条消息对应的<code>Action</code>是<code>dtcommon.MemUpdated</code>。由于在<code>ActionModuleMap</code>中已经定义了<code>Action</code>与子模块之间的映射关系，因此，接下来就会根据这条消息的<code>Action</code>转发至对应的子模块，然后由那个子模块来执行具体的逻辑。</p>
+
+<h3 id="2-3-子模块逻辑">2.3. 子模块逻辑</h3>
+
+<p>本节重点分析四个子模块的具体执行逻辑。</p>
+
+<h4 id="membership">membership</h4>
+
+<p><code>membership</code>模块实际上就是负责管理边缘节点上的设备。当有新增设备或删除设备，都是由这一组件负责处理。</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#09f;font-style:italic">//Start worker
+</span><span style="color:#09f;font-style:italic"></span><span style="color:#069;font-weight:bold">func</span> (mw MemWorker) <span style="color:#c0f">Start</span>() {
+	<span style="color:#c0f">initMemActionCallBack</span>() <span style="color:#09f;font-style:italic">//初始化DTMessage.Action与回调函数的映射关系
+</span><span style="color:#09f;font-style:italic"></span>	<span style="color:#069;font-weight:bold">for</span> {
+		<span style="color:#069;font-weight:bold">select</span> {
+		<span style="color:#069;font-weight:bold">case</span> msg, ok <span style="color:#555">:=</span> <span style="color:#555">&lt;-</span>mw.ReceiverChan:
+			<span style="color:#069;font-weight:bold">if</span> !ok {
+				<span style="color:#069;font-weight:bold">return</span>
+			}
+			<span style="color:#069;font-weight:bold">if</span> dtMsg, isDTMessage <span style="color:#555">:=</span> msg.(<span style="color:#555">*</span>dttype.DTMessage); isDTMessage {
+        <span style="color:#09f;font-style:italic">//根据Action，调用对应的callback函数
+</span><span style="color:#09f;font-style:italic"></span>				<span style="color:#069;font-weight:bold">if</span> fn, exist <span style="color:#555">:=</span> memActionCallBack[dtMsg.Action]; exist { 
+					_, err <span style="color:#555">:=</span> <span style="color:#c0f">fn</span>(mw.DTContexts, dtMsg.Identity, dtMsg.Msg)
+					<span style="color:#555">...</span>
+				} 
+			}
+
+		<span style="color:#069;font-weight:bold">case</span> v, ok <span style="color:#555">:=</span> <span style="color:#555">&lt;-</span>mw.HeartBeatChan:
+			<span style="color:#555">...</span>
+			<span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> mw.DTContexts.<span style="color:#c0f">HeartBeat</span>(mw.Group, v); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+				<span style="color:#069;font-weight:bold">return</span>
+			}
+		}
+	}
+}</code></pre></div>
+<p><code>membership</code>模块的启动逻辑非常简单。首先，它会初始化消息的<code>Action</code>与回调函数的映射关系，即<code>initMemActionCallBack()</code>；随后，<strong>根据接收到的消息的<code>Action</code>调用不同的回调函数，也就是去执行具体的动作</strong>。同时，还需要收发心跳信息。这里主要关注该模块可执行哪些动作：</p>
+
+<ul>
+<li>dealMembershipGet：该方法主要用于获取内存中(即<code>DTContext</code>)存储的设备信息。主要负责与<code>eventbus</code>组件的交互，当<code>eventbus</code>组件订阅了指定的topic后，就是通过该方法获取到设备信息的。</li>
+</ul>
+
+<p><center>
+  <img src="https://res.cloudinary.com/rachel725/image/upload/v1611567386/sel/membership-get_hokqyt.png" style="zoom:60%;" />
+  </center></p>
+
+<ul>
+<li>dealMembershipUpdate：该方法负责更新边缘节点的设备信息。比如云端控制面新增或删除了一个设备，会下发更新信息，最终就是通过这个方法来执行的。并且在更新完成后，会把最新的结果发送给<code>eventbus</code>。</li>
+</ul>
+
+<p><center>
+  <img src="https://res.cloudinary.com/rachel725/image/upload/v1611567386/sel/membership-update_trephr.png" alt="membership-update" style="zoom:60%;" />
+  </center></p>
+
+<ul>
+<li>dealMembershipDetail：待定。有点没看懂它的目的。</li>
+</ul>
+
+<p><center>
+  <img src="https://res.cloudinary.com/rachel725/image/upload/v1611567386/sel/membership-detail_kemjxs.png" alt="membership-detail" style="zoom:60%;" />
+  </center></p>
+
+<p>这里需要再强调一下！前面已经提过，边缘端拿到的Device，并不是云端基于Kubernetes CRD机制定义的Device API。为了获取到设备基本信息，设备属性信息和设备孪生信息，又额外定义了许多的结构体用于存储这些信息，代码中有很多序列化与反序列的操作。不要被绕晕了。</p>
+
+<p><center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1611567386/sel/devicecontroller_s2vsmm.png" alt="devicecontroller" style="zoom:13%;" />
+</center></p>
+
+<h4 id="twin">twin</h4>
+
+<p><code>twin</code>模块主要负责所有设备孪生相关的操作。比如，设备孪生更新（device twin update）、设备孪生获取（device twin get）和设备孪生同步至云端（device twin sync-to-cloud）。该模块的执行逻辑与<code>membership</code>模块的逻辑是一模一样的，我们主要看一下它支持执行哪些动作：</p>
+
+<ul>
+<li>dealTwinUpdate：该方法更新指定设备的设备孪生信息。更新信息可以来自云端（比如云端控制面想要改变等的开/关状态），通过<code>edgehub</code>接收到；也可以来自MQTT，通过<code>eventbus</code>接收到（<code>mapper</code>会在devicetwin update topic上发布信息）。</li>
+</ul>
+
+<p><center>
+  <img src="https://res.cloudinary.com/rachel725/image/upload/v1611567385/sel/devicetwin-update_tpzrxp.png" alt="devicetwin-update" style="zoom:60%;" />
+  </center></p>
+
+<ul>
+<li>dealTwinGet：获取指定设备的设备孪生信息。该方法负责与<code>eventbus</code>交互。</li>
+</ul>
+
+<p><center>
+  <img src="https://res.cloudinary.com/rachel725/image/upload/v1611567385/sel/devicetwin-get_lamrk3.png" alt="devicetwin-get" style="zoom:60%;" />
+  </center></p>
+
+<ul>
+<li>dealTwinSync：该方法负责将设备孪生信息同步至云端。</li>
+</ul>
+
+<p><center>
+  <img src="https://res.cloudinary.com/rachel725/image/upload/v1611567387/sel/sync-to-cloud_bglfnr.png" alt="sync-to-cloud" style="zoom:60%;" />
+  </center></p>
+
+<h4 id="device">device</h4>
+
+<p>device 模块主要负责执行设备相关的操作，比如处理设备状态更新和设备属性更新。该模块可执行的动作有如下几个：</p>
+
+<ul>
+<li>dealDeviceAttrUpdate：更新设备的属性。设备属性的更新由云端发起。不过就目前(2021-01-04)来看，这个方法还没用起来，云端devicecontroller的downstream部分并没有看到更新设备属性的操作。</li>
+</ul>
+
+<p><center>
+  <img src="https://res.cloudinary.com/rachel725/image/upload/v1611567385/sel/device-update_jydjbb.png" alt="device-update" style="zoom:60%;" />
+  </center></p>
+
+<ul>
+<li>dealDeviceStateUpdate：更新设备的状态（state）、最后一次在线时间（last online）。设备状态的更新是由<code>eventbus</code>主动发起的。更新后，会把更新结果同步至云端和边缘端的<code>eventbus</code>。</li>
+</ul>
+
+<p><center>
+  <img src="https://res.cloudinary.com/rachel725/image/upload/v1611567385/sel/device-state-update_akz55j.png" alt="device-state-updater" style="zoom:60%;" />
+  </center></p>
+
+<h4 id="communication">communication</h4>
+
+<p>模块主要负责DeviceTwin和其他组件的通信。该模块可执行的动作有如下几个：</p>
+
+<ul>
+<li>dealSendToCloud：用于向云端发送数据。在该函数内部，首先确保边缘侧与云端的连接是否正常，随后向edgehub发送消息（基于beehive框架），再由edgehub向云端发送。</li>
+<li>dealSendToEdge：内部调用<code>beehiveContext.Send()</code>方法，直接向<code>eventbus</code>组件发送消息。</li>
+<li>dealLifeCycle： 负责检查边缘与云端的状态是否正常连接，如果正常连接，则设置<code>DTContext.state</code>的状态为<code>connected</code>；反之则标志其为<code>unconnected</code> 。</li>
+<li>dealConfirm： 用于处理消息的确认。源码中我看到只有在<a href="https://github.com/kubeedge/kubeedge/blob/master/edge/pkg/devicetwin/process.go#L52">这里</a>使用到了。</li>
+</ul>
+
+<h3 id="2-4-总结">2.4. 总结</h3>
+
+<p>DeviceTwin模块源码整理如下：</p>
+
+<p><center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1611567386/sel/devicetwin_xhjwnk.png" alt="devicetwin" style="zoom:20%;" />
+</center></p>
+                        </div>
+                        
+                        
+                        
+                        
+                        
+                        
+
+                        
+                        <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+                        <script src="https://unpkg.com/gitalk@latest/dist/gitalk.min.js"></script> 
+                        <script type="text/javascript" src="/assets/js/md5.min.js"></script>
+                        <div id="gitalk-container"></div>     
+                        <script type="text/javascript">
+                            var gitalk = new Gitalk({
+                              clientID: '835183d2dcbd1167ac28', 
+                            
+                              clientSecret: 'd873919fac3cc76921ee0800172c2279bc612f8d', 
+                            
+                              repo: 'Sel-Website-talk',
+                              owner: 'Peeknut',
+                              admin: ['Peeknut','Rachel-Shao'],
+                              id: location.href.split("/").pop().substring(0, 49),      
+                              distractionFreeMode: false  
+                            })
+                            gitalk.render('gitalk-container')
+                        </script> 
+                        
+
+                    </div>
+                    
+
+                    
+
+                    
+
+                    <div class="col-md-3">
+
+                        
+
+                        
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+      <h3 class="panel-title">搜索栏</h3>
+      
+    </div>
+
+    <div class="panel-body">
+        
+        <div class="search" id="search">
+            <div class="input-group">
+                <input type="text" name="q" class="form-control" placeholder="请输入文章标题或摘要..." id="search-key">
+                <input type="hidden" name="sitesearch" value="https://Congrool.github.io/">
+                <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main" onclick="search()"><i class="fas fa-search"></i></button>
+                </span>
+            </div>
+            <h1 id="search-tip" style="color: red;text-align: center;display: none;font-size: medium;">搜索中，请稍后 ...</h1>
+        </div>
+        <script type="text/javascript">
+            
+            window.onload = function() {
+                      document.onkeydown = function(ev) {
+                        var event = ev || event
+                        if (event.keyCode == 13) {
+                          search()
+                        }
+                      }
+                    }
+            
+            function search() {
+                    
+                      key = document.getElementById("search-key").value;
+                      if (key === "") {
+                        
+                        return;
+                      }
+                      key = key.toLowerCase();
+                      document.getElementById("search-key").value = "";
+                  
+                      
+                      document.getElementById("search-tip").innerText = "搜索中，请稍后 ...";
+                      document.getElementById("search-tip").style.display = "block";
+                  
+                      
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      var childs = el.childNodes;
+                      for (var i = childs.length - 1; i >= 0; i--) {
+                        el.removeChild(childs[i]);
+                      }
+                  
+                      
+                      xmltext = new XMLHttpRequest;
+                      xmltext.open("GET", "/index.xml", false);
+                      xmltext.send();
+                      resp = xmltext.responseXML;
+                      
+                      items = resp.getElementsByTagName("item");
+                      
+                      var i = 0;
+                      haveResult = false;
+                      while (i < items.length) {
+                        txt = items[i].getElementsByTagName("title")[0].innerHTML + items[i].getElementsByTagName("description")[0].innerHTML
+                        txt = txt.toLowerCase();
+                        if (txt.indexOf(key) > -1) {
+                          haveResult = true;
+                          title = items[i].getElementsByTagName("title")[0].innerHTML;
+                          link = items[i].getElementsByTagName("link")[0].innerHTML;
+                          time = items[i].getElementsByTagName("pubDate")[0].innerHTML;
+                          mark = items[i].getElementsByTagName("description")[0].innerHTML;
+                          time = time.slice(0, -5);
+                          addItem(title, link, time, mark)
+                        }
+                        i++;
+                      }
+                      if (!haveResult) {
+                        document.getElementById("search-tip").innerText = "搜索完毕，未发现结果 ...";
+                        document.getElementById("search-tip").style.display = "block";
+                      }
+
+                      
+                      var el = document.getElementById("blog-head");
+                      el.innerHTML="Blogs"
+                    }
+                  
+                    
+                    function addItem(title, link, time, mark) {
+                      document.getElementById("search-tip").style.display = "none";
+                      tmpl = "<article class=\"post\" style=\"border-bottom: 1px solid #e6e6e6;\" >" +
+                        "<header class=\"post-header\">" +
+                        "<h1 class=\"post-title\"><a class=\"post-link\" href=\"" + link + "\" target=\"_blank\">" + title + "</a></h1>" +
+                        "<div class=\"post-meta\">" +
+                        " <span class=\"post-time\">" + time + "</span>" +
+                        "</div>" +
+                        " </header>" +
+                        "<div class=\"post-content\">" +
+                        "<div class=\"post-summary\">" + mark + "</div>" +
+                        "<div class=\"read-more\">" +
+                        "<a href=" + link + " class=\"read-more-link\" target=\"_blank\">阅读更多</a>" +
+                        "</div>" +
+                        " </div>" +
+                        "</article>"
+                      div = document.createElement("div")
+                      div.innerHTML = tmpl;
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      el.appendChild(div)
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+
+        </script>
+        
+    </div>
+</div>
+
+
+
+
+
+
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">归档栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="nav nav-pills nav-stacked">
+            
+            
+            <li>
+                <a href="/categories/bosh">bosh (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloud_controller_ng">cloud_controller_ng (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloudfoundry">cloudfoundry (15)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/containerd">containerd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/docker">docker (19)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/etcd">etcd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/haproxy">haproxy (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/healthmanager">healthmanager (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/karmada">karmada (4)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubeedge">kubeedge (5)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubernetes">kubernetes (14)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/network">network (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/openyurt">openyurt (2)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/service-mesh">service-mesh (4)</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+<div class="panel sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">标签栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="tag-cloud">
+            
+            
+            <li>
+                <a href="/tags/agent"><i class="fas fa-tags"></i> agent</a>
+            </li>
+            
+            <li>
+                <a href="/tags/apiserver"><i class="fas fa-tags"></i> apiserver</a>
+            </li>
+            
+            <li>
+                <a href="/tags/books"><i class="fas fa-tags"></i> books</a>
+            </li>
+            
+            <li>
+                <a href="/tags/bosh"><i class="fas fa-tags"></i> bosh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/ccng"><i class="fas fa-tags"></i> ccng</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cf-release"><i class="fas fa-tags"></i> cf-release</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cgroups"><i class="fas fa-tags"></i> cgroups</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudfoundry"><i class="fas fa-tags"></i> cloudfoundry</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudnative"><i class="fas fa-tags"></i> cloudnative</a>
+            </li>
+            
+            <li>
+                <a href="/tags/collector"><i class="fas fa-tags"></i> collector</a>
+            </li>
+            
+            <li>
+                <a href="/tags/containerd"><i class="fas fa-tags"></i> containerd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cri"><i class="fas fa-tags"></i> cri</a>
+            </li>
+            
+            <li>
+                <a href="/tags/dea"><i class="fas fa-tags"></i> dea</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker"><i class="fas fa-tags"></i> docker</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker-network"><i class="fas fa-tags"></i> docker-network</a>
+            </li>
+            
+            <li>
+                <a href="/tags/edgecomputing"><i class="fas fa-tags"></i> edgecomputing</a>
+            </li>
+            
+            <li>
+                <a href="/tags/etcd"><i class="fas fa-tags"></i> etcd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/gorouter"><i class="fas fa-tags"></i> gorouter</a>
+            </li>
+            
+            <li>
+                <a href="/tags/haproxy"><i class="fas fa-tags"></i> haproxy</a>
+            </li>
+            
+            <li>
+                <a href="/tags/healthmanager"><i class="fas fa-tags"></i> healthmanager</a>
+            </li>
+            
+            <li>
+                <a href="/tags/istio"><i class="fas fa-tags"></i> istio</a>
+            </li>
+            
+            <li>
+                <a href="/tags/karmada"><i class="fas fa-tags"></i> karmada</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubeedge"><i class="fas fa-tags"></i> kubeedge</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubelet"><i class="fas fa-tags"></i> kubelet</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubernetes"><i class="fas fa-tags"></i> kubernetes</a>
+            </li>
+            
+            <li>
+                <a href="/tags/libcontainer"><i class="fas fa-tags"></i> libcontainer</a>
+            </li>
+            
+            <li>
+                <a href="/tags/micro-service"><i class="fas fa-tags"></i> micro-service</a>
+            </li>
+            
+            <li>
+                <a href="/tags/namespace"><i class="fas fa-tags"></i> namespace</a>
+            </li>
+            
+            <li>
+                <a href="/tags/nats"><i class="fas fa-tags"></i> nats</a>
+            </li>
+            
+            <li>
+                <a href="/tags/news"><i class="fas fa-tags"></i> news</a>
+            </li>
+            
+            <li>
+                <a href="/tags/openyurt"><i class="fas fa-tags"></i> openyurt</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pipework"><i class="fas fa-tags"></i> pipework</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pouch"><i class="fas fa-tags"></i> pouch</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runc"><i class="fas fa-tags"></i> runc</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runtime"><i class="fas fa-tags"></i> runtime</a>
+            </li>
+            
+            <li>
+                <a href="/tags/security"><i class="fas fa-tags"></i> security</a>
+            </li>
+            
+            <li>
+                <a href="/tags/serverless"><i class="fas fa-tags"></i> serverless</a>
+            </li>
+            
+            <li>
+                <a href="/tags/service-mesh"><i class="fas fa-tags"></i> service-mesh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/syslog_aggregator"><i class="fas fa-tags"></i> syslog_aggregator</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+                        
+
+                    </div>
+                    
+
+                    
+
+                </div>
+                
+
+            </div>
+            
+        </div>
+        
+
+        <footer id="footer">
+    <div class="container">
+
+        
+        <div class="col-md-4 col-sm-6">
+            <h4></h4>
+
+            <p><strong>关于我们：<strong> <p>浙大SEL实验室</p><p>地址：杭州市浙大路38号曹光彪西楼405室</p><p><strong></strong>
+            <a href="/contact" class="btn btn-small btn-template-main" >跳转到关于</a>
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+        <div class="col-md-4 col-sm-6">
+
+             
+            <h4>最新博客</h4>
+            
+
+            <div class="blog-entries">
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/27/overview.png" class="img-responsive" alt="基于KubeEdge的边缘节点分组管理设计与实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">基于KubeEdge的边缘节点分组管理设计与实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/20/karmada-scheduler.png" class="img-responsive" alt="多云环境下的资源调度：karmada scheduler的框架和实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">多云环境下的资源调度：karmada scheduler的框架和实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">
+                          
+                            <img src="/img/blogs/19/karmada-arch.jpg" class="img-responsive" alt="多云环境下的成员集群管理，看看开源项目karmada是如何做到的">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">多云环境下的成员集群管理，看看开源项目karmada是如何做到的</a></h5>
+                    </div>
+                </div>
+                
+            </div>
+
+            <hr class="hidden-md hidden-lg">
+             
+
+        </div>
+        
+
+        
+        <div class="col-md-4 col-sm-6">
+
+          <h4></h4>
+
+            <p><strong>联系我们: 
+                                    <p>团队负责人：丁轶群 yiqunding@zju.edu.cn</p>
+                                    <p>网站维护人：刘佳文 839809484@qq.com</p>                
+    </strong>
+
+            
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+    </div>
+    
+</footer>
+
+
+
+
+
+
+
+<div id="copyright">
+    <div class="container">
+        <div class="col-md-12">
+            
+            <p class="pull-left">Copyright ©️ 2020 SEL Laboratory , ZJ University all rights reserved.</p>
+            
+            <p class="pull-right">
+               <a href="https://bootstrapious.com/p/universal-business-e-commerce-template">Bootstrapious</a>.
+              
+
+               <a href="https://github.com/devcows/hugo-universal-theme">DevCows</a>.
+            </p>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+    </div>
+    
+
+    
+
+
+<script src="/js/jquery.min.js"></script>
+<script src="/js/bootstrap.min.js"></script>
+
+
+
+<script src="/js/jquery.cookie.min.js"></script>
+<script src="/js/jquery.waypoints.min.js"></script>
+<script src="/js/jquery.counterup.min.js"></script>
+<script src="/js/jquery-parallax.js"></script>
+
+
+<script src="/js/front.js"></script>
+
+
+<script src="/js/owl.carousel.min.js"></script>
+
+
+
+  </body>
+</html>

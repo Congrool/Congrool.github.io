@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="robots" content="all,follow">
+  <meta name="googlebot" content="index,follow,snippet,archive">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <title>基于KubeEdge的边缘节点分组管理设计与实现</title>
+  <meta name="author" content="鲍玥&amp;张逸飞" />
+  
+  
+  
+  
+  <meta name="keywords" content="kubeedge">
+  
+  
+  <meta name="description" content="KubeEdge 1.11版本提供了“边缘节点分组管理”新特性，抽象出了跨地域的应用部署模型。该模型将边缘节点按地区划分为节点组，并将应用所需资源打包成一个整体在节点组上进行部署，降低了边缘应用生命周期管理的复杂度，有效减少运维成本。">
+
+  <meta name="generator" content="Hugo 0.68.3" />
+
+  
+  <link href='//fonts.googleapis.com/css?family=Roboto:400,100,100italic,300,300italic,500,700,800' rel='stylesheet' type='text/css'>
+
+  
+  
+  
+  
+  
+
+  <link href="/css/all.css" rel="stylesheet">
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+
+  
+  <link href="/css/animate.css" rel="stylesheet">
+
+  
+  
+    <link href="/css/style.default.css" rel="stylesheet" id="theme-stylesheet">
+  
+
+  
+  <link href="/css/custom.css" rel="stylesheet">
+
+  
+  
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+        <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  
+
+  
+  <link rel="shortcut icon" href="/img/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
+
+  
+  <link href="/css/owl.carousel.css" rel="stylesheet">
+  <link href="/css/owl.theme.css" rel="stylesheet">
+
+  
+  <link rel="alternate" href="https://Congrool.github.io/index.xml" type="application/rss+xml" title="浙大SEL实验室">
+
+  
+  
+  
+  
+  
+  
+  <meta property="og:updated_time" content="2022-08-26T20:09:00Z">
+  
+    
+    
+    <meta property="article:section" content="kubeedge">
+    <meta property="article:tag" content="kubeedge">
+    
+    
+    <meta property="article:published_time" content="2022-08-26T20:09:00Z">
+    <meta property="article:modified_time" content="2022-08-26T20:09:00Z">
+  
+
+  
+  <meta name="twitter:card" content="summary">
+  
+  <meta name="twitter:title" content="基于KubeEdge的边缘节点分组管理设计与实现">
+  
+  <meta name="twitter:description" content="KubeEdge 1.11版本提供了“边缘节点分组管理”新特性，抽象出了跨地域的应用部署模型。该模型将边缘节点按地区划分为节点组，并将应用所需资源打包成一个整体在节点组上进行部署，降低了边缘应用生命周期管理的复杂度，有效减少运维成本。">
+  
+  
+</head>
+
+
+  <body>
+
+    <div id="all">
+
+        <header class="navbar-affixed-top" data-spy="affix" data-offset-top="62">
+    <div class="navbar navbar-default yamm" role="navigation" id="navbar" style="background-color:white;">    
+        <div class="container">
+            <div class="navbar-header">
+                <a class="navbar-brand home" href="/">
+                    <img src="/img/sel.png" alt="基于KubeEdge的边缘节点分组管理设计与实现" class="hidden-xs hidden-sm img-responsive">
+                    
+                    <span class="sr-only">基于KubeEdge的边缘节点分组管理设计与实现 - </span>
+                </a>
+                <div class="navbar-buttons">
+                    <button type="button" class="navbar-toggle btn-template-main" data-toggle="collapse" data-target="#navigation">
+                      <span class="sr-only"></span>
+                        <i class="fas fa-align-justify"></i>
+                    </button>
+                </div>
+            </div>
+            
+
+            <div class="navbar-collapse collapse" id="navigation">
+                <ul class="nav navbar-nav navbar-right">
+                  
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/">主页</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/blog/">博客</a>
+                    
+                  </li>
+
+                  <li class="dropdown">
+                    
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">社区 <span class="caret"></span></a>
+                  <ul class="dropdown-menu">
+                    
+                      <li><a href="https://www.servicemesher.com/">ServiceMesh社区</a></li>
+                    
+                      <li><a href="">kubeedge社区</a></li>
+
+                      <li><a href="http://www.icsoft.zju.edu.cn/index.php">浙江大学智能计算与软件中心</a></li>
+                    
+                  </ul>
+
+                  <li class="dropdown">
+                    
+                    <a href="/archives/">归档</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/contact/">关于</a>
+                    
+                  </li>
+                  
+                </li>
+
+                
+                
+
+                
+                </ul>
+            </div>
+            
+
+            <div class="collapse clearfix" id="search">    
+                <form class="navbar-form" role="search">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search">
+                        <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main"><i class="fas fa-search"></i></button>
+                </span>
+                    </div>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+
+    
+</header>
+
+
+
+
+        <div id="heading-breadcrumbs">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h1>基于KubeEdge的边缘节点分组管理设计与实现</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+        <div id="content">
+            <div class="container">
+
+                <div class="row">
+
+                    
+
+                    <div class="col-md-9" id="blog-post">
+
+                        
+                          <p class="text-muted text-uppercase mb-small text-right">
+                             <a href="#">鲍玥&amp;张逸飞</a>
+                             | 
+                            2022-08-26
+                          </p>
+                        
+
+                        <div id="post-content">
+                          <p>KubeEdge 1.11版本提供了“边缘节点分组管理”新特性，抽象出了跨地域的应用部署模型。该模型将边缘节点按地区划分为节点组，并将应用所需资源打包成一个整体在节点组上进行部署，降低了边缘应用生命周期管理的复杂度，有效减少运维成本。</p>
+
+<h2 id="1-边缘应用跨地域部署面临的挑战">1. 边缘应用跨地域部署面临的挑战</h2>
+
+<figure align="center">
+    <img
+    src="https://res.cloudinary.com/rachel725/image/upload/v1662090171/sel/640_euw291.png" 
+    alt="边缘应用跨地域部署示意图" style="zoom:75%;"/>
+    <figcaption>图1 边缘应用跨地域部署示意图</figcaption>
+</figure>
+
+<p>在边缘计算场景中，边缘节点通常分布在不同的地理区域，这些区域中的节点有着计算资源、网络结构和硬件平台等属性上的差异。如图1所示，边缘节点部署在杭州、北京和上海等地域，各地域边缘节点的规模不同，不同地域网络不互通，以及不同区域镜像仓库也是不同的，如北京的节点无法通过IP直接访问其他区域的节点。因此在部署边缘应用的时候，通常需要为每个这样的地理区域维护一个Deployment，对于资源少的区域减少副本数量，对于局域网中的节点需要把镜像地址改为本地镜像仓库的地址，同样也需要为每个地区管理单独的Service资源，来解决跨地域节点之间的访问问题。然而随着地理区域和应用数量的增长，对应用的管理会变得越来越复杂，运维成本也随之增加。基于以上背景，KubeEdge提供了边缘节点分组管理能力，来解决在跨地域应用部署中运维复杂度的问题。</p>
+
+<h2 id="2-边缘节点分组管理设计与实现">2. 边缘节点分组管理设计与实现</h2>
+
+<figure align="center">
+    <img
+    src="https://res.cloudinary.com/rachel725/image/upload/v1662098569/sel/640_dwtdtv.png" 
+    alt="边缘节点分组整体概览" style="zoom:75%;"/>
+    <figcaption>图2 边缘节点分组整体概览</figcaption>
+</figure>
+
+<p>如图2所示，边缘节点分组特性的整体设计图，主要由节点分组、边缘应用和流量闭环三个部分的内容组成，下面会就以上各个部分详细展开。</p>
+
+<h3 id="2-1-节点分组-nodegroup">2.1 节点分组（NodeGroup）</h3>
+
+<figure align="center">
+    <img
+    src="https://res.cloudinary.com/rachel725/image/upload/v1662098587/sel/640_p5mzkr.png" 
+    alt="节点分组示例" style="zoom:75%;"/>
+    <figcaption>图3 节点分组示例</figcaption>
+</figure>
+
+<p>根据边缘节点的地理分布特点，可以把同一区域的边缘节点分为一组，将边缘节点以节点组的形式组织起来，同一节点同时只能属于一个节点组。节点分组可以通过matchLabels字段，指定节点名或者节点的Label两种方式对节点进行选择。节点被包含到某一分组后，会被添加上apps.kubeedge.io/belonging-to:nodegroup的Label。</p>
+
+<h3 id="2-2-边缘应用-edgeapplication">2.2 边缘应用（EdgeApplication）</h3>
+
+<figure align="center">
+    <img
+    src="https://res.cloudinary.com/rachel725/image/upload/v1662098596/sel/640_r6de7o.png" 
+    alt="边缘应用EdgeApplication的组成" style="zoom:75%;"/>
+    <figcaption>图4 边缘应用EdgeApplication的组成</figcaption>
+</figure>
+
+<p>边缘应用用于将应用资源打包，按照节点组进行部署，并满足不同节点组之间的差异化部署需求。该部分引入了一个新的CRD: EdgeApplication，主要包括两个部分：</p>
+
+<ol>
+<li>Workload Templates。主要包括边缘应用所需要的资源模板，例如Deployment Template、Service Template和ConfigMap Template等；</li>
+<li>WorkloadScopes。主要针对不同节点组的需求，用于资源模板的差异化配置，包括副本数量差异化配置（Replicas Overrider）和镜像差异化配置（Image Overrider），其中Image Overrider包括镜像仓库地址、仓库名称和标签。</li>
+</ol>
+
+<p>对于应用主体，即Deployment，会根据Deployment Template以及差异化配置Overrider生成每组所需的Deployment版本，通过调整nodeSelector将其分别部署到指定分组中。对于应用依赖的其他资源，如ConfigMap和Service，则只会在集群中通过模板创建一个相应的资源。边缘应用会对创建的资源进行生命周期管理，当删除边缘应用时，所有创建的资源都会被删除。</p>
+
+<h3 id="2-3-流量闭环">2.3 流量闭环</h3>
+
+<figure align="center">
+    <img
+    src="https://res.cloudinary.com/rachel725/image/upload/v1662098607/sel/640_kjultw.png" 
+    alt="流量闭环示意图" style="zoom:75%;"/>
+    <figcaption>图5 流量闭环示意图</figcaption>
+</figure>
+
+<p>通过流量闭环的能力，将服务流量限制在同一节点组内，在一个节点组中访问Service时，后端总是在同一个节点组中。当使用EdgeApplication中的Service Template创建Service时，会为Service添上service-topology:range-nodegroup的annotation，KubeEdge云上组件CloudCore会根据该annotation对Endpoint和Endpointslice进行过滤，滤除不在同一节点组内的后端，之后再下发到边缘节点。</p>
+
+<p>此外，在下发集群中默认的Master Service “Kubernetes”所关联的Endpoint和Endpointslice时，会将其维护的IP地址修改为边缘节点MetaServer地址，用户在边缘应用中list/watch集群资源时，可以兼容K8s流量访问方式，实现无缝迁移和对接。</p>
+
+<h2 id="3-实现原理与设计理念">3. 实现原理与设计理念</h2>
+
+<p>在这个部分，我们会分享一下边缘节点分组管理特性的设计理念，并结合KubeEdge整体架构，详细介绍一下我们的实现原理。</p>
+
+<figure align="center">
+    <img
+    src="https://res.cloudinary.com/rachel725/image/upload/v1662098625/sel/640_rk2cbk.png" 
+    alt="设计理念" style="zoom:75%;"/>
+    <figcaption>图6 设计理念</figcaption>
+</figure>
+
+<p>我们希望给用户提供一个统一的运维入口，原本我们需要维护各个地区的Deployment，如果需要进行增删改查操作，我们需要对每个地区的Deployment都执行一遍相同的操作，不仅增加了运维成本，还容易引入人为操作的错误。边缘节点分组管理特性通过引入EdgeApplication CRD，统一了Deployment等资源的运维入口。</p>
+
+<p>另外我们需要提供更大的扩展可能性，在内部实现中，我们统一使用了Unstructured结构，降低与特定资源的耦合度，方便后续添加其他资源。另外为了不干涉原生资源和流程，我们降低与Kubernetes Reconciliation的耦合度，可以保证Deployment等资源操作过程的原生性。</p>
+
+<figure align="center">
+    <img
+    src="https://res.cloudinary.com/rachel725/image/upload/v1662098636/sel/640_bixgqp.png" 
+    alt="节点组和边缘应用实现" style="zoom:75%;"/>
+    <figcaption>图7 节点组和边缘应用实现</figcaption>
+</figure>
+
+<p>在边缘节点分组管理特性中，我们引入了两个CRD，分别是节点组NodeGroup和边缘应用EdgeApplication。在NodeGroup Reconciliation中，NodeGroup Controller用于监听NodeGroup CRD的变化，并对节点的apps.kubeedge.io/belonging-to:nodegroup Label进行增删改等操作，同时，加入节点组的节点，会上报状态到NodeGroup CRD中，我们就可以通过查询NodeGroup直接查看节点组内所有节点的状态。</p>
+
+<p>EdgeApplication Reconciliation与NodeGroup Reconciliation类似，由EdgeApplication Controller来监听EdgeApplication CRD的变化，对相应资源进行增删改等操作，同时对应资源会上报状态到EdgeApplication CRD中。</p>
+
+<figure align="center">
+    <img
+    src="https://res.cloudinary.com/rachel725/image/upload/v1662098653/sel/640_vv8ou3.png" 
+    alt="整体架构" style="zoom:75%;"/>
+    <figcaption>图8 整体架构</figcaption>
+</figure>
+
+<p>如图8所示，是最终的整体架构图。在边缘节点分组管理特性中，我们引入了新的组件ControllerManager，其中包括了刚才我们介绍的NodeGroup Controller和EdgeApplication Controller，在CloudCore中引入了新的模块EndpointSlice Filter，用于实现流量闭环的能力。</p>
+
+<p>图中蓝色区域是前面已经介绍了的节点分组和边缘应用的内容，在这里再重点介绍一下Service Template实现流量闭环能力的过程。首先在EdgeApplication CRD中加入Service的模板，在创建边缘应用时，Service range-nodegroup资源也会随之生成，同时控制面会自动为其创建EndpointSlice。EndpointSlice会通过KubeEdge的云边通道下发到边缘节点，CloudCore中的EndpointSlice Filter会进行过滤，保证下发到同一节点组内的边缘节点，由此可以保证边缘上的客户端访问始终在一个节点组内。</p>
+
+<p>对于用户来说，图8中紫色的线表达了用户需要维护的资源。首先用户需要维护NodeGroup，来管理节点组中的节点；其次，用户需要维护EdgeApplication资源，通过EdgeApplication来实现对各个地域边缘应用的生命周期管理。</p>
+
+<h2 id="4-发展规划">4. 发展规划</h2>
+
+<p>目前KubeEdge社区已经实现了Deployment、Service和ConfigMap等资源的打包以及流量闭环的能力，并且支持资源的部分状态收集；未来将继续拓展边缘节点分组的能力，实现边缘网关，支持StatefulSet等更多资源，逐步完善应用状态收集，并在Kubectl中支持更友好的资源展现形式。欢迎大家能够加入KubeEdge社区，一起完善与增强KubeEdge边缘节点分组等方面的能力。</p>
+
+<p><strong>本文作者：</strong></p>
+
+<p>KubeEdge社区Member：华为云 鲍玥 ; 浙江大学SEL实验室 张逸飞</p>
+                        </div>
+                        
+                        
+                        
+                        
+                        
+                        
+
+                        
+                        <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+                        <script src="https://unpkg.com/gitalk@latest/dist/gitalk.min.js"></script> 
+                        <script type="text/javascript" src="/assets/js/md5.min.js"></script>
+                        <div id="gitalk-container"></div>     
+                        <script type="text/javascript">
+                            var gitalk = new Gitalk({
+                              clientID: '835183d2dcbd1167ac28', 
+                            
+                              clientSecret: 'd873919fac3cc76921ee0800172c2279bc612f8d', 
+                            
+                              repo: 'Sel-Website-talk',
+                              owner: 'Peeknut',
+                              admin: ['Peeknut','Rachel-Shao'],
+                              id: location.href.split("/").pop().substring(0, 49),      
+                              distractionFreeMode: false  
+                            })
+                            gitalk.render('gitalk-container')
+                        </script> 
+                        
+
+                    </div>
+                    
+
+                    
+
+                    
+
+                    <div class="col-md-3">
+
+                        
+
+                        
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+      <h3 class="panel-title">搜索栏</h3>
+      
+    </div>
+
+    <div class="panel-body">
+        
+        <div class="search" id="search">
+            <div class="input-group">
+                <input type="text" name="q" class="form-control" placeholder="请输入文章标题或摘要..." id="search-key">
+                <input type="hidden" name="sitesearch" value="https://Congrool.github.io/">
+                <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main" onclick="search()"><i class="fas fa-search"></i></button>
+                </span>
+            </div>
+            <h1 id="search-tip" style="color: red;text-align: center;display: none;font-size: medium;">搜索中，请稍后 ...</h1>
+        </div>
+        <script type="text/javascript">
+            
+            window.onload = function() {
+                      document.onkeydown = function(ev) {
+                        var event = ev || event
+                        if (event.keyCode == 13) {
+                          search()
+                        }
+                      }
+                    }
+            
+            function search() {
+                    
+                      key = document.getElementById("search-key").value;
+                      if (key === "") {
+                        
+                        return;
+                      }
+                      key = key.toLowerCase();
+                      document.getElementById("search-key").value = "";
+                  
+                      
+                      document.getElementById("search-tip").innerText = "搜索中，请稍后 ...";
+                      document.getElementById("search-tip").style.display = "block";
+                  
+                      
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      var childs = el.childNodes;
+                      for (var i = childs.length - 1; i >= 0; i--) {
+                        el.removeChild(childs[i]);
+                      }
+                  
+                      
+                      xmltext = new XMLHttpRequest;
+                      xmltext.open("GET", "/index.xml", false);
+                      xmltext.send();
+                      resp = xmltext.responseXML;
+                      
+                      items = resp.getElementsByTagName("item");
+                      
+                      var i = 0;
+                      haveResult = false;
+                      while (i < items.length) {
+                        txt = items[i].getElementsByTagName("title")[0].innerHTML + items[i].getElementsByTagName("description")[0].innerHTML
+                        txt = txt.toLowerCase();
+                        if (txt.indexOf(key) > -1) {
+                          haveResult = true;
+                          title = items[i].getElementsByTagName("title")[0].innerHTML;
+                          link = items[i].getElementsByTagName("link")[0].innerHTML;
+                          time = items[i].getElementsByTagName("pubDate")[0].innerHTML;
+                          mark = items[i].getElementsByTagName("description")[0].innerHTML;
+                          time = time.slice(0, -5);
+                          addItem(title, link, time, mark)
+                        }
+                        i++;
+                      }
+                      if (!haveResult) {
+                        document.getElementById("search-tip").innerText = "搜索完毕，未发现结果 ...";
+                        document.getElementById("search-tip").style.display = "block";
+                      }
+
+                      
+                      var el = document.getElementById("blog-head");
+                      el.innerHTML="Blogs"
+                    }
+                  
+                    
+                    function addItem(title, link, time, mark) {
+                      document.getElementById("search-tip").style.display = "none";
+                      tmpl = "<article class=\"post\" style=\"border-bottom: 1px solid #e6e6e6;\" >" +
+                        "<header class=\"post-header\">" +
+                        "<h1 class=\"post-title\"><a class=\"post-link\" href=\"" + link + "\" target=\"_blank\">" + title + "</a></h1>" +
+                        "<div class=\"post-meta\">" +
+                        " <span class=\"post-time\">" + time + "</span>" +
+                        "</div>" +
+                        " </header>" +
+                        "<div class=\"post-content\">" +
+                        "<div class=\"post-summary\">" + mark + "</div>" +
+                        "<div class=\"read-more\">" +
+                        "<a href=" + link + " class=\"read-more-link\" target=\"_blank\">阅读更多</a>" +
+                        "</div>" +
+                        " </div>" +
+                        "</article>"
+                      div = document.createElement("div")
+                      div.innerHTML = tmpl;
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      el.appendChild(div)
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+
+        </script>
+        
+    </div>
+</div>
+
+
+
+
+
+
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">归档栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="nav nav-pills nav-stacked">
+            
+            
+            <li>
+                <a href="/categories/bosh">bosh (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloud_controller_ng">cloud_controller_ng (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloudfoundry">cloudfoundry (15)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/containerd">containerd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/docker">docker (19)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/etcd">etcd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/haproxy">haproxy (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/healthmanager">healthmanager (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/karmada">karmada (4)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubeedge">kubeedge (5)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubernetes">kubernetes (14)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/network">network (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/openyurt">openyurt (2)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/service-mesh">service-mesh (4)</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+<div class="panel sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">标签栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="tag-cloud">
+            
+            
+            <li>
+                <a href="/tags/agent"><i class="fas fa-tags"></i> agent</a>
+            </li>
+            
+            <li>
+                <a href="/tags/apiserver"><i class="fas fa-tags"></i> apiserver</a>
+            </li>
+            
+            <li>
+                <a href="/tags/books"><i class="fas fa-tags"></i> books</a>
+            </li>
+            
+            <li>
+                <a href="/tags/bosh"><i class="fas fa-tags"></i> bosh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/ccng"><i class="fas fa-tags"></i> ccng</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cf-release"><i class="fas fa-tags"></i> cf-release</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cgroups"><i class="fas fa-tags"></i> cgroups</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudfoundry"><i class="fas fa-tags"></i> cloudfoundry</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudnative"><i class="fas fa-tags"></i> cloudnative</a>
+            </li>
+            
+            <li>
+                <a href="/tags/collector"><i class="fas fa-tags"></i> collector</a>
+            </li>
+            
+            <li>
+                <a href="/tags/containerd"><i class="fas fa-tags"></i> containerd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cri"><i class="fas fa-tags"></i> cri</a>
+            </li>
+            
+            <li>
+                <a href="/tags/dea"><i class="fas fa-tags"></i> dea</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker"><i class="fas fa-tags"></i> docker</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker-network"><i class="fas fa-tags"></i> docker-network</a>
+            </li>
+            
+            <li>
+                <a href="/tags/edgecomputing"><i class="fas fa-tags"></i> edgecomputing</a>
+            </li>
+            
+            <li>
+                <a href="/tags/etcd"><i class="fas fa-tags"></i> etcd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/gorouter"><i class="fas fa-tags"></i> gorouter</a>
+            </li>
+            
+            <li>
+                <a href="/tags/haproxy"><i class="fas fa-tags"></i> haproxy</a>
+            </li>
+            
+            <li>
+                <a href="/tags/healthmanager"><i class="fas fa-tags"></i> healthmanager</a>
+            </li>
+            
+            <li>
+                <a href="/tags/istio"><i class="fas fa-tags"></i> istio</a>
+            </li>
+            
+            <li>
+                <a href="/tags/karmada"><i class="fas fa-tags"></i> karmada</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubeedge"><i class="fas fa-tags"></i> kubeedge</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubelet"><i class="fas fa-tags"></i> kubelet</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubernetes"><i class="fas fa-tags"></i> kubernetes</a>
+            </li>
+            
+            <li>
+                <a href="/tags/libcontainer"><i class="fas fa-tags"></i> libcontainer</a>
+            </li>
+            
+            <li>
+                <a href="/tags/micro-service"><i class="fas fa-tags"></i> micro-service</a>
+            </li>
+            
+            <li>
+                <a href="/tags/namespace"><i class="fas fa-tags"></i> namespace</a>
+            </li>
+            
+            <li>
+                <a href="/tags/nats"><i class="fas fa-tags"></i> nats</a>
+            </li>
+            
+            <li>
+                <a href="/tags/news"><i class="fas fa-tags"></i> news</a>
+            </li>
+            
+            <li>
+                <a href="/tags/openyurt"><i class="fas fa-tags"></i> openyurt</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pipework"><i class="fas fa-tags"></i> pipework</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pouch"><i class="fas fa-tags"></i> pouch</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runc"><i class="fas fa-tags"></i> runc</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runtime"><i class="fas fa-tags"></i> runtime</a>
+            </li>
+            
+            <li>
+                <a href="/tags/security"><i class="fas fa-tags"></i> security</a>
+            </li>
+            
+            <li>
+                <a href="/tags/serverless"><i class="fas fa-tags"></i> serverless</a>
+            </li>
+            
+            <li>
+                <a href="/tags/service-mesh"><i class="fas fa-tags"></i> service-mesh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/syslog_aggregator"><i class="fas fa-tags"></i> syslog_aggregator</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+                        
+
+                    </div>
+                    
+
+                    
+
+                </div>
+                
+
+            </div>
+            
+        </div>
+        
+
+        <footer id="footer">
+    <div class="container">
+
+        
+        <div class="col-md-4 col-sm-6">
+            <h4></h4>
+
+            <p><strong>关于我们：<strong> <p>浙大SEL实验室</p><p>地址：杭州市浙大路38号曹光彪西楼405室</p><p><strong></strong>
+            <a href="/contact" class="btn btn-small btn-template-main" >跳转到关于</a>
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+        <div class="col-md-4 col-sm-6">
+
+             
+            <h4>最新博客</h4>
+            
+
+            <div class="blog-entries">
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/27/overview.png" class="img-responsive" alt="基于KubeEdge的边缘节点分组管理设计与实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">基于KubeEdge的边缘节点分组管理设计与实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/20/karmada-scheduler.png" class="img-responsive" alt="多云环境下的资源调度：karmada scheduler的框架和实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">多云环境下的资源调度：karmada scheduler的框架和实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">
+                          
+                            <img src="/img/blogs/19/karmada-arch.jpg" class="img-responsive" alt="多云环境下的成员集群管理，看看开源项目karmada是如何做到的">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">多云环境下的成员集群管理，看看开源项目karmada是如何做到的</a></h5>
+                    </div>
+                </div>
+                
+            </div>
+
+            <hr class="hidden-md hidden-lg">
+             
+
+        </div>
+        
+
+        
+        <div class="col-md-4 col-sm-6">
+
+          <h4></h4>
+
+            <p><strong>联系我们: 
+                                    <p>团队负责人：丁轶群 yiqunding@zju.edu.cn</p>
+                                    <p>网站维护人：刘佳文 839809484@qq.com</p>                
+    </strong>
+
+            
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+    </div>
+    
+</footer>
+
+
+
+
+
+
+
+<div id="copyright">
+    <div class="container">
+        <div class="col-md-12">
+            
+            <p class="pull-left">Copyright ©️ 2020 SEL Laboratory , ZJ University all rights reserved.</p>
+            
+            <p class="pull-right">
+               <a href="https://bootstrapious.com/p/universal-business-e-commerce-template">Bootstrapious</a>.
+              
+
+               <a href="https://github.com/devcows/hugo-universal-theme">DevCows</a>.
+            </p>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+    </div>
+    
+
+    
+
+
+<script src="/js/jquery.min.js"></script>
+<script src="/js/bootstrap.min.js"></script>
+
+
+
+<script src="/js/jquery.cookie.min.js"></script>
+<script src="/js/jquery.waypoints.min.js"></script>
+<script src="/js/jquery.counterup.min.js"></script>
+<script src="/js/jquery-parallax.js"></script>
+
+
+<script src="/js/front.js"></script>
+
+
+<script src="/js/owl.carousel.min.js"></script>
+
+
+
+  </body>
+</html>

@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="robots" content="all,follow">
+  <meta name="googlebot" content="index,follow,snippet,archive">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <title>Cloud Foundry中warden的架构与实现</title>
+  <meta name="author" content="孙宏亮" />
+  
+  
+  
+  
+  <meta name="keywords" content="dea, cloudfoundry">
+  
+  
+  <meta name="description" content="在Cloud Foundry中，当应用开发者的应用由Cloud Foundry的组件DEA来运行时，应用的资源隔离与控制显得尤为重要，而warden的存在很好得解决了这个问题。 Cloud Foundry中warden项目的首要目的是提供一套简易的接口来管理隔离的环境，这些隔离的环境可以被称为“容器”，他们可以在CPU使用，内存使用，磁盘使用以及设备访问权限方面做相应的限制。">
+
+  <meta name="generator" content="Hugo 0.68.3" />
+
+  
+  <link href='//fonts.googleapis.com/css?family=Roboto:400,100,100italic,300,300italic,500,700,800' rel='stylesheet' type='text/css'>
+
+  
+  
+  
+  
+  
+
+  <link href="/css/all.css" rel="stylesheet">
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+
+  
+  <link href="/css/animate.css" rel="stylesheet">
+
+  
+  
+    <link href="/css/style.default.css" rel="stylesheet" id="theme-stylesheet">
+  
+
+  
+  <link href="/css/custom.css" rel="stylesheet">
+
+  
+  
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+        <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  
+
+  
+  <link rel="shortcut icon" href="/img/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
+
+  
+  <link href="/css/owl.carousel.css" rel="stylesheet">
+  <link href="/css/owl.theme.css" rel="stylesheet">
+
+  
+  <link rel="alternate" href="https://Congrool.github.io/index.xml" type="application/rss+xml" title="浙大SEL实验室">
+
+  
+  
+  
+  
+  
+  
+  <meta property="og:updated_time" content="2014-12-02T17:19:09Z">
+  
+    
+    
+    <meta property="article:section" content="cloudfoundry">
+    <meta property="article:tag" content="dea">
+    <meta property="article:tag" content="cloudfoundry">
+    
+    
+    <meta property="article:published_time" content="2014-12-02T17:19:09Z">
+    <meta property="article:modified_time" content="2014-12-02T17:19:09Z">
+  
+
+  
+  <meta name="twitter:card" content="summary">
+  
+  <meta name="twitter:title" content="Cloud Foundry中warden的架构与实现">
+  
+  <meta name="twitter:description" content="在Cloud Foundry中，当应用开发者的应用由Cloud Foundry的组件DEA来运行时，应用的资源隔离与控制显得尤为重要，而warden的存在很好得解决了这个问题。 Cloud Foundry中warden项目的首要目的是提供一套简易的接口来管理隔离的环境，这些隔离的环境可以被称为“容器”，他们可以在CPU使用，内存使用，磁盘使用以及设备访问权限方面做相应的限制。">
+  
+  
+</head>
+
+
+  <body>
+
+    <div id="all">
+
+        <header class="navbar-affixed-top" data-spy="affix" data-offset-top="62">
+    <div class="navbar navbar-default yamm" role="navigation" id="navbar" style="background-color:white;">    
+        <div class="container">
+            <div class="navbar-header">
+                <a class="navbar-brand home" href="/">
+                    <img src="/img/sel.png" alt="Cloud Foundry中warden的架构与实现" class="hidden-xs hidden-sm img-responsive">
+                    
+                    <span class="sr-only">Cloud Foundry中warden的架构与实现 - </span>
+                </a>
+                <div class="navbar-buttons">
+                    <button type="button" class="navbar-toggle btn-template-main" data-toggle="collapse" data-target="#navigation">
+                      <span class="sr-only"></span>
+                        <i class="fas fa-align-justify"></i>
+                    </button>
+                </div>
+            </div>
+            
+
+            <div class="navbar-collapse collapse" id="navigation">
+                <ul class="nav navbar-nav navbar-right">
+                  
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/">主页</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/blog/">博客</a>
+                    
+                  </li>
+
+                  <li class="dropdown">
+                    
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">社区 <span class="caret"></span></a>
+                  <ul class="dropdown-menu">
+                    
+                      <li><a href="https://www.servicemesher.com/">ServiceMesh社区</a></li>
+                    
+                      <li><a href="">kubeedge社区</a></li>
+
+                      <li><a href="http://www.icsoft.zju.edu.cn/index.php">浙江大学智能计算与软件中心</a></li>
+                    
+                  </ul>
+
+                  <li class="dropdown">
+                    
+                    <a href="/archives/">归档</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/contact/">关于</a>
+                    
+                  </li>
+                  
+                </li>
+
+                
+                
+
+                
+                </ul>
+            </div>
+            
+
+            <div class="collapse clearfix" id="search">    
+                <form class="navbar-form" role="search">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search">
+                        <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main"><i class="fas fa-search"></i></button>
+                </span>
+                    </div>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+
+    
+</header>
+
+
+
+
+        <div id="heading-breadcrumbs">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h1>Cloud Foundry中warden的架构与实现</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+        <div id="content">
+            <div class="container">
+
+                <div class="row">
+
+                    
+
+                    <div class="col-md-9" id="blog-post">
+
+                        
+                          <p class="text-muted text-uppercase mb-small text-right">
+                             <a href="#">孙宏亮</a>
+                             | 
+                            2014-12-02
+                          </p>
+                        
+
+                        <div id="post-content">
+                          <p>在Cloud Foundry中，当应用开发者的应用由Cloud Foundry的组件DEA来运行时，应用的资源隔离与控制显得尤为重要，而warden的存在很好得解决了这个问题。</p>
+
+<p>Cloud Foundry中warden项目的首要目的是提供一套简易的接口来管理隔离的环境，这些隔离的环境可以被称为“容器”，他们可以在CPU使用，内存使用，磁盘使用以及设备访问权限方面做相应的限制。</p>
+
+<p>本文将从四个方面进行探讨分析warden的实现：</p>
+
+<ol>
+<li>warden的功能介绍及框架实现</li>
+<li>warden框架的对外接口及实现</li>
+<li>warden框架的内部模块及实现</li>
+<li>warden的运行示例</li>
+</ol>
+
+<h2 id="warden的功能介绍及框架实现"><strong>warden的功能介绍及框架实现</strong></h2>
+
+<h3 id="warden功能介绍"><strong>warden功能介绍</strong></h3>
+
+<p>由于Cloud Foundry v1中DEA组件运行应用程序时，自身设计存在一定的缺陷，即同一个DEA上运行的应用不能很好的实现运行过程中资源的隔离与限制，故在Cloud Foundry v2中引入了warden这一模块。 warden专门接收DEA组件发送的关于应用的管理请求，在处理这部分管理请求时，借助轻量级虚拟化技术，将宿主机操作系统进行虚拟化，在容器内部执行请求的具体内容。warden的具体使用效果为应用程序之间互不感知，资源间完成隔离，各自的资源使用存在上限。假设Cloud Foundry不存在应用程序资源的隔离与限制机制，则在同一个DEA上运行的多个应用程序，在负载增加的时候，会出现竭力竞争资源的情况，当资源消耗殆尽时，大大降低应用程序的可用性与安全性。 在资源隔离与限制方面，warden主要提供3个维度的用户自定义隔离与限制：内存、磁盘、网络带宽；另外warden还提供以下维度的资源隔离与限制，但仅提供默认值，不提供用户自定义设置：CPU、CPUACCT、Devices。 同时，warden作为一个虚拟化容器，还提供众多的API命令，供用户完成对warden container的管理。主要的命令如下：copy in、copy out、create、destroy、echo、error 、info、limit_bandwidth、limit_disk、limit_memory、limit_cpu、link 、list、message、net in、net out、ping、run、spawn、stop和stream等 。这些命令的功能介绍可以简单参见：<a href="https://docs.google.com/document/d/1DDBJlLJ7rrsM1J54MBldgQhrJdPS_xpc9zPdtuqHCTI/edit?pli=1#">James Bayer对于warden与docker的比较文档</a>。</p>
+
+<h3 id="warden框架实现"><strong>warden框架实现</strong></h3>
+
+<p>在涉及warden框架的具体实现时，需要先申明和warden相关的多个概念：</p>
+
+<ul>
+<li>warden：在Cloud Foundry中实现应用资源隔离与控制的框架，其中包括，warden_client、warden_server、warden_protocol和warden container；</li>
+<li>warden server：warden框架中server端的实现，主要负责接收client端请求，以及请求的处理执行；</li>
+<li>warden client：warden框架中client端的实现，被Cloud Foundry中被dea_ng组件调用，实现给warden_server发送具体请求；</li>
+<li>warden protocol：warden框架中定义warden_client与warden_server通信时的消息请求协议；</li>
+<li>warden container：warden框架中管理与运行应用程序的容器，资源的隔离与限制以容器为单位。</li>
+</ul>
+
+<p>warden框架的实现为典型的C/S架构，如下图：</p>
+
+<p><center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605616362/sel/CF-waden-1_a4liwi.jpg" alt="CF-waden-1" style="zoom:90%;" />
+</center></p>
+
+<h2 id="warden框架的对外接口及实现"><strong>warden框架的对外接口及实现</strong></h2>
+
+<p>虽然warden模块是Cloud Foundry中不可或缺的一部分，但是如果不借助Cloud Foundry的话，warden依然可以用来管理warden container，并在container内部运行应用程序等。 若warden运行在Cloud Foundry内部，则dea_ng组件内嵌warden_client，并以warden_client与warden_server建立通信，分发应用的管理请求；若warden单独存在，则可以通过warden的REPL（Read-Eval-Print Loop）命令行工具瑞与warden_server进行通信，用户通过命令行发起container的管理请求。本章将以以上两个方式阐述warden框架的对外接口及实现。</p>
+
+<h3 id="warden与dea-ng通信"><strong>warden与dea_ng通信</strong></h3>
+
+<p>warden在Cloud Foundry中的使用，几乎完全是和dea_ng一起捆绑使用。在部署dea_ng时，不论Cloud Foundry集群中安装了多个dea_ng组件，每个dea_ng组件所在的节点上都会安装一个warden，由此可见warden与dea_ng的存在为一一对应关系。 以下是warden与dea_ng的交互示意图：
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605616362/sel/CF-waden-2_awtv1e.jpg" alt="CF-waden-2" style="zoom:100%;" />
+</center></p>
+
+<p>由以上示意图可知，从dea_ng接受请求，分发container请求，主要分为以下几个步骤：</p>
+
+<ol>
+<li>dea_ng通过消息中间件NATS获取app的管理请求；</li>
+<li>dea_ng根据请求类型，并通过Warden::Protocol协议创建出相对应的container请求；</li>
+<li>dea_ng通过已经和warden_server建立连接的waren_client发送container请求。</li>
+</ol>
+
+<h3 id="warden与repl命令行交互"><strong>warden与REPL命令行交互</strong></h3>
+
+<p>warden也可以单独安装在某个机器上，当需要管理warden时，可以通过REPL命令行的方式，启动一个进程，创建warden_client，并负责接收用户在命令行输入的warden container管理命令，然后通过warden_client给warden_server发送请求。 从上可知，REPL和dea_ng与warden的通信方式几乎相同，区别仅仅在两者的使用方式。以下是warden与repl命令行交互的示意图：
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605616362/sel/CF-waden-3_xkj0dp.jpg" alt="CF-waden-3" style="zoom:100%;" />
+</center></p>
+
+<h2 id="warden框架的内部模块及实现"><strong>warden框架的内部模块及实现</strong></h2>
+
+<p>上文已经提及warden框架为C/S架构，抽象而言，它的运行包括：1.通过warden_client给warden_server发送container request；2.由warden_server接收请求并处理；3.warden_server针对warden container执行请求。 以下是warden框架的简单示意图：
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605616364/sel/CF-waden-5_ve7me0.jpg" alt="CF-waden-4" style="zoom:50%;" />
+</center></p>
+
+<h3 id="warden-server的框架实现"><strong>warden_server的框架实现</strong></h3>
+
+<p>warden_server的主要功能为接收warden_client的请求，并分发处理。warden_server的具体实现为，通过EventMachine启动一个server，并监听本地的一个unix domain socket文件，最终将所有接收到的请求转发给ClientConnection句柄来处理。ClientConnection首先从监听的sock文件中读取数据，然后从读出的数据中读取请求，随后辨别请求的类型，最后通过请求的类型，执行相应的操作。如果请求针对某一个具体的warden container，则需要从container注册过的registry中先找出相应的warden container，随后对该warden container执行相应的shell 脚本。 warden_server在disptach请求的时候，主要是完成对请求的分发。请求类型主要可以分为两类，一类为针对容器内部的具体操作，比如针对创建warden container请求执行新建container操作，对指定container执行运行某任务的操作，对指定container执行销毁操作等：；另一类为容器信息的获取，比如对warden container的ping操作，获取所有的container hanles信息，对warden执行echo命令等。以下阐述warden_server的请求类型。</p>
+
+<h3 id="warden-container的实现"><strong>warden container的实现</strong></h3>
+
+<p>warden_server主要负责管理warden container的管理，包括创建，设置，销毁等。当warden container创建完毕并且设置完毕后，由warden container负责自身的运行。运行在warden container内部的应用程序，由于warden container提供资源隔离和控制的环境，从而实现应用程序的资源隔离与限制。 warden的资源隔离与限制是整个Cloud Foundry的核心，其中warden container的资源隔离与限制主要通过Linux内核的cgroup机制，quota以及tc（traffic controller）来实现。 这一部分将从warden container的文件结构、生命周期，网络配置入手，阐述warden container的部分实现。</p>
+
+<h3 id="warden-container的文件结构"><strong>warden container的文件结构</strong></h3>
+
+<p>warden container可以认为是一个简易版的操作系统，故也存在自己内部的文件目录，刚创建完毕的时候，其内部的文件结构主要有以下6个文件夹：/bin、/etc、/jobs、/lib、/run、/tmp、/mnt。 其中/bin文件下主要是一些可执行文件，比如：wshd，wsh，iomux-spawn，iomux-link等，该部分可执行文件的用途，下文或以后会进行阐述。 /etc则是存放与主机相关的文件和目录。这些文件包括系统的配置文件，包括系统的主机名，网络设置参数等。 /jobs存放从warden container外部传输进来的job信息。 /libs存放系统重要的库文件等。 /run存放容器内运行的任务。 /tmp主要存放一些临时文件，该文件下主要有一个rootfs文件夹，rootfs文件夹下有一个精简的系统。 /mnt主要用于mount文件目录，并存放容器创建时添加的设备文件。</p>
+
+<h3 id="warden-container的生命周期"><strong>warden container的生命周期</strong></h3>
+
+<p>warden container的生命周期主要包括，创建、使用、删除这三个流程，其中在使用过程中会涉及众多有关warden container的具体操作。 首先是warden container的创建。warden server 收到创建warden container的请求之后，通过执行脚本来实现创建容器。这部分脚本的作用可以概括为以下几部分：初始化文件系统、配置容器属性、配置容器网络以及运行warden container中最重要的守护进程wshd。在创建完warden container之后，关于每一个warden container，都会生成一个container的handle，便于container的记录。 随后是warden container的使用。warden container的使用包括两种情况，一种情况是用户请求通过warden_client,然后经过warden_server进行管理，比如用户对warden container进行配置资源限制，用户给warden container内部传输文件等；另一种情况是当warden container内部运行着web应用时，warden container外部用户通过应用提供的服务访问内部应用。在第一种情况中，都是通过warden container 内部的washd进程fork出shell进程，而用户命令通过wsh传输给wshd，wshd又将命令交由shell执行。 在warden container的生命周期中还包括其自身的删除。删除过程中，首先让wshd给container内部所有进程发送一个pkill -TERM请求，并等待进程的结束，若没有结束，则直接杀死进程，随后wshd进程退出，并清除container文件目录。</p>
+
+<h3 id="warden-container的网络配置"><strong>warden container的网络配置</strong></h3>
+
+<p>warden container的网络配置如下图：
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605616363/sel/CF-waden-4_ektifo.jpg" alt="CF-waden-5" style="zoom:80%;" />
+</center></p>
+
+<p>首先，warden为每一个容器创建一个虚拟网卡，并通过warden的宿主机作端口映射。如宿主机对于本地指定端口上的请求，通过DNAT转发至指定warden container内部。当warden container对外发送请求时，通过自身的虚拟网卡对外发送请求，发送至宿主机另外虚拟出的虚拟网卡上，并将该虚拟网卡作为container的网关，进行请求处理，最终通过宿主机发送至外网。 以上便是warden架构的简要介绍。 转载请注明出处。 这篇文档更多出于我本人的理解，肯定在一些地方存在不足和错误。希望本文能够对接触Cloud Foundry v2中warden模块的人有些帮助，如果你对这方面感兴趣，并有更好的想法和建议，也请联系我。</p>
+                        </div>
+                        
+                        
+                        
+                        
+                        
+                        
+
+                        
+                        <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+                        <script src="https://unpkg.com/gitalk@latest/dist/gitalk.min.js"></script> 
+                        <script type="text/javascript" src="/assets/js/md5.min.js"></script>
+                        <div id="gitalk-container"></div>     
+                        <script type="text/javascript">
+                            var gitalk = new Gitalk({
+                              clientID: '835183d2dcbd1167ac28', 
+                            
+                              clientSecret: 'd873919fac3cc76921ee0800172c2279bc612f8d', 
+                            
+                              repo: 'Sel-Website-talk',
+                              owner: 'Peeknut',
+                              admin: ['Peeknut','Rachel-Shao'],
+                              id: location.href.split("/").pop().substring(0, 49),      
+                              distractionFreeMode: false  
+                            })
+                            gitalk.render('gitalk-container')
+                        </script> 
+                        
+
+                    </div>
+                    
+
+                    
+
+                    
+
+                    <div class="col-md-3">
+
+                        
+
+                        
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+      <h3 class="panel-title">搜索栏</h3>
+      
+    </div>
+
+    <div class="panel-body">
+        
+        <div class="search" id="search">
+            <div class="input-group">
+                <input type="text" name="q" class="form-control" placeholder="请输入文章标题或摘要..." id="search-key">
+                <input type="hidden" name="sitesearch" value="https://Congrool.github.io/">
+                <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main" onclick="search()"><i class="fas fa-search"></i></button>
+                </span>
+            </div>
+            <h1 id="search-tip" style="color: red;text-align: center;display: none;font-size: medium;">搜索中，请稍后 ...</h1>
+        </div>
+        <script type="text/javascript">
+            
+            window.onload = function() {
+                      document.onkeydown = function(ev) {
+                        var event = ev || event
+                        if (event.keyCode == 13) {
+                          search()
+                        }
+                      }
+                    }
+            
+            function search() {
+                    
+                      key = document.getElementById("search-key").value;
+                      if (key === "") {
+                        
+                        return;
+                      }
+                      key = key.toLowerCase();
+                      document.getElementById("search-key").value = "";
+                  
+                      
+                      document.getElementById("search-tip").innerText = "搜索中，请稍后 ...";
+                      document.getElementById("search-tip").style.display = "block";
+                  
+                      
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      var childs = el.childNodes;
+                      for (var i = childs.length - 1; i >= 0; i--) {
+                        el.removeChild(childs[i]);
+                      }
+                  
+                      
+                      xmltext = new XMLHttpRequest;
+                      xmltext.open("GET", "/index.xml", false);
+                      xmltext.send();
+                      resp = xmltext.responseXML;
+                      
+                      items = resp.getElementsByTagName("item");
+                      
+                      var i = 0;
+                      haveResult = false;
+                      while (i < items.length) {
+                        txt = items[i].getElementsByTagName("title")[0].innerHTML + items[i].getElementsByTagName("description")[0].innerHTML
+                        txt = txt.toLowerCase();
+                        if (txt.indexOf(key) > -1) {
+                          haveResult = true;
+                          title = items[i].getElementsByTagName("title")[0].innerHTML;
+                          link = items[i].getElementsByTagName("link")[0].innerHTML;
+                          time = items[i].getElementsByTagName("pubDate")[0].innerHTML;
+                          mark = items[i].getElementsByTagName("description")[0].innerHTML;
+                          time = time.slice(0, -5);
+                          addItem(title, link, time, mark)
+                        }
+                        i++;
+                      }
+                      if (!haveResult) {
+                        document.getElementById("search-tip").innerText = "搜索完毕，未发现结果 ...";
+                        document.getElementById("search-tip").style.display = "block";
+                      }
+
+                      
+                      var el = document.getElementById("blog-head");
+                      el.innerHTML="Blogs"
+                    }
+                  
+                    
+                    function addItem(title, link, time, mark) {
+                      document.getElementById("search-tip").style.display = "none";
+                      tmpl = "<article class=\"post\" style=\"border-bottom: 1px solid #e6e6e6;\" >" +
+                        "<header class=\"post-header\">" +
+                        "<h1 class=\"post-title\"><a class=\"post-link\" href=\"" + link + "\" target=\"_blank\">" + title + "</a></h1>" +
+                        "<div class=\"post-meta\">" +
+                        " <span class=\"post-time\">" + time + "</span>" +
+                        "</div>" +
+                        " </header>" +
+                        "<div class=\"post-content\">" +
+                        "<div class=\"post-summary\">" + mark + "</div>" +
+                        "<div class=\"read-more\">" +
+                        "<a href=" + link + " class=\"read-more-link\" target=\"_blank\">阅读更多</a>" +
+                        "</div>" +
+                        " </div>" +
+                        "</article>"
+                      div = document.createElement("div")
+                      div.innerHTML = tmpl;
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      el.appendChild(div)
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+
+        </script>
+        
+    </div>
+</div>
+
+
+
+
+
+
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">归档栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="nav nav-pills nav-stacked">
+            
+            
+            <li>
+                <a href="/categories/bosh">bosh (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloud_controller_ng">cloud_controller_ng (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloudfoundry">cloudfoundry (15)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/containerd">containerd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/docker">docker (19)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/etcd">etcd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/haproxy">haproxy (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/healthmanager">healthmanager (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/karmada">karmada (4)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubeedge">kubeedge (5)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubernetes">kubernetes (14)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/network">network (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/openyurt">openyurt (2)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/service-mesh">service-mesh (4)</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+<div class="panel sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">标签栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="tag-cloud">
+            
+            
+            <li>
+                <a href="/tags/agent"><i class="fas fa-tags"></i> agent</a>
+            </li>
+            
+            <li>
+                <a href="/tags/apiserver"><i class="fas fa-tags"></i> apiserver</a>
+            </li>
+            
+            <li>
+                <a href="/tags/books"><i class="fas fa-tags"></i> books</a>
+            </li>
+            
+            <li>
+                <a href="/tags/bosh"><i class="fas fa-tags"></i> bosh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/ccng"><i class="fas fa-tags"></i> ccng</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cf-release"><i class="fas fa-tags"></i> cf-release</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cgroups"><i class="fas fa-tags"></i> cgroups</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudfoundry"><i class="fas fa-tags"></i> cloudfoundry</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudnative"><i class="fas fa-tags"></i> cloudnative</a>
+            </li>
+            
+            <li>
+                <a href="/tags/collector"><i class="fas fa-tags"></i> collector</a>
+            </li>
+            
+            <li>
+                <a href="/tags/containerd"><i class="fas fa-tags"></i> containerd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cri"><i class="fas fa-tags"></i> cri</a>
+            </li>
+            
+            <li>
+                <a href="/tags/dea"><i class="fas fa-tags"></i> dea</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker"><i class="fas fa-tags"></i> docker</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker-network"><i class="fas fa-tags"></i> docker-network</a>
+            </li>
+            
+            <li>
+                <a href="/tags/edgecomputing"><i class="fas fa-tags"></i> edgecomputing</a>
+            </li>
+            
+            <li>
+                <a href="/tags/etcd"><i class="fas fa-tags"></i> etcd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/gorouter"><i class="fas fa-tags"></i> gorouter</a>
+            </li>
+            
+            <li>
+                <a href="/tags/haproxy"><i class="fas fa-tags"></i> haproxy</a>
+            </li>
+            
+            <li>
+                <a href="/tags/healthmanager"><i class="fas fa-tags"></i> healthmanager</a>
+            </li>
+            
+            <li>
+                <a href="/tags/istio"><i class="fas fa-tags"></i> istio</a>
+            </li>
+            
+            <li>
+                <a href="/tags/karmada"><i class="fas fa-tags"></i> karmada</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubeedge"><i class="fas fa-tags"></i> kubeedge</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubelet"><i class="fas fa-tags"></i> kubelet</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubernetes"><i class="fas fa-tags"></i> kubernetes</a>
+            </li>
+            
+            <li>
+                <a href="/tags/libcontainer"><i class="fas fa-tags"></i> libcontainer</a>
+            </li>
+            
+            <li>
+                <a href="/tags/micro-service"><i class="fas fa-tags"></i> micro-service</a>
+            </li>
+            
+            <li>
+                <a href="/tags/namespace"><i class="fas fa-tags"></i> namespace</a>
+            </li>
+            
+            <li>
+                <a href="/tags/nats"><i class="fas fa-tags"></i> nats</a>
+            </li>
+            
+            <li>
+                <a href="/tags/news"><i class="fas fa-tags"></i> news</a>
+            </li>
+            
+            <li>
+                <a href="/tags/openyurt"><i class="fas fa-tags"></i> openyurt</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pipework"><i class="fas fa-tags"></i> pipework</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pouch"><i class="fas fa-tags"></i> pouch</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runc"><i class="fas fa-tags"></i> runc</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runtime"><i class="fas fa-tags"></i> runtime</a>
+            </li>
+            
+            <li>
+                <a href="/tags/security"><i class="fas fa-tags"></i> security</a>
+            </li>
+            
+            <li>
+                <a href="/tags/serverless"><i class="fas fa-tags"></i> serverless</a>
+            </li>
+            
+            <li>
+                <a href="/tags/service-mesh"><i class="fas fa-tags"></i> service-mesh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/syslog_aggregator"><i class="fas fa-tags"></i> syslog_aggregator</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+                        
+
+                    </div>
+                    
+
+                    
+
+                </div>
+                
+
+            </div>
+            
+        </div>
+        
+
+        <footer id="footer">
+    <div class="container">
+
+        
+        <div class="col-md-4 col-sm-6">
+            <h4></h4>
+
+            <p><strong>关于我们：<strong> <p>浙大SEL实验室</p><p>地址：杭州市浙大路38号曹光彪西楼405室</p><p><strong></strong>
+            <a href="/contact" class="btn btn-small btn-template-main" >跳转到关于</a>
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+        <div class="col-md-4 col-sm-6">
+
+             
+            <h4>最新博客</h4>
+            
+
+            <div class="blog-entries">
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/27/overview.png" class="img-responsive" alt="基于KubeEdge的边缘节点分组管理设计与实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">基于KubeEdge的边缘节点分组管理设计与实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/20/karmada-scheduler.png" class="img-responsive" alt="多云环境下的资源调度：karmada scheduler的框架和实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">多云环境下的资源调度：karmada scheduler的框架和实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">
+                          
+                            <img src="/img/blogs/19/karmada-arch.jpg" class="img-responsive" alt="多云环境下的成员集群管理，看看开源项目karmada是如何做到的">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">多云环境下的成员集群管理，看看开源项目karmada是如何做到的</a></h5>
+                    </div>
+                </div>
+                
+            </div>
+
+            <hr class="hidden-md hidden-lg">
+             
+
+        </div>
+        
+
+        
+        <div class="col-md-4 col-sm-6">
+
+          <h4></h4>
+
+            <p><strong>联系我们: 
+                                    <p>团队负责人：丁轶群 yiqunding@zju.edu.cn</p>
+                                    <p>网站维护人：刘佳文 839809484@qq.com</p>                
+    </strong>
+
+            
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+    </div>
+    
+</footer>
+
+
+
+
+
+
+
+<div id="copyright">
+    <div class="container">
+        <div class="col-md-12">
+            
+            <p class="pull-left">Copyright ©️ 2020 SEL Laboratory , ZJ University all rights reserved.</p>
+            
+            <p class="pull-right">
+               <a href="https://bootstrapious.com/p/universal-business-e-commerce-template">Bootstrapious</a>.
+              
+
+               <a href="https://github.com/devcows/hugo-universal-theme">DevCows</a>.
+            </p>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+    </div>
+    
+
+    
+
+
+<script src="/js/jquery.min.js"></script>
+<script src="/js/bootstrap.min.js"></script>
+
+
+
+<script src="/js/jquery.cookie.min.js"></script>
+<script src="/js/jquery.waypoints.min.js"></script>
+<script src="/js/jquery.counterup.min.js"></script>
+<script src="/js/jquery-parallax.js"></script>
+
+
+<script src="/js/front.js"></script>
+
+
+<script src="/js/owl.carousel.min.js"></script>
+
+
+
+  </body>
+</html>

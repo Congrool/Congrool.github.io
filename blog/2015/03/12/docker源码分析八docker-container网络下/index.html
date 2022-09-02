@@ -1,0 +1,1444 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="robots" content="all,follow">
+  <meta name="googlebot" content="index,follow,snippet,archive">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <title>Docker源码分析（八）：Docker Container网络（下）</title>
+  <meta name="author" content="孙宏亮" />
+  
+  
+  
+  
+  <meta name="keywords" content="Docker">
+  
+  
+  <meta name="description" content="如何使用Docker Container的网络，一直是工业界倍加关心的问题。本文将从Linux内核原理的角度阐述了什么是Docker Container，并对Docker Container 4种不同的网络模式进行了初步的介绍，最终贯穿Docker 架构中的多个模块，如Docker Client、Docker Daemon、execdriver以及libcontainer，深入分析Docker Container网络的实现步骤。">
+
+  <meta name="generator" content="Hugo 0.68.3" />
+
+  
+  <link href='//fonts.googleapis.com/css?family=Roboto:400,100,100italic,300,300italic,500,700,800' rel='stylesheet' type='text/css'>
+
+  
+  
+  
+  
+  
+
+  <link href="/css/all.css" rel="stylesheet">
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+
+  
+  <link href="/css/animate.css" rel="stylesheet">
+
+  
+  
+    <link href="/css/style.default.css" rel="stylesheet" id="theme-stylesheet">
+  
+
+  
+  <link href="/css/custom.css" rel="stylesheet">
+
+  
+  
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+        <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  
+
+  
+  <link rel="shortcut icon" href="/img/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
+
+  
+  <link href="/css/owl.carousel.css" rel="stylesheet">
+  <link href="/css/owl.theme.css" rel="stylesheet">
+
+  
+  <link rel="alternate" href="https://Congrool.github.io/index.xml" type="application/rss+xml" title="浙大SEL实验室">
+
+  
+  
+  
+  
+  
+  
+  <meta property="og:updated_time" content="2015-03-12T20:03:21Z">
+  
+    
+    
+    <meta property="article:section" content="Docker">
+    <meta property="article:tag" content="Docker">
+    
+    
+    <meta property="article:published_time" content="2015-03-12T20:03:21Z">
+    <meta property="article:modified_time" content="2015-03-12T20:03:21Z">
+  
+
+  
+  <meta name="twitter:card" content="summary">
+  
+  <meta name="twitter:title" content="Docker源码分析（八）：Docker Container网络（下）">
+  
+  <meta name="twitter:description" content="如何使用Docker Container的网络，一直是工业界倍加关心的问题。本文将从Linux内核原理的角度阐述了什么是Docker Container，并对Docker Container 4种不同的网络模式进行了初步的介绍，最终贯穿Docker 架构中的多个模块，如Docker Client、Docker Daemon、execdriver以及libcontainer，深入分析Docker …">
+  
+  
+</head>
+
+
+  <body>
+
+    <div id="all">
+
+        <header class="navbar-affixed-top" data-spy="affix" data-offset-top="62">
+    <div class="navbar navbar-default yamm" role="navigation" id="navbar" style="background-color:white;">    
+        <div class="container">
+            <div class="navbar-header">
+                <a class="navbar-brand home" href="/">
+                    <img src="/img/sel.png" alt="Docker源码分析（八）：Docker Container网络（下）" class="hidden-xs hidden-sm img-responsive">
+                    
+                    <span class="sr-only">Docker源码分析（八）：Docker Container网络（下） - </span>
+                </a>
+                <div class="navbar-buttons">
+                    <button type="button" class="navbar-toggle btn-template-main" data-toggle="collapse" data-target="#navigation">
+                      <span class="sr-only"></span>
+                        <i class="fas fa-align-justify"></i>
+                    </button>
+                </div>
+            </div>
+            
+
+            <div class="navbar-collapse collapse" id="navigation">
+                <ul class="nav navbar-nav navbar-right">
+                  
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/">主页</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/blog/">博客</a>
+                    
+                  </li>
+
+                  <li class="dropdown">
+                    
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">社区 <span class="caret"></span></a>
+                  <ul class="dropdown-menu">
+                    
+                      <li><a href="https://www.servicemesher.com/">ServiceMesh社区</a></li>
+                    
+                      <li><a href="">kubeedge社区</a></li>
+
+                      <li><a href="http://www.icsoft.zju.edu.cn/index.php">浙江大学智能计算与软件中心</a></li>
+                    
+                  </ul>
+
+                  <li class="dropdown">
+                    
+                    <a href="/archives/">归档</a>
+                    
+                  </li>
+                  
+                  <li class="dropdown">
+                    
+                    <a href="/contact/">关于</a>
+                    
+                  </li>
+                  
+                </li>
+
+                
+                
+
+                
+                </ul>
+            </div>
+            
+
+            <div class="collapse clearfix" id="search">    
+                <form class="navbar-form" role="search">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search">
+                        <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main"><i class="fas fa-search"></i></button>
+                </span>
+                    </div>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+
+    
+</header>
+
+
+
+
+        <div id="heading-breadcrumbs">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h1>Docker源码分析（八）：Docker Container网络（下）</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+        <div id="content">
+            <div class="container">
+
+                <div class="row">
+
+                    
+
+                    <div class="col-md-9" id="blog-post">
+
+                        
+                          <p class="text-muted text-uppercase mb-small text-right">
+                             <a href="#">孙宏亮</a>
+                             | 
+                            2015-03-12
+                          </p>
+                        
+
+                        <div id="post-content">
+                          <h2 id="1-docker-client配置容器网络模式"><strong>1.Docker Client配置容器网络模式</strong></h2>
+
+<p>Docker目前支持4种网络模式，分别是bridge、host、container、none，Docker开发者可以根据自己的需求来确定最适合自己应用场景的网络模式。 从Docker Container网络创建流程图中可以看到，创建流程第一个涉及的Docker模块即为Docker Client。当然，这也十分好理解，毕竟Docker Container网络环境的创建需要由用户发起，用户根据自身对容器的需求，选择网络模式，并将其通过Docker Client传递给Docker Daemon。</p>
+
+<p>本节，即从Docker Client源码的角度，分析如何配置Docker Container的网络模式，以及Docker Client内部如何处理这些网络模式参数。 需要注意的是：配置Docker Container网络环境与创建Docker Container网络环境有一些区别。区别是：配置网络环境指用户通过向Docker Client传递网络参数，实现Docker Container网络环境参数的配置，这部分配置由Docker Client传递至Docker Daemon，并由Docker Daemon保存；创建网络环境指，用户通过Docker Client向Docker Daemon发送容器启动命令之后，Docker Daemon根据之前保存的网络参数，实现Docker Container的启动，并在启动过程中完成Docker Container网络环境的创建。 以上的基本知识，理解下文的Docker Container网络环境创建流程。</p>
+
+<h3 id="1-1-docker-client使用"><strong>1.1 Docker Client使用</strong></h3>
+
+<p>Docker架构中，用户可以通过Docker Client来配置Docker Container的网络模式。配置过程主要通过docker run命令来完成，实现配置的方式是在docker run命令中添加网络参数。使用方式如下（其中NETWORKMODE为四种网络模式之一，ubuntu为镜像名称，/bin/bash为执行指令）:</p>
+
+<p>docker run -d &ndash;net NETWORKMODE ubuntu /bin/bash</p>
+
+<p>运行以上命令时，首先创建一个Docker Client，然后Docker Client会解析整条命令的请求内容，接着解析出为run请求，意为运行一个Docker Container，最终通过Docker Client端的API接口，调用CmdRun函数完成run请求执行。（详情可以查阅<a href="http://www.sel.zju.edu.cn/?p=147">《Docker源码分析》系列的第二篇——Docker Client篇</a>）。 Docker Client解析出run命令之后，立即调用相应的处理函数CmdRun进行处理关于run请求的具体内容。CmdRun的作用主要可以归纳为三点：</p>
+
+<ul>
+<li>解析Docker Client传入的参数，解析出config、hostconfig和cmd对象等；</li>
+<li>发送请求至Docker Daemon，创建一个container对象，完成Docker Container启动前的准备工作；</li>
+<li>发送请求至Docker Daemon，启动相应的Docker Container（包含创建Docker Container网络环境创建）。</li>
+</ul>
+
+<h3 id="1-2-runconfig包解析"><strong>1.2 runconfig包解析</strong></h3>
+
+<p>CmdRun函数的实现位于<a href="https://github.com/docker/docker/blob/v1.2.0/api/client/commands.go#L1990">./docker/api/client/commands.go</a>。CmdRun执行的第一个步骤为：通过runconfig包中ParseSubcommand函数解析Docker Client传入的参数，并从中解析出相应的config，hostConfig以及cmd对象，实现代码如下:</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    config, hostConfig, cmd, err <span style="color:#555">:=</span> runconfig.<span style="color:#c0f">ParseSubcommand</span>
+    (cli.<span style="color:#c0f">Subcmd</span>(<span style="color:#c30">&#34;run&#34;</span>, <span style="color:#c30">&#34;[OPTIONS] IMAGE [COMMAND] [ARG...]&#34;</span>, 
+    <span style="color:#c30">&#34;Run a command in a new container&#34;</span>), args, <span style="color:#069;font-weight:bold">nil</span>) </code></pre></div>
+<p>其中，config的类型为Config结构体，hostConfig的类型为HostConfig结构体，两种类型的定义均位于runconfig包。Config与HostConfig类型同用以描述Docker Container的配置信息，然而两者之间又有着本质的区别，最大的区别在于两者各自的作用范畴：</p>
+
+<ul>
+<li>Config结构体：描述Docker Container独立的配置信息。独立的含义是：Config这部分信息描述的是容器本身，而不会与容器所在host宿主机相关；</li>
+<li>HostConfig结构体：描述Docker Container与宿主机相关的配置信息。</li>
+</ul>
+
+<h4 id="1-2-1-config结构体"><strong>1.2.1 Config结构体</strong></h4>
+
+<p>Config结构体描述Docker Container本身的属性信息，这些信息与容器所在的host宿主机无关。结构体的定义如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    <span style="color:#069;font-weight:bold">type</span> Config <span style="color:#069;font-weight:bold">struct</span> {
+        Hostname        <span style="color:#078;font-weight:bold">string</span>
+        Domainname      <span style="color:#078;font-weight:bold">string</span>
+        User            <span style="color:#078;font-weight:bold">string</span>
+        Memory          <span style="color:#078;font-weight:bold">int64</span>  <span style="color:#09f;font-style:italic">// Memory limit (in bytes)
+</span><span style="color:#09f;font-style:italic"></span>        MemorySwap      <span style="color:#078;font-weight:bold">int64</span>  <span style="color:#09f;font-style:italic">// Total memory usage (memory + swap); set \`-1&#39; to disable swap
+</span><span style="color:#09f;font-style:italic"></span>        CpuShares       <span style="color:#078;font-weight:bold">int64</span>  <span style="color:#09f;font-style:italic">// CPU shares (relative weight vs. other containers)
+</span><span style="color:#09f;font-style:italic"></span>        Cpuset          <span style="color:#078;font-weight:bold">string</span> <span style="color:#09f;font-style:italic">// Cpuset 0-2, 0,1
+</span><span style="color:#09f;font-style:italic"></span>        AttachStdin     <span style="color:#078;font-weight:bold">bool</span>
+        AttachStdout    <span style="color:#078;font-weight:bold">bool</span>
+        AttachStderr    <span style="color:#078;font-weight:bold">bool</span>
+        PortSpecs       []<span style="color:#078;font-weight:bold">string</span> <span style="color:#09f;font-style:italic">// Deprecated - Can be in the format of 8080/tcp
+</span><span style="color:#09f;font-style:italic"></span>        ExposedPorts    <span style="color:#069;font-weight:bold">map</span>[nat.Port]<span style="color:#069;font-weight:bold">struct</span>{}
+        Tty             <span style="color:#078;font-weight:bold">bool</span> <span style="color:#09f;font-style:italic">// Attach standard streams to a tty, including stdin if it is not closed.
+</span><span style="color:#09f;font-style:italic"></span>        OpenStdin       <span style="color:#078;font-weight:bold">bool</span> <span style="color:#09f;font-style:italic">// Open stdin
+</span><span style="color:#09f;font-style:italic"></span>        StdinOnce       <span style="color:#078;font-weight:bold">bool</span> <span style="color:#09f;font-style:italic">// If true, close stdin after the 1 attached client disconnects.
+</span><span style="color:#09f;font-style:italic"></span>        Env             []<span style="color:#078;font-weight:bold">string</span>
+        Cmd             []<span style="color:#078;font-weight:bold">string</span>
+        Image           <span style="color:#078;font-weight:bold">string</span> <span style="color:#09f;font-style:italic">// Name of the image as it was passed by 
+</span><span style="color:#09f;font-style:italic"></span>    the <span style="color:#c0f">operator</span> (eg. could be symbolic)
+        Volumes         <span style="color:#069;font-weight:bold">map</span>[<span style="color:#078;font-weight:bold">string</span>]<span style="color:#069;font-weight:bold">struct</span>{}
+        WorkingDir      <span style="color:#078;font-weight:bold">string</span>
+        Entrypoint      []<span style="color:#078;font-weight:bold">string</span>
+        NetworkDisabled <span style="color:#078;font-weight:bold">bool</span>
+        OnBuild         []<span style="color:#078;font-weight:bold">string</span>
+    }</code></pre></div>
+<p>Config结构体中各属性的详细解释如下表：</p>
+
+<p><center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605616365/sel/CONTAINER1_pklwyf.png" alt="" style="zoom:100%;" />
+</center></p>
+
+<h4 id="1-2-2-hostconfig结构体"><strong>1.2.2 HostConfig结构体</strong></h4>
+
+<p>HostConfig结构体描述Docker Container与宿主机相关的属性信息，结构体的定义如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    <span style="color:#069;font-weight:bold">type</span> HostConfig <span style="color:#069;font-weight:bold">struct</span> {
+        Binds           []<span style="color:#078;font-weight:bold">string</span>
+        ContainerIDFile <span style="color:#078;font-weight:bold">string</span>
+        LxcConf         []utils.KeyValuePair
+        Privileged      <span style="color:#078;font-weight:bold">bool</span>
+        PortBindings    nat.PortMap
+        Links           []<span style="color:#078;font-weight:bold">string</span>
+        PublishAllPorts <span style="color:#078;font-weight:bold">bool</span>
+        Dns             []<span style="color:#078;font-weight:bold">string</span>
+        DnsSearch       []<span style="color:#078;font-weight:bold">string</span>
+        VolumesFrom     []<span style="color:#078;font-weight:bold">string</span>
+        Devices         []DeviceMapping
+        NetworkMode     NetworkMode
+        CapAdd          []<span style="color:#078;font-weight:bold">string</span>
+        CapDrop         []<span style="color:#078;font-weight:bold">string</span>
+        RestartPolicy   RestartPolicy
+    }</code></pre></div>
+<p>Config结构体中各属性的详细解释如下表：
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605616366/sel/CONTAINER2_q6f7tm.png" alt="" style="zoom:100%;" />
+</center></p>
+
+<h4 id="1-2-3-runconfig解析网络模式"><strong>1.2.3 runconfig解析网络模式</strong></h4>
+
+<p>讲述完Config与HostConfig结构体之后，回到runconfig包中分析如何解析与Docker Container网络模式相关的配置信息，并将这部分信息传递给config实例与hostConfig实例。 runconfig包中的ParseSubcommand函数调用parseRun函数完成命令请求的分析，实现代码位于<a href="https://github.com/docker/docker/blob/v1.2.0/runconfig/parse.go#L37-L39">./docker/runconfig/parse.go#L37-L39</a>，如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    <span style="color:#069;font-weight:bold">func</span> <span style="color:#c0f">ParseSubcommand</span>(cmd <span style="color:#555">*</span>flag.FlagSet, args []<span style="color:#078;font-weight:bold">string</span>,
+    sysInfo <span style="color:#555">*</span>sysinfo.SysInfo) (<span style="color:#555">*</span>Config, <span style="color:#555">*</span>HostConfig, <span style="color:#555">*</span>flag.FlagSet, <span style="color:#078;font-weight:bold">error</span>) {
+            <span style="color:#069;font-weight:bold">return</span> <span style="color:#c0f">parseRun</span>(cmd, args, sysInfo)
+    }</code></pre></div>
+<p>进入parseRun函数即可发现：该函数完成了四方面的工作：</p>
+
+<ul>
+<li>定义与容器配置信息相关的<a href="https://github.com/docker/docker/blob/v1.2.0/runconfig/parse.go#L42-L97">flag参数</a>；</li>
+<li>解析docker run命令后紧跟的请求内容，将请求内容全部保存至flag参数中，余下的内容一个为镜像image名，另一个为需要在容器内执行的cmd命令；</li>
+<li>通过flag参数验证参数的有效性，并处理得到Config结构体与HostConfig结构体需要的属性值；</li>
+<li>创建并初始化Config类型实例config、HostConfig类型实例hostConfig，最总返回config、hostConfig与cmd。</li>
+</ul>
+
+<p>本文主要分析Docker Container的网络模式，而parseRun函数中有关容器网络模式的flag参数有flNetwork与flNetMode，两者的定义分别位于<a href="https://github.com/docker/docker/blob/v1.2.0/runconfig/parse.go#L62">./docker/runconfig/parse.go#L62</a>与<a href="https://github.com/docker/docker/blob/v1.2.0/runconfig/parse.go#L75">./docker/runconfig/parse.go#L75</a>，如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    flNetwork = cmd.<span style="color:#c0f">Bool</span>([]<span style="color:#078;font-weight:bold">string</span>{<span style="color:#c30">&#34;#n&#34;</span>, <span style="color:#c30">&#34;#-networking&#34;</span>}, <span style="color:#069;font-weight:bold">true</span>, <span style="color:#c30">&#34;Enable networking for this container&#34;</span>)
+
+    flNetMode = cmd.<span style="color:#c0f">String</span>([]<span style="color:#078;font-weight:bold">string</span>{<span style="color:#c30">&#34;-net&#34;</span>}, <span style="color:#c30">&#34;bridge&#34;</span>, <span style="color:#c30">&#34;Set the Network mode for the container\n&#39;bridge&#39;: creates a new network stack for the container on the docker bridge\n&#39;none&#39;: no networking for this container\n&#39;container:&lt;name|id&gt;&#39;: reuses another container network stack\n&#39;host&#39;: use the host network stack inside the container. Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.&#34;</span>)</code></pre></div>
+<p>可见flag参数flNetwork表示是否开启容器的网络模式，若为true则开启，说明需要给容器创建网络环境；否则不开启，说明不给容器赋予网络功能。该flag参数的默认值为true，另外使用该flag的方式为：在docker run之后设定&ndash;networking或者-n，如：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    docker run <span style="color:#555">--</span>networking <span style="color:#069;font-weight:bold">true</span> ubuntu <span style="color:#555">/</span>bin<span style="color:#555">/</span>bash</code></pre></div>
+<p>另一个flag参数flNetMode则表示为容器设定的网络模式，共有四种选项，分别是：bridge、none、container:<name|id>和host。四种模式的作用上文已经详细解释，此处不再赘述。使用该flag的方式为：在docker run之后设定&ndash;net，如：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    Docker run <span style="color:#555">--</span>net host ubuntu <span style="color:#555">/</span>bin<span style="color:#555">/</span>bash</code></pre></div>
+<p>用户使用docker run启动容器时设定了以上两个flag参数（&ndash;networking和&ndash;net），则runconfig包会解析出这两个flag的值。最终，通过flag参数flNetwork，得到Config类型实例config的属性NetworkDisabled；通过flag参数flNetMode，得到HostConfig类型实例hostConfig的属性NetworkMode。 函数parseRun返回config、hostConfig与cmd，代表着runconfig包解析配置参数工作的完成，CmdRun得到返回内容之后，继续向下执行。</p>
+
+<h3 id="1-3-cmdrun执行"><strong>1.3 CmdRun执行</strong></h3>
+
+<p>在runconfig包中已经将有关容器网络模式的配置置于config对象与hostConfig对象，故在CmdRun函数的执行中，更多的是基于config对象与hostConfig参数处理配置信息，而没有其他的容器网络处理部分。 CmdRun后续主要工作是：利用Docker Daemon暴露的RESTful API接口，将docker run的请求发送至Docker Daemon。以下是CmdRun执行过程中Docker Client与Docker Daemon的简易交互图。
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605616366/sel/CONTAINER3_zckdf2.jpg" alt="" style="zoom:50%;" />
+</center></p>
+
+<p>图1.1 CmdRun中Docker Client与Docker Daemon交互图</p>
+
+<p>具体分析CmdRun的执行流程可以发现：在解析config、hostConfig与cmd之后，Docker Client首先发起请求create container。若Docker Daemon节点上已经存在该容器所需的镜像，则立即执行create container操作并返回请求响应；Docker Client收到响应后，再发起请求start container。若容器镜像还不存在，Docker Daemon返回一个404的错误，表示镜像不存在；Docker Client收到错误响应之后，再发起一个请求pull image，使Docker Daemon首先下载镜像，下载完毕之后Docker Client再次发起请求create container，Docker Daemon创建完毕之后，Docker Client最终发起请求start container。 总结而言，Docker Client负责创建容器请求的发起。关于Docker Container网络环境的配置参数存储于config与hostConfig对象之中，在请求create container和start container发起时，随请求一起发送至Docker Daemon。</p>
+
+<h2 id="2-docker-daemon创建容器网络流程"><strong>2.Docker Daemon创建容器网络流程</strong></h2>
+
+<p>Docker Daemon接收到Docker Client的请求大致可以分为两次，第一次为create container，第二次为start container。这两次请求的执行过程中，都与Docker Container的网络相关。以下按照这两个请求的执行，具体分析Docker Container网络模式的创建。Docker Daemon如何通过Docker Server解析RESTful请求，并完成分发调度处理，在《Docker源码分析》系列的第五篇——Docker Server篇中已经详细分析过，本文不再赘述。</p>
+
+<h3 id="2-1创建容器并配置网络参数"><strong>2.1创建容器并配置网络参数</strong></h3>
+
+<p>Docker Daemon首先接收并处理create container请求。需要注意的是：create container并非创建了一个运行的容器，而是完成了以下三个主要的工作：</p>
+
+<ul>
+<li>通过runconfig包解析出create container请求中与Docker Container息息相关的config对象；</li>
+<li>在Docker Daemon内部创建了与Docker Container对应的container对象；</li>
+<li>完成Docker Container启动前的准备化工作，如准备所需镜像、创建rootfs等。</li>
+</ul>
+
+<p>创建容器过程中，Docker Daemon首先通过runconfig包中ContainerConfigFromJob函数，解析出请求中的config对象，解析过程代码如下：</p>
+
+<p>config := runconfig.ContainerConfigFromJob(job)</p>
+
+<p>至此，Docker Client处理得到的config对象，已经传递至Docker Daemon的config对象，config对象中已经含有属性NetworkDisabled具体值。 处理得到config对象之后，Docker Daemon紧接着创建container对象，并为Docker Container作相应的准备工作。具体的实现代码位于<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/create.go#L73-L78">./docker/daemon/create.go#L73-L78</a>，如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    <span style="color:#069;font-weight:bold">if</span> container, err = daemon.<span style="color:#c0f">newContainer</span>(name, config, img); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>, <span style="color:#069;font-weight:bold">nil</span>, err
+    }
+    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> daemon.<span style="color:#c0f">createRootfs</span>(container, img); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+        <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>, <span style="color:#069;font-weight:bold">nil</span>, err
+    }</code></pre></div>
+<p>与Docker Container网络模式配置相关的内容主要位于创建container对象中。newContainer函数的定义位于<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/daemon.go#L516-L550">./docker/daemon/daemon.go#L516-L550</a>，具体的container对象如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    container <span style="color:#555">:=</span> <span style="color:#555">&amp;</span>Container{
+        ID:              id,
+        Created:         time.<span style="color:#c0f">Now</span>().<span style="color:#c0f">UTC</span>(),
+        Path:            entrypoint,
+        Args:            args, <span style="color:#09f;font-style:italic">//FIXME: de-duplicate from config
+</span><span style="color:#09f;font-style:italic"></span>        Config:          config,
+        hostConfig:      <span style="color:#555">&amp;</span>runconfig.HostConfig{},
+        Image:           img.ID, <span style="color:#09f;font-style:italic">// Always use the resolved image id
+</span><span style="color:#09f;font-style:italic"></span>        NetworkSettings: <span style="color:#555">&amp;</span>NetworkSettings{},
+        Name:            name,
+        Driver:          daemon.driver.<span style="color:#c0f">String</span>(),
+        ExecDriver:      daemon.execDriver.<span style="color:#c0f">Name</span>(),
+        State:           <span style="color:#c0f">NewState</span>(),    
+    }</code></pre></div>
+<p>在container对象中，config对象直接赋值给container对象的Config属性，另外hostConfig属性与NetworkSeeetings属性均为空。其中hostConfig对象将在start container请求执行过程中被赋值，NetworkSettings类型的作用是描述容器的网络具体信息，定义位于<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/network_settings.go#L11-L18">./docker/daemon/network_settings.go#L11-L18</a>，代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    <span style="color:#069;font-weight:bold">type</span> NetworkSettings <span style="color:#069;font-weight:bold">struct</span> {
+            IPAddress   <span style="color:#078;font-weight:bold">string</span>
+            IPPrefixLen <span style="color:#078;font-weight:bold">int</span>
+            Gateway     <span style="color:#078;font-weight:bold">string</span>
+            Bridge      <span style="color:#078;font-weight:bold">string</span>
+            PortMapping <span style="color:#069;font-weight:bold">map</span>[<span style="color:#078;font-weight:bold">string</span>]PortMapping <span style="color:#09f;font-style:italic">// Deprecated
+</span><span style="color:#09f;font-style:italic"></span>            Ports       nat.PortMap
+    }</code></pre></div>
+<p>Networksettings类型的各属性的详细解释如下表：
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605616365/sel/CONTAINER4_g4iqnw.png" alt="" style="zoom:100%;" />
+</center></p>
+
+<p>总结而言，Docker Daemon关于create container请求的执行，先实现了容器配置信息从Docker Client至Docker Daemon的转移，再完成了启动容器前所需的准备工作。</p>
+
+<h3 id="2-2启动容器之网络配置"><strong>2.2启动容器之网络配置</strong></h3>
+
+<p>创建容器阶段，Docker Daemon创建了容器对象container，container对象内部的Config属性含有NetworkDisabled。创建容器完成之后，Docker Daemon还需要接收Docker Client的请求，并执行start container的操作，即启动容器。 启动容器过程中，Docker Daemon首先通过runconfig包中ContainerHostConfigFromJob函数，解析出请求中的hostConfig对象，解析过程代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    hostConfig <span style="color:#555">:=</span> runconfig.<span style="color:#c0f">ContainerHostConfigFromJob</span>(job) </code></pre></div>
+<p>至此，Docker Client处理得到的hostConfig对象，已经传递至Docker Daemon的hostConfig对象，hostConfig对象中已经含有属性NetworkMode具体值。 容器启动的所有工作，均由以下的Start函数来完成，代码位于<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/start.go#L36-L38">./docker/daemon/start.go#L36-L38</a>，如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> container.<span style="color:#c0f">Start</span>(); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+            <span style="color:#069;font-weight:bold">return</span> job.<span style="color:#c0f">Errorf</span>(<span style="color:#c30">&#34;Cannot start container %s: %s&#34;</span>, name, err)
+    }</code></pre></div>
+<p>Start函数实现了容器的启动。更为具体的描述是：Start函数实现了进程的启动，另外在启动进程的同时为进程设定了命名空间（namespace），启动完毕之后为进程完成了资源使用的控制，从而保证进程以及之后进程的子进程都会在同一个命名空间内，且受到相同的资源控制。如此一来，Start函数创建的进程，以及该进程的子进程，形成一个进程组，该进程组处于资源隔离和资源控制的环境，我们习惯将这样的进程组环境称为容器，也就是这里的Docker Container。 回到Start函数的执行，位于<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/container.go#L275-L320">./docker/daemon/container.go#L275-L320</a>。Start函数执行过程中，与Docker Container网络模式相关的部分主要有三部分：</p>
+
+<ul>
+<li>initializeNetwork()，初始化container对象中与网络相关的属性；</li>
+<li>populateCommand，填充Docker Container内部需要执行的命令，Command中含有进程启动命令，还含有容器环境的配置信息，也包括网络配置；</li>
+<li>container.waitForStart()，实现Docker Container内部进程的启动，进程启动之后，为进程创建网络环境等。</li>
+</ul>
+
+<h4 id="2-2-1初始化容器网络配置"><strong>2.2.1初始化容器网络配置</strong></h4>
+
+<p>容器对象container中有属性hostConfig，属性hostConfig中有属性NetworkMode，初始化容器网络配置initializeNetworking()的主要工作就是，通过NetworkMode属性为Docker Container的网络作相应的初始化配置工作。 Docker Container的网络模式有四种，分别为：host、other container、none以及bridge。initializeNetworking函数的执行完全覆盖了这四种模式。 initializeNetworking()函数的实现位于<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/container.go#L881-L933">./docker/daemon/container.go#L881-L933</a>。</p>
+
+<h5 id="2-2-1-1-初始化host网络模式配置"><strong>2.2.1.1 初始化host网络模式配置</strong></h5>
+
+<p>Docker Container网络的host模式意味着容器使用宿主机的网络环境。虽然Docker Container使用宿主机的网络环境，但这并不代表Docker Container可以拥有宿主机文件系统的视角，而host宿主机上有很多信息标识的是网络信息，故Docker Daemon需要将这部分标识网络的信息，从host宿主机添加到Docker Container内部的指定位置。这样的网络信息，主要有以下两种：</p>
+
+<ul>
+<li>host宿主机的主机名（hostname）；</li>
+<li>host宿主机上/etc/hosts文件，用于配置IP地址以及主机名。</li>
+</ul>
+
+<p>其中，宿主机的主机名hostname用于创建container.Config中的Hostname与Domainname属性。 另外，Docker Daemon在Docker Container的rootfs内部创建hostname文件，并在文件中写入Hostname与Domainname；同时创建hosts文件，并写入host宿主机上/etc/hosts内的所有内容。</p>
+
+<h5 id="2-2-1-2-初始化other-container网络模式配置"><strong>2.2.1.2 初始化other container网络模式配置</strong></h5>
+
+<p>Docker Container的other container网络模式意味着：容器使用其他已经创建容器的网络环境。 Docker Daemon首先判断host网络模式之后，若不为host网络模式，则继续判断Docker Container网络模式是否为other container。如果Docker Container的网络模式为other container（假设使用的-net参数为&ndash;net=container:17adef，其中17adef为容器ID）。Docker Daemon所做的执行操作包括两部分。 第一步，从container对象的hostConfig属性中找出NetworkMode，并找到相应的容器，即17adef的容器对象container，实现代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    nc, err <span style="color:#555">:=</span> container.<span style="color:#c0f">getNetworkedContainer</span>()</code></pre></div>
+<p>第二步，将17adef容器对象的HostsPath、ResolveConfPath、Hostname和Domainname赋值给当前容器对象container，实现代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    container.HostsPath = nc.HostsPath
+    container.ResolvConfPath = nc.ResolvConfPath
+    container.Config.Hostname = nc.Config.Hostname
+    container.Config.Domainname = nc.Config.Domainname</code></pre></div>
+<h5 id="2-2-1-3-初始化none网络模式配置"><strong>2.2.1.3 初始化none网络模式配置</strong></h5>
+
+<p>Docker Container的none网络模式意味着不给该容器创建任何网络环境，容器只能使用127.0.0.1的本机网络。 Docker Daemon通过config属性的DisableNetwork来判断是否为none网络模式。实现代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    <span style="color:#069;font-weight:bold">if</span> container.daemon.config.DisableNetwork {
+            container.Config.NetworkDisabled = <span style="color:#069;font-weight:bold">true</span>
+            <span style="color:#069;font-weight:bold">return</span> container.<span style="color:#c0f">buildHostnameAndHostsFiles</span>(<span style="color:#c30">&#34;127.0.1.1&#34;</span>)
+    }</code></pre></div>
+<h5 id="2-2-1-4-初始化bridge网络模式配置"><strong>2.2.1.4 初始化bridge网络模式配置</strong></h5>
+
+<p>Docker Container的bridge网络模式意味着为容器创建桥接网络模式。桥接模式使得Docker Container创建独立的网络环境，并通过“桥接”的方式实现Docker Container与外界的网络通信。 初始化bridge网络模式的配置，实现代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> container.<span style="color:#c0f">allocateNetwork</span>(); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+            <span style="color:#069;font-weight:bold">return</span> err
+    }</code></pre></div>
+<p>return container.buildHostnameAndHostsFiles(container.NetworkSettings.IPAddress)</p>
+
+<p>以上代码完成的内容主要也是两部分：第一，通过allocateNetwork函数为容器分配网络接口设备需要的资源信息（包括IP、bridge、Gateway等），并赋值给container对象的NetworkSettings；第二，为容器创建hostname以及创建Hosts等文件。</p>
+
+<h4 id="2-2-2创建容器command信息"><strong>2.2.2创建容器Command信息</strong></h4>
+
+<p>Docker在实现容器时，使用了Command类型。Command在Docker Container概念中是一个非常重要的概念。几乎可以认为Command是Docker Container生命周期的源头。Command的概念会贯穿以后的《Docker源码分析》系列，比如Docker Daemon与dockerinit的关系，dockerinit和entrypoint.sh的关系，entrypoint.sh与CMD的关系，以及namespace在这些内容中扮演的角色。 简单来说，Command类型包含了两部分的内容：第一，运行容器内进程的外部命令exec.Cmd；第二，运行容器时启动进程需要的所有环境基础信息：包括容器进程组的使用资源、网络环境、使用设备、工作路径等。通过这两部分的内容，我们可以清楚，如何启动容器内的进程，同时也清楚为容器创建什么样的环境。 首先，我们先来看Command类型的定义，位于<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/execdriver/driver.go#L84">./docker/daemon/execdriver/driver.go#L84</a>，通过分析Command类型以及其他相关的数据结构类型，可以得到以下简要类型关系图：
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605616366/sel/CONTAINER5_eenmhn.jpg" alt="" style="zoom:50%;" />
+</center></p>
+
+<p>图 2.1 Command类型关系图</p>
+
+<p>从Command类型关系图中可以看到，Command类型中重新包装了exec.Cmd类型，即代表需要创建的进程具体的外部命令；同时，关于网络方面的属性有Network，Network的类型为指向Network类型的指针；关于Docker Container资源使用方面的属性为Resources，从Resource的类型来看，Docker目前能做的资源限制有4个维度，分别为内存，内存+Swap，CPU使用，CPU核使用；关于挂载的内容，有属性Mounts；等等。</p>
+
+<p>简单介绍Command类型之后，回到Docker Daemon启动容器网络的源码分析。在Start函数的执行流程中，紧接initializeNetworking()之后，与Docker Container网络相关的是populateCommand环节。populateCommand的函数实现位于<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/container.go#L191-L273">./docker/daemon/container.go#L191-L274</a>。</p>
+
+<p>上文已经提及，populateCommand的作用是创建包execdriver的对象Command，该Command中既有启动容器进程的外部命令，同时也有众多为容器环境的配置信息，包括网络。 本小节，更多的分析populateCommand如何填充Command对象中的网络信息，其他信息的分析会在《源码分析系列》的后续进行展开。 Docker总共有四种网络模式，故populateCommand自然需要判断容器属于哪种网络模式，随后将具体的网络模式信息，写入Command对象的Network属性中。查验Docker Container网络模式的代码位于<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/container.go#L204-L227">./docker/daemon/container.go#L204-L227</a>，如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    parts <span style="color:#555">:=</span> strings.<span style="color:#c0f">SplitN</span>(<span style="color:#366">string</span>(c.hostConfig.NetworkMode), <span style="color:#c30">&#34;:&#34;</span>, <span style="color:#f60">2</span>)
+        <span style="color:#069;font-weight:bold">switch</span> parts[<span style="color:#f60">0</span>] {
+        <span style="color:#069;font-weight:bold">case</span> <span style="color:#c30">&#34;none&#34;</span>:
+        <span style="color:#069;font-weight:bold">case</span> <span style="color:#c30">&#34;host&#34;</span>:
+            en.HostNetworking = <span style="color:#069;font-weight:bold">true</span>
+        <span style="color:#069;font-weight:bold">case</span> <span style="color:#c30">&#34;bridge&#34;</span>, <span style="color:#c30">&#34;&#34;</span>: <span style="color:#09f;font-style:italic">// empty string to support existing containers
+</span><span style="color:#09f;font-style:italic"></span>            <span style="color:#069;font-weight:bold">if</span> !c.Config.NetworkDisabled {
+                network <span style="color:#555">:=</span> c.NetworkSettings
+                en.Interface = <span style="color:#555">&amp;</span>execdriver.NetworkInterface{
+                    Gateway:     network.Gateway,
+                    Bridge:      network.Bridge,
+                    IPAddress:   network.IPAddress,
+                    IPPrefixLen: network.IPPrefixLen,
+                }
+            }
+        <span style="color:#069;font-weight:bold">case</span> <span style="color:#c30">&#34;container&#34;</span>:
+            nc, err <span style="color:#555">:=</span> c.<span style="color:#c0f">getNetworkedContainer</span>()
+            <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+                <span style="color:#069;font-weight:bold">return</span> err
+            }
+            en.ContainerID = nc.ID
+        <span style="color:#069;font-weight:bold">default</span>:
+            <span style="color:#069;font-weight:bold">return</span> fmt.<span style="color:#c0f">Errorf</span>(<span style="color:#c30">&#34;invalid network mode: %s&#34;</span>, c.hostConfig.NetworkMode)
+        }</code></pre></div>
+<p>populateCommand首先通过hostConfig对象中的NetworkMode判断容器属于哪种网络模式。该部分内容涉及到execdriver包中的Network类型，可参见Command类型关系图中的Network类型。若为none模式，则对于Network对象（即en，*execdriver.Network）不做任何操作。若为host模式，则将Network对象的HostNetworking置为true；若为bridge桥接模式，则首先创建一个NetworkInterface对象，完善该对象的Gateway、Bridge、IPAddress和IPPrefixLen信息，最后将NetworkInterface对象作为Network对象的Interface属性的值；若为other container模式，则首先通过getNetworkedContainer()函数获知被分享网络命名空间的容器，最后将容器ID，赋值给Network对象的ContainerID。</p>
+
+<p>由于bridge模式、host模式、none模式以及other container模式彼此互斥，故Network对象中Interface属性、ContainerID属性以及HostNetworking三者之中只有一个被赋值。当Docker Container的网络查验之后，populateCommand将en实例Network属性的值，传递给Command对象。 至此，populateCommand关于网络方面的信息已经完成配置，网络配置信息已经成功赋值于Command的Network属性。。</p>
+
+<h4 id="2-2-3启动容器内部进程"><strong>2.2.3启动容器内部进程</strong></h4>
+
+<p>当为容器做好所有的准备与配置之后，Docker Daemon需要真正意义上的启动容器。根据Docker Daemon启动容器流程涉及的Docker模块中可以看到，这样的请求，会被发送至execdriver，再经过libcontainer，最后实现真正启动进程，创建完容器。 回到Docker Daemon的启动容器，daemon包中start函数的最后一步即为执行container.waitForStart()。waitForStart函数的定义位于<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/container.go#L1070-L1082">./docker/daemon/container.go#L1070-L1082</a>，代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    <span style="color:#069;font-weight:bold">func</span> (container <span style="color:#555">*</span>Container) <span style="color:#c0f">waitForStart</span>() <span style="color:#078;font-weight:bold">error</span> {
+            container.monitor = <span style="color:#c0f">newContainerMonitor</span>(container, container.hostConfig.RestartPolicy)
+            
+            <span style="color:#069;font-weight:bold">select</span> {
+            <span style="color:#069;font-weight:bold">case</span> <span style="color:#555">&lt;-</span>container.monitor.startSignal:
+            <span style="color:#069;font-weight:bold">case</span> err <span style="color:#555">:=</span> <span style="color:#555">&lt;-</span>utils.<span style="color:#c0f">Go</span>(container.monitor.Start):
+                <span style="color:#069;font-weight:bold">return</span> err
+            }
+
+            <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>
+    }</code></pre></div>
+<p>以上代码运行过程中首先通过newContainerMonitor返回一个初始化的containerMonitor对象，该对象中带有容器进程的重启策略（RestartPolicy）。这里简单介绍containerMonitor对象。总体而言，containerMonitor对象用以监视容器中第一个进程的执行。如果containerMonitor中指定了一种进程重启策略，那么一旦容器内部进程没有启动成功，Docker Daemon会使用重启策略来重启容器。如果在重启策略下，容器依然没有成功启动，那么containerMonitor对象会负责重置以及清除所有已经为容器准备好的资源，例如已经为容器分配好的网络资源（即IP地址），还有为容器准备的rootfs等。</p>
+
+<p>waitForStart()函数通过container.monitor.Start来实现容器的启动，进入<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/monitor.go#L100">./docker/daemon/monitor.go#L100</a>，可以发现启动容器进程位于<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/monitor.go#L136">./docker/daemon/monitor.go#L136</a>，代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    exitStatus, err = m.container.daemon.<span style="color:#c0f">Run</span>(m.container, pipes, m.callback) </code></pre></div>
+<p>以上代码实际调用了daemon包中的Run函数，位于<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/daemon.go#L969-L971">./docker/daemon/daemon.go#L969-L971</a>，代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    <span style="color:#069;font-weight:bold">func</span> (daemon <span style="color:#555">*</span>Daemon) <span style="color:#c0f">Run</span>(c <span style="color:#555">*</span>Container, pipes <span style="color:#555">*</span>execdriver.Pipes, startCallback execdriver.StartCallback) (<span style="color:#078;font-weight:bold">int</span>, <span style="color:#078;font-weight:bold">error</span>) {
+            <span style="color:#069;font-weight:bold">return</span> daemon.execDriver.<span style="color:#c0f">Run</span>(c.command, pipes, startCallback)
+    }</code></pre></div>
+<p>最终，Run函数中调用了execdriver中的Run函数来执行Docker Container的启动命令。 至此，网络部分在Docker Daemon内部的执行已经结束，紧接着程序运行逻辑陷入execdriver，进一步完成容器启动的相关步骤。</p>
+
+<h2 id="3-execdriver网络执行流程"><strong>3.execdriver网络执行流程</strong></h2>
+
+<p>Docker架构中execdriver的作用是启动容器内部进程，最终启动容器。目前，在Docker中execdriver作为执行驱动，可以有两种选项：lxc与native。其中，lxc驱动会调用lxc工具实现容器的启动，而native驱动会使用<a href="https://github.com/docker/libcontainer/tree/v1.2.0">Docker官方发布的libcontainer</a>来启动容器。</p>
+
+<p>Docker Daemon启动过程中，execdriver的类型默认为native，故本文主要分析native驱动在执行启动容器时，如何处理网络部分。 在Docker Daemon启动容器的最后一步，即调用了execdriver的Run函数来执行。通过分析Run函数的具体实现，关于Docker Container的网络执行流程主要包括两个环节： (1) 创建libcontainer的Config对象 (2) 通过libcontainer中的namespaces包执行启动容器 将execdriver.Run函数的运行流程具体展开，与Docker Container网络相关的流程，可以得到以下示意图：
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605616367/sel/CONTAINER6_fcpd7f.jpg" alt="" style="zoom:60%;" />
+</center></p>
+
+<p>图3.1 execdriver.Run执行流程图</p>
+
+<h3 id="3-1创建libcontainer的config对象"><strong>3.1创建libcontainer的Config对象</strong></h3>
+
+<p>Run函数位于./docker/daemon/execdriver/native/driver.go#L62-L168，进入Run函数的实现，立即可以发现该函数通过createContainer创建了一个container对象，代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    container, err <span style="color:#555">:=</span> d.<span style="color:#c0f">createContainer</span>(c) </code></pre></div>
+<p>其中c为Docker Daemon创建的execdriver.Command类型实例。以上代码的createContainer函数的作用是：使用execdriver.Command来填充libcontainer.Config。 libcontainer.Config的作用是，定义在一个容器化的环境中执行一个进程所需要的所有配置项。createContainer函数的存在，使用Docker Daemon层创建的execdriver.Command，创建更下层libcontainer所需要的Config对象。这个角度来看，execdriver更像是封装了libcontainer对外的接口，实现了将Docker Daemon认识的容器启动信息转换为底层libcontainer能真正使用的容器启动配置选项。libcontainer.Config类型与其内部对象的关联图如下：
+<center>
+<img src="https://res.cloudinary.com/rachel725/image/upload/v1605616369/sel/CONTAINER7_anm6gp.jpg" alt="" style="zoom:60%;" />
+</center></p>
+
+<p>图3.2 libcontainer.Config类型关系图</p>
+
+<p>进入createContainer的源码实现部分，位于<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/execdriver/native/create.go#L23-L77">./docker/daemon/execdriver/native/create.go#L23-L77</a>，代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    <span style="color:#069;font-weight:bold">func</span> (d <span style="color:#555">*</span>driver) <span style="color:#c0f">createContainer</span>(c <span style="color:#555">*</span>execdriver.Command) (<span style="color:#555">*</span>libcontainer.Config, <span style="color:#078;font-weight:bold">error</span>) {
+        container <span style="color:#555">:=</span> template.<span style="color:#c0f">New</span>()
+        <span style="color:#a00;background-color:#faa">……</span>
+        <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> d.<span style="color:#c0f">createNetwork</span>(container, c); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+            <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>, err
+        }
+        <span style="color:#a00;background-color:#faa">……</span>
+        <span style="color:#069;font-weight:bold">return</span> container, <span style="color:#069;font-weight:bold">nil</span>
+    }</code></pre></div>
+<h4 id="3-1-1-libcontainer-config模板实例"><strong>3.1.1 libcontainer.Config模板实例</strong></h4>
+
+<p>从createContainer函数的实现以及execdriver.Run执行流程图中都可以看到，createContainer所做的第一个操作就是即为执行template.New()，意为创建一个libcontainer.Config的实例container。其中，template.New()的定义位于<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/execdriver/native/template/default_template.go">./docker/daemon/execdriver/native/template/default_template.go</a>，主要的作用为返回libcontainer关于Docker Container的默认配置选项。 Template.New()的代码实现如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    <span style="color:#069;font-weight:bold">func</span> <span style="color:#c0f">New</span>() <span style="color:#555">*</span>libcontainer.Config {
+        container <span style="color:#555">:=</span> <span style="color:#555">&amp;</span>libcontainer.Config{
+            Capabilities: []<span style="color:#078;font-weight:bold">string</span>{
+                <span style="color:#c30">&#34;CHOWN&#34;</span>,
+                <span style="color:#c30">&#34;DAC_OVERRIDE&#34;</span>,
+                <span style="color:#c30">&#34;FSETID&#34;</span>,
+                <span style="color:#c30">&#34;FOWNER&#34;</span>,
+                <span style="color:#c30">&#34;MKNOD&#34;</span>,
+                <span style="color:#c30">&#34;NET_RAW&#34;</span>,
+                <span style="color:#c30">&#34;SETGID&#34;</span>,
+                <span style="color:#c30">&#34;SETUID&#34;</span>,
+                <span style="color:#c30">&#34;SETFCAP&#34;</span>,
+                <span style="color:#c30">&#34;SETPCAP&#34;</span>,
+                <span style="color:#c30">&#34;NET_BIND_SERVICE&#34;</span>,
+                <span style="color:#c30">&#34;SYS_CHROOT&#34;</span>,
+                <span style="color:#c30">&#34;KILL&#34;</span>,
+                <span style="color:#c30">&#34;AUDIT_WRITE&#34;</span>,
+            },
+            Namespaces: <span style="color:#069;font-weight:bold">map</span>[<span style="color:#078;font-weight:bold">string</span>]<span style="color:#078;font-weight:bold">bool</span>{
+                <span style="color:#c30">&#34;NEWNS&#34;</span>:  <span style="color:#069;font-weight:bold">true</span>,
+                <span style="color:#c30">&#34;NEWUTS&#34;</span>: <span style="color:#069;font-weight:bold">true</span>,
+                <span style="color:#c30">&#34;NEWIPC&#34;</span>: <span style="color:#069;font-weight:bold">true</span>,
+                <span style="color:#c30">&#34;NEWPID&#34;</span>: <span style="color:#069;font-weight:bold">true</span>,
+                <span style="color:#c30">&#34;NEWNET&#34;</span>: <span style="color:#069;font-weight:bold">true</span>,
+            },
+            Cgroups: <span style="color:#555">&amp;</span>cgroups.Cgroup{
+                Parent:          <span style="color:#c30">&#34;docker&#34;</span>,
+                AllowAllDevices: <span style="color:#069;font-weight:bold">false</span>,
+            },
+            MountConfig: <span style="color:#555">&amp;</span>libcontainer.MountConfig{},
+        }
+
+        <span style="color:#069;font-weight:bold">if</span> apparmor.<span style="color:#c0f">IsEnabled</span>() {
+            container.AppArmorProfile = <span style="color:#c30">&#34;docker-default&#34;</span>
+        }
+
+        <span style="color:#069;font-weight:bold">return</span> container
+    }</code></pre></div>
+<p>关于该libcontainer.Config默认的模板对象，从源码实现中可以看到，首先设定了Capabilities的默认项，如CHOWN、DAC_OVERRIDE、FSETID等；其次又将Docker Container所需要的设定的namespaces添加默认值，即需要创建5个NAMESPACE，如NEWNS、NEWUTS、NEWIPC、NEWPID和NEWNET，其中不包括user namespace，另外与网络相关的namespace为NEWNET；最后设定了一些关于cgroup以及apparmor的默认配置。 Template.New()函数最后返回类型为libcontainer.Config的实例container，该实例中只含有默认配置项，其他的配置项的添加需要createContainer的后续操作来完成。</p>
+
+<h4 id="3-1-2-createnetwork实现"><strong>3.1.2 createNetwork实现</strong></h4>
+
+<p>在createContainer的实现流程中，为了完成container对象（类型为libcontainer.Config）的完善，最后有很多步骤，如与网络相关的createNetwork函数调用，与Linux内核Capabilities相关的setCapabilities函数调用，与cgroups相关的setupCgroups函数调用，以及与挂载目录相关的setupMounts函数调用等。本小节主要分析createNetwork如何为container对象完善网络配置项。 createNetwork函数的定义位于<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/execdriver/native/create.go#L79-L124">./docker/daemon/execdriver/native/create.go#L79-L124</a>，该函数主要利用execdriver.Command中Network属性中的内容，来判断如何创建libcontainer.Config中Network属性（关于两中Network属性，可以参见图3.1和图3.2）。由于Docker Container的4种网络模式彼此互斥，故以上Network类型中Interface、ContainerID与HostNetworking最多只有一项会被赋值。 由于execdriver.Command中Network的类型定义如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    <span style="color:#069;font-weight:bold">type</span> Network <span style="color:#069;font-weight:bold">struct</span> {
+        Interface      <span style="color:#555">*</span>NetworkInterface
+        Mtu            <span style="color:#078;font-weight:bold">int</span>              
+        ContainerID    <span style="color:#078;font-weight:bold">string</span>            
+        HostNetworking <span style="color:#078;font-weight:bold">bool</span>             
+    }</code></pre></div>
+<p>分析createNetwork函数，其具体实现可以归纳为4部分内容： (1) 判断网络是否为host模式； (2) 判断是否为bridge桥接模式； (3) 判断是否为other container模式； (4) 为Docker Container添加loopback网络设备。 首先来看execdriver判断是否为host模式的代码：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    <span style="color:#069;font-weight:bold">if</span> c.Network.HostNetworking {
+        container.Namespaces[<span style="color:#c30">&#34;NEWNET&#34;</span>] = <span style="color:#069;font-weight:bold">false</span>
+        <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>
+    }</code></pre></div>
+<p>当execdriver.Command类型实例中Network属性的HostNetworking为true，则说明需要为Docker Container创建host网络模式，使得容器与宿主机共享同样的网络命名空间。关于host模式的具体介绍中，已经阐明，只须在创建进程进行CLONE系统调用时，不传入CLONE_NEWNET参数标志即可实现。这里的代码正好准确的验证了这一点，将container对象中NEWNET的Namespace设为false，最终在libcontainer中可以达到效果。 再看execdriver判断是否为bridge桥接模式的代码：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    <span style="color:#069;font-weight:bold">if</span> c.Network.Interface <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+            vethNetwork <span style="color:#555">:=</span> libcontainer.Network{
+                Mtu:        c.Network.Mtu,
+                Address:    fmt.<span style="color:#c0f">Sprintf</span>(<span style="color:#c30">&#34;%s/%d&#34;</span>, c.Network.Interface.IPAddress, 
+    c.Network.Interface.IPPrefixLen),
+                Gateway:    c.Network.Interface.Gateway,
+                Type:       <span style="color:#c30">&#34;veth&#34;</span>,
+                Bridge:     c.Network.Interface.Bridge,
+                VethPrefix: <span style="color:#c30">&#34;veth&#34;</span>,
+            }
+            container.Networks = <span style="color:#366">append</span>(container.Networks, <span style="color:#555">&amp;</span>vethNetwork)
+        }</code></pre></div>
+<p>当execdriver.Command类型实例中Network属性的Interface不为nil值，则说明需要为Docker Container创建bridge桥接模式，使得容器使用隔离的网络环境。于是这里为类型为libcontainer.Config的container对象添加Networks属性vethNetwork，网络类型为“veth”，以便libcontainer在执行时，可以为Docker Container创建veth pair。 接着来看execdriver判断是否为other container模式的代码：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    <span style="color:#069;font-weight:bold">if</span> c.Network.ContainerID <span style="color:#555">!=</span> <span style="color:#c30">&#34;&#34;</span> {
+            d.<span style="color:#c0f">Lock</span>()
+            active <span style="color:#555">:=</span> d.activeContainers[c.Network.ContainerID]
+            d.<span style="color:#c0f">Unlock</span>()
+
+            <span style="color:#069;font-weight:bold">if</span> active <span style="color:#555">==</span> <span style="color:#069;font-weight:bold">nil</span> <span style="color:#555">||</span> active.cmd.Process <span style="color:#555">==</span> <span style="color:#069;font-weight:bold">nil</span> {
+                <span style="color:#069;font-weight:bold">return</span> fmt.<span style="color:#c0f">Errorf</span>(<span style="color:#c30">&#34;%s is not a valid running container to join&#34;</span>, c.Network.ContainerID)
+            }
+            cmd <span style="color:#555">:=</span> active.cmd
+
+            nspath <span style="color:#555">:=</span> filepath.<span style="color:#c0f">Join</span>(<span style="color:#c30">&#34;/proc&#34;</span>, fmt.<span style="color:#c0f">Sprint</span>(cmd.Process.Pid), <span style="color:#c30">&#34;ns&#34;</span>, <span style="color:#c30">&#34;net&#34;</span>)
+            container.Networks = <span style="color:#366">append</span>(container.Networks, <span style="color:#555">&amp;</span>libcontainer.Network{
+                Type:   <span style="color:#c30">&#34;netns&#34;</span>,
+                NsPath: nspath,
+            })
+        }</code></pre></div>
+<p>当execdriver.Command类型实例中Network属性的ContainerID不为空字符串时，则说明需要为Docker Container创建other container模式，使得创建容器使用其他容器的网络环境。实现过程中，execdriver需要首先在activeContainers中查找需要被共享网络环境的容器active；并通过active容器的启动执行命令cmd找到容器第一进程在宿主机上的PID；随后在proc文件系统中找到该进程PID的关于网络namespace的路径nspath；最后为类型为libcontainer.Config的container对象添加Networks属性，Network的类型为“netns”。 此外，createNetwork函数还实现为Docker Container创建一个loopback回环设备，以便容器可以实现内部通信。实现过程中，同样为类型libcontainer.Config的container对象添加Networks属性，Network的类型为“loopback”，代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    container.Networks = []<span style="color:#555">*</span>libcontainer.Network{
+            {
+                Mtu:     c.Network.Mtu,
+                Address: fmt.<span style="color:#c0f">Sprintf</span>(<span style="color:#c30">&#34;%s/%d&#34;</span>, <span style="color:#c30">&#34;127.0.0.1&#34;</span>, <span style="color:#f60">0</span>),
+                Gateway: <span style="color:#c30">&#34;localhost&#34;</span>,
+                Type:    <span style="color:#c30">&#34;loopback&#34;</span>,
+            },
+        }</code></pre></div>
+<p>至此，createNetwork函数已经把与网络相关的配置，全部创建在类型为libcontainer.Config的container对象中了，就等着启动容器进程时使用。</p>
+
+<h3 id="3-2-调用libcontainer的namespaces启动容器"><strong>3.2 调用libcontainer的namespaces启动容器</strong></h3>
+
+<p>回到execdriver.Run函数，创建完libcontainer.Config实例container，经过一系列其他方面的处理之后，最终execdriver执行namespaces.Exec函数实现启动容器，container对象依然是namespace.Exec函数中一个非常重要的参数。这一环节代表着execdriver把启动Docker Container的工作交给libcontainer，以后的执行陷入libcontainer。 调用namespaces.Exec的代码位于<a href="https://github.com/docker/docker/blob/v1.2.0/daemon/execdriver/native/driver.go#L102-L127">./docker/daemon/execdriver/native/driver.go#L102-L127</a>，为了便于理解，简化的代码如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    namespaces.<span style="color:#c0f">Exec</span>(container, c.Stdin, c.Stdout, c.Stderr, c.Console,
+    c.Rootfs, dataPath, args, parameter_1, parameter_2)</code></pre></div>
+<p>其中parameter_1为定义的函数，如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    <span style="color:#069;font-weight:bold">func</span>(container <span style="color:#555">*</span>libcontainer.Config, console, rootfs, dataPath, 
+    init <span style="color:#078;font-weight:bold">string</span>, child <span style="color:#555">*</span>os.File, args []<span style="color:#078;font-weight:bold">string</span>) <span style="color:#555">*</span>exec.Cmd {
+            c.Path = d.initPath
+            c.Args = <span style="color:#366">append</span>([]<span style="color:#078;font-weight:bold">string</span>{
+                DriverName,
+                <span style="color:#c30">&#34;-console&#34;</span>, console,
+                <span style="color:#c30">&#34;-pipe&#34;</span>, <span style="color:#c30">&#34;3&#34;</span>,
+                <span style="color:#c30">&#34;-root&#34;</span>, filepath.<span style="color:#c0f">Join</span>(d.root, c.ID),
+                <span style="color:#c30">&#34;--&#34;</span>,
+            }, args<span style="color:#555">...</span>)
+
+            <span style="color:#09f;font-style:italic">// set this to nil so that when we set the clone flags anything else is reset
+</span><span style="color:#09f;font-style:italic"></span>            c.SysProcAttr = <span style="color:#555">&amp;</span>syscall.SysProcAttr{
+                Cloneflags: <span style="color:#366">uintptr</span>(namespaces.<span style="color:#c0f">GetNamespaceFlags</span>(container.Namespaces)),
+            }
+            c.ExtraFiles = []<span style="color:#555">*</span>os.File{child}
+
+            c.Env = container.Env
+            c.Dir = c.Rootfs
+
+            <span style="color:#069;font-weight:bold">return</span> <span style="color:#555">&amp;</span>c.Cmd
+        }</code></pre></div>
+<p>同样的，parameter_2也为定义的函数，如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    <span style="color:#069;font-weight:bold">func</span>() {
+            <span style="color:#069;font-weight:bold">if</span> startCallback <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+                c.ContainerPid = c.Process.Pid
+                <span style="color:#c0f">startCallback</span>(c)
+            }
+        }</code></pre></div>
+<p>Parameter_1以及parameter_2这两个函数均会在libcontainer的namespaces中发挥很大的重要。 至此，execdriver模块的执行部分已经完结，Docker Daemon的程序运行逻辑陷入libcontainer。</p>
+
+<h2 id="4-libcontainer实现内核态网络配置"><strong>4.libcontainer实现内核态网络配置</strong></h2>
+
+<p>libcontainer是一个Linux操作系统上容器的实现包。libcontainer指定了创建一个容器时所需要的配置选项，同时它利用Linux namespace和cgroup等技术为使用者提供了一套Golang原生态的容器实现方案，并且没有使用任何外部依赖。用户借助libcontainer，可以感受到众多操纵namespaces，网络等资源的便利。 当execdriver调用libcontainer中namespaces包的Exec函数时，libcontainer开始发挥其实现容器功能的作用。Exec函数位于<a href="https://github.com/docker/libcontainer/blob/v1.2.0/namespaces/exec.go#L24-L113">./libcontainer/namespaces/exec.go#L24-L113</a>。</p>
+
+<p>本文更多的关心Docker Container的网络创建，因此从这个角度来看Exec的实现可以分为三个步骤： (1) 通过createCommand创建一个Golang语言内的exec.Cmd对象； (2) 启动命令exec.Cmd，执行容器内第一个进程； (3) 通过InitializeNetworking函数为容器进程初始化网络环境。 以下详细分析这三个部分，源码的具体实现。</p>
+
+<h3 id="4-1创建exec-cmd"><strong>4.1创建exec.Cmd</strong></h3>
+
+<p>提到exec.Cmd，就不得不提Go语言标准库中的包os以及包os/exec。前者提供了与平台无关的操作系统功能集，后者则提供了功能集里与命令执行相关的部分。 首先来看一下在Go语言中exec.Cmd的定义，如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    <span style="color:#069;font-weight:bold">type</span> Cmd <span style="color:#069;font-weight:bold">struct</span> {
+            Path <span style="color:#078;font-weight:bold">string</span>                   <span style="color:#09f;font-style:italic">//所需执行命令在系统中的路径
+</span><span style="color:#09f;font-style:italic"></span>            Args []<span style="color:#078;font-weight:bold">string</span>                  <span style="color:#09f;font-style:italic">//传入命令的参数
+</span><span style="color:#09f;font-style:italic"></span>            Env []<span style="color:#078;font-weight:bold">string</span>                   <span style="color:#09f;font-style:italic">//进程运行时的环境变量
+</span><span style="color:#09f;font-style:italic"></span>            Dir <span style="color:#078;font-weight:bold">string</span>                     <span style="color:#09f;font-style:italic">//命令运行的工作目录
+</span><span style="color:#09f;font-style:italic"></span>            Stdin io.Reader
+            Stdout io.Writer
+            Stderr io.Writer
+            ExtraFiles []<span style="color:#555">*</span>os.File             <span style="color:#09f;font-style:italic">//进程所需打开的文件描述符资源
+</span><span style="color:#09f;font-style:italic"></span>            SysProcAttr <span style="color:#555">*</span>syscall.SysProcAttr   <span style="color:#09f;font-style:italic">//可选的操作系统属性
+</span><span style="color:#09f;font-style:italic"></span>            Process <span style="color:#555">*</span>os.Process            <span style="color:#09f;font-style:italic">//代表Cmd启动后，操作系统底层的具体进程
+</span><span style="color:#09f;font-style:italic"></span>            ProcessState <span style="color:#555">*</span>os.ProcessState    <span style="color:#09f;font-style:italic">//进程退出后保留的信息
+</span><span style="color:#09f;font-style:italic"></span>    }</code></pre></div>
+<p>清楚Cmd的定义之后，再来分析namespaces包的Exec函数中，是如何来创建exec.Cmd的。在Exec函数的实现过程中，使用了以下代码实现Exec.Cmd的创建：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    command <span style="color:#555">:=</span> <span style="color:#c0f">createCommand</span>(container, console, rootfs, dataPath, 
+    os.Args[<span style="color:#f60">0</span>], syncPipe.<span style="color:#c0f">Child</span>(), args) </code></pre></div>
+<p>其中createCommand为namespace.Exec函数中传入的倒数第二个参数，类型为CreateCommand。而createCommand只是namespaces.Exec函数的形参，真正的实参则为execdriver调用namespaces.Exec时的参数parameter_1，即如下代码：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    <span style="color:#069;font-weight:bold">func</span>(container <span style="color:#555">*</span>libcontainer.Config, console, rootfs, dataPath,
+    init <span style="color:#078;font-weight:bold">string</span>, child <span style="color:#555">*</span>os.File, args []<span style="color:#078;font-weight:bold">string</span>) <span style="color:#555">*</span>exec.Cmd {
+            c.Path = d.initPath
+            c.Args = <span style="color:#366">append</span>([]<span style="color:#078;font-weight:bold">string</span>{
+                DriverName,
+                <span style="color:#c30">&#34;-console&#34;</span>, console,
+                <span style="color:#c30">&#34;-pipe&#34;</span>, <span style="color:#c30">&#34;3&#34;</span>,
+                <span style="color:#c30">&#34;-root&#34;</span>, filepath.<span style="color:#c0f">Join</span>(d.root, c.ID),
+                <span style="color:#c30">&#34;--&#34;</span>,
+            }, args<span style="color:#555">...</span>)
+
+            <span style="color:#09f;font-style:italic">// set this to nil so that when we set the clone flags anything else is reset
+</span><span style="color:#09f;font-style:italic"></span>            c.SysProcAttr = <span style="color:#555">&amp;</span>syscall.SysProcAttr{
+                Cloneflags: <span style="color:#366">uintptr</span>(namespaces.<span style="color:#c0f">GetNamespaceFlags</span>(container.Namespaces)),
+            }
+            c.ExtraFiles = []<span style="color:#555">*</span>os.File{child}
+
+            c.Env = container.Env
+            c.Dir = c.Rootfs
+
+            <span style="color:#069;font-weight:bold">return</span> <span style="color:#555">&amp;</span>c.Cmd
+        }</code></pre></div>
+<p>熟悉exec.Cmd的定义之后，分析以上代码的实现就显得较为简单。为Cmd赋值的对象有Path，Args，SysProcAttr，ExtraFiles，Env和Dir。其中需要特别注意的是Path的值d.initPath，该路径下存放的是dockerinit的二进制文件，Docker 1.2.0版本下，路径一般为“/var/lib/docker/init/dockerinit-1.2.0”。另外SysProcAttr使用以下的代码来赋值：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    <span style="color:#555">&amp;</span>syscall.SysProcAttr{
+            Cloneflags: <span style="color:#366">uintptr</span>(namespaces.<span style="color:#c0f">GetNamespaceFlags</span>(container.Namespaces)),
+        }</code></pre></div>
+<p>syscall.SysProAttr对象中的Cloneflags属性中，即保留了libcontainer.Config类型的实例container中的Namespace属性。换言之，通过exec.Cmd创建进程时，正是通过Cloneflags实现Clone系统调用中传入namespace参数标志。 回到函数执行中，在函数的最后返回了c.Cmd，命令创建完毕。</p>
+
+<h3 id="4-2启动exec-cmd创建进程"><strong>4.2启动exec.Cmd创建进程</strong></h3>
+
+<p>创建完exec.Cmd，当然需要将该执行命令运行起来，namespaces.Exec函数中直接使用以下代码实现进程的启动：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> command.<span style="color:#c0f">Start</span>(); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+            <span style="color:#069;font-weight:bold">return</span> <span style="color:#555">-</span><span style="color:#f60">1</span>, err
+        }</code></pre></div>
+<p>这一部分的内容简单直接， Start()函数用以完成指定命令exec.Cmd的启动执行，同时并不等待其启动完毕便返回。Start()函数的定义位于os/exec包。 进入os/exec包，查看Start()函数的实现，可以看到执行过程中，会对command.Process进行赋值，此时command.Process中会含有刚才启动进程的PID进程号，该PID号属于在宿主机pid namespace下，而并非是新创建namespace下的PID号。</p>
+
+<h3 id="4-3为容器进程初始化网络环境"><strong>4.3为容器进程初始化网络环境</strong></h3>
+
+<p>上一环节实现了容器进程的启动，然而却还没有为之配置相应的网络环境。namespaces.Exec在之后的InitializeNetworing中实现了为容器进程初始化网络环境。初始化网络环境需要两个非常重要的参数：container对象以及容器进程的Pid号。类型为libcontainer.Config的实例container中包含用户对Docker Container的网络配置需求，另外容器进程的Pid可以使得创建的网络环境与进程新创建的namespace进行关联。 namespaces.Exec中为容器进程初始化网络环境的代码实现位于<a href="https://github.com/docker/libcontainer/blob/v1.2.0/namespaces/exec.go#L75-L79">./libcontainer/namespaces/exec.go#L75-L79</a>，如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> <span style="color:#c0f">InitializeNetworking</span>(container, command.Process.Pid, syncPipe, <span style="color:#555">&amp;</span>networkState); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+            command.Process.<span style="color:#c0f">Kill</span>()
+            command.<span style="color:#c0f">Wait</span>()
+            <span style="color:#069;font-weight:bold">return</span> <span style="color:#555">-</span><span style="color:#f60">1</span>, err
+        }</code></pre></div>
+<p>InitializeNetworing的作用很明显，即为创建的容器进程初始化网络环境。更为底层的实现包含两个步骤： (1) 先在容器进程的namespace外部，创建容器所需的网络栈； (2) 将创建的网络栈迁移进入容器的net namespace。 IntializeNetworking的源代码实现位于<a href="https://github.com/docker/libcontainer/blob/v1.2.0/namespaces/exec.go#L176-L187">./libcontainer/namespaces/exec.go#L176-L187</a>，如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    <span style="color:#069;font-weight:bold">func</span> <span style="color:#c0f">InitializeNetworking</span>(container <span style="color:#555">*</span>libcontainer.Config, nspid <span style="color:#078;font-weight:bold">int</span>, pipe <span style="color:#555">*</span>syncpipe.SyncPipe, networkState <span style="color:#555">*</span>network.NetworkState) <span style="color:#078;font-weight:bold">error</span> {
+        <span style="color:#069;font-weight:bold">for</span> _, config <span style="color:#555">:=</span> <span style="color:#069;font-weight:bold">range</span> container.Networks {
+            strategy, err <span style="color:#555">:=</span> network.<span style="color:#c0f">GetStrategy</span>(config.Type)
+            <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+                <span style="color:#069;font-weight:bold">return</span> err
+            }
+            <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> strategy.<span style="color:#c0f">Create</span>((<span style="color:#555">*</span>network.Network)(config), nspid, networkState); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+                <span style="color:#069;font-weight:bold">return</span> err
+            }
+        }
+        <span style="color:#069;font-weight:bold">return</span> pipe.<span style="color:#c0f">SendToChild</span>(networkState)
+    }</code></pre></div>
+<p>以上源码实现过程中，首先通过一个循环，遍历libcontainer.Config类型实例container中的网络属性Networks；随后使用GetStrategy函数处理Networks中每一个对象的Type属性，得出Network的类型，这里的类型有3种，分别为“loopback”、“veth”、“netns”。除host网络模式之外，loopback对于其他每一种网络模式的Docker Container都需要使用；veth针对bridge桥接模式，而netns针对other container模式。 得到Network类型的类型之后，libcontainer创建相应的网络栈，具体实现使用每种网络栈类型下的Create函数。以下分析三种不同网络栈各自的创建流程。</p>
+
+<h4 id="4-3-1-loopback网络栈的创建"><strong>4.3.1 loopback网络栈的创建</strong></h4>
+
+<p>Loopback是一种本地环回设备，libcontainer创建loopback网络设备的实现代码位于<a href="https://github.com/docker/libcontainer/blob/v1.2.0/network/loopback.go#L13-L15">./libcontainer/network/loopback.go#L13-L1</a>，如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    <span style="color:#069;font-weight:bold">func</span> (l <span style="color:#555">*</span>Loopback) <span style="color:#c0f">Create</span>(n <span style="color:#555">*</span>Network, nspid <span style="color:#078;font-weight:bold">int</span>, networkState <span style="color:#555">*</span>NetworkState) <span style="color:#078;font-weight:bold">error</span> {
+            <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>
+    }</code></pre></div>
+<p>令人费解的是，libcontainer在loopback设备的创建函数Create中，并没有作实质性的内容，而是直接返回nil。 其实关于loopback设备的创建，要回到Linux内核为进程新建namespace的阶段。当libcontainer执行command.Start()时，由于创建了一个新的网络namespace，故Linux内核会自动为新的net namespace创建loopback设备。当Linux内核创建完loopback设备之后，libcontainer所做的工作即只要保留loopback设备的默认配置，并在Initialize函数中实现启动该设备。</p>
+
+<h4 id="4-3-2-veth网络栈的创建"><strong>4.3.2 veth网络栈的创建</strong></h4>
+
+<p>Veth是Docker Container实际使用的网络策略之一，其使用网桥docker0并创建veth pair虚拟网络设备对，最终使一个veth配置在宿主机上，而另一个veth安置在容器网络namespace内部。 libcontainer中实现veth策略的代码非常通俗易懂，代码位于<a href="https://github.com/docker/libcontainer/blob/v1.2.0/network/veth.go#L19-L50">./libcontainer/network/veth.go#L19-L50</a>，如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    name1, name2, err <span style="color:#555">:=</span> <span style="color:#c0f">createVethPair</span>(prefix)
+        <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+            <span style="color:#069;font-weight:bold">return</span> err
+        }
+        <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> <span style="color:#c0f">SetInterfaceMaster</span>(name1, bridge); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+            <span style="color:#069;font-weight:bold">return</span> err
+        }
+        <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> <span style="color:#c0f">SetMtu</span>(name1, n.Mtu); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+            <span style="color:#069;font-weight:bold">return</span> err
+        }
+        <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> <span style="color:#c0f">InterfaceUp</span>(name1); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+            <span style="color:#069;font-weight:bold">return</span> err
+        }
+        <span style="color:#069;font-weight:bold">if</span> err <span style="color:#555">:=</span> <span style="color:#c0f">SetInterfaceInNamespacePid</span>(name2, nspid); err <span style="color:#555">!=</span> <span style="color:#069;font-weight:bold">nil</span> {
+            <span style="color:#069;font-weight:bold">return</span> err
+        }</code></pre></div>
+<p>主要的流程包含的四个步骤： (1) 在宿主机上创建veth pair； (2) 将一个veth附加至docker0网桥上； (3) 启动第一个veth； (4) 将第二个veth附加至libcontainer创建进程的namespace下。 使用Create函数实现veth pair的创建之后，在Initialize函数中实现将网络namespace中的veth改名为“eth0”，并设置网络设备的MTU等。</p>
+
+<h4 id="4-3-3-netns网络栈的创建"><strong>4.3.3 netns网络栈的创建</strong></h4>
+
+<p>netns专门为Docker Container的other container网络模式服务。netns完成的工作是将其他容器的namespace路径传递给需要创建other container网络模式的容器使用。 libcontainer中实现netns策略的代码位于<a href="https://github.com/docker/libcontainer/blob/v1.2.0/network/netns.go#L17-L20">./libcontainer/network/netns.go#L17-L20</a>，如下：</p>
+<div class="highlight"><pre style="background-color:#f0f3f3;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">    <span style="color:#069;font-weight:bold">func</span> (v <span style="color:#555">*</span>NetNS) <span style="color:#c0f">Create</span>(n <span style="color:#555">*</span>Network, nspid <span style="color:#078;font-weight:bold">int</span>, networkState <span style="color:#555">*</span>NetworkState) <span style="color:#078;font-weight:bold">error</span> {
+            networkState.NsPath = n.NsPath
+            <span style="color:#069;font-weight:bold">return</span> <span style="color:#069;font-weight:bold">nil</span>
+    }</code></pre></div>
+<p>使用Create函数先将NsPath赋给新建容器之后，在Initialize函数中实现将网络namespace的文件描述符交由新创建容器使用，最终实现两个Docker Container共享同一个网络栈。 通过Create以及Initialize的实现之后，Docker Container相应的网络栈环境即已经完成创建，容器内部的应用进程可以使用不同的网络栈环境与外界或者内部进行通信。关于Initialize函数何时被调用，需要清楚Docker Daemon与dockerinit的关系，以及如何实现Docker Daemon进程与dockerinit进程跨namespace进行通信，这部分内容会在《Docker源码分析》系列后续专文分析。</p>
+
+<h2 id="5-总结"><strong>5.总结</strong></h2>
+
+<p>如何使用Docker Container的网络，一直是工业界倍加关心的问题。本文将从Linux内核原理的角度阐述了什么是Docker Container，并对Docker Container 4种不同的网络模式进行了初步的介绍，最终贯穿Docker 架构中的多个模块，如Docker Client、Docker Daemon、execdriver以及libcontainer，深入分析Docker Container网络的实现步骤。</p>
+
+<p>目前，若只谈论Docker，那么它还是只停留在单host宿主机的场景上。如何面对跨host的场景、如何实现分布式Docker Container的管理，目前为止还没有一个一劳永逸的解决方案。再者，一个解决方案的存在，总是会适应于一个应用场景。Docker这种容器技术的发展，大大改善了传统模式下使用诸如虚拟机等传统计算单位存在的多数弊端，却在网络方面使得自身的使用过程中存在瑕疵。希望本文是一个引子，介绍Docker Container网络，以及从源码的角度分析Docker Container网络之后，能有更多的爱好者思考Docker Container网络的前世今生，并为Docker乃至容器技术的发展做出贡献。</p>
+
+<h2 id="7-参考文献"><strong>7.参考文献</strong></h2>
+
+<p><a href="http://docs.studygolang.com/pkg/os/exec/#Cmd">http://docs.studygolang.com/pkg/os/exec/#Cmd</a></p>
+
+<p><a href="https://github.com/docker/libcontainer/tree/v1.2.0">https://github.com/docker/libcontainer/tree/v1.2.0</a></p>
+
+<p><a href="https://github.com/docker/libcontainer/issues/323">https://github.com/docker/libcontainer/issues/323</a></p>
+                        </div>
+                        
+                        
+                        
+                        
+                        
+                        
+
+                        
+                        <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+                        <script src="https://unpkg.com/gitalk@latest/dist/gitalk.min.js"></script> 
+                        <script type="text/javascript" src="/assets/js/md5.min.js"></script>
+                        <div id="gitalk-container"></div>     
+                        <script type="text/javascript">
+                            var gitalk = new Gitalk({
+                              clientID: '835183d2dcbd1167ac28', 
+                            
+                              clientSecret: 'd873919fac3cc76921ee0800172c2279bc612f8d', 
+                            
+                              repo: 'Sel-Website-talk',
+                              owner: 'Peeknut',
+                              admin: ['Peeknut','Rachel-Shao'],
+                              id: location.href.split("/").pop().substring(0, 49),      
+                              distractionFreeMode: false  
+                            })
+                            gitalk.render('gitalk-container')
+                        </script> 
+                        
+
+                    </div>
+                    
+
+                    
+
+                    
+
+                    <div class="col-md-3">
+
+                        
+
+                        
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+      <h3 class="panel-title">搜索栏</h3>
+      
+    </div>
+
+    <div class="panel-body">
+        
+        <div class="search" id="search">
+            <div class="input-group">
+                <input type="text" name="q" class="form-control" placeholder="请输入文章标题或摘要..." id="search-key">
+                <input type="hidden" name="sitesearch" value="https://Congrool.github.io/">
+                <span class="input-group-btn">
+                    <button type="submit" class="btn btn-template-main" onclick="search()"><i class="fas fa-search"></i></button>
+                </span>
+            </div>
+            <h1 id="search-tip" style="color: red;text-align: center;display: none;font-size: medium;">搜索中，请稍后 ...</h1>
+        </div>
+        <script type="text/javascript">
+            
+            window.onload = function() {
+                      document.onkeydown = function(ev) {
+                        var event = ev || event
+                        if (event.keyCode == 13) {
+                          search()
+                        }
+                      }
+                    }
+            
+            function search() {
+                    
+                      key = document.getElementById("search-key").value;
+                      if (key === "") {
+                        
+                        return;
+                      }
+                      key = key.toLowerCase();
+                      document.getElementById("search-key").value = "";
+                  
+                      
+                      document.getElementById("search-tip").innerText = "搜索中，请稍后 ...";
+                      document.getElementById("search-tip").style.display = "block";
+                  
+                      
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      var childs = el.childNodes;
+                      for (var i = childs.length - 1; i >= 0; i--) {
+                        el.removeChild(childs[i]);
+                      }
+                  
+                      
+                      xmltext = new XMLHttpRequest;
+                      xmltext.open("GET", "/index.xml", false);
+                      xmltext.send();
+                      resp = xmltext.responseXML;
+                      
+                      items = resp.getElementsByTagName("item");
+                      
+                      var i = 0;
+                      haveResult = false;
+                      while (i < items.length) {
+                        txt = items[i].getElementsByTagName("title")[0].innerHTML + items[i].getElementsByTagName("description")[0].innerHTML
+                        txt = txt.toLowerCase();
+                        if (txt.indexOf(key) > -1) {
+                          haveResult = true;
+                          title = items[i].getElementsByTagName("title")[0].innerHTML;
+                          link = items[i].getElementsByTagName("link")[0].innerHTML;
+                          time = items[i].getElementsByTagName("pubDate")[0].innerHTML;
+                          mark = items[i].getElementsByTagName("description")[0].innerHTML;
+                          time = time.slice(0, -5);
+                          addItem(title, link, time, mark)
+                        }
+                        i++;
+                      }
+                      if (!haveResult) {
+                        document.getElementById("search-tip").innerText = "搜索完毕，未发现结果 ...";
+                        document.getElementById("search-tip").style.display = "block";
+                      }
+
+                      
+                      var el = document.getElementById("blog-head");
+                      el.innerHTML="Blogs"
+                    }
+                  
+                    
+                    function addItem(title, link, time, mark) {
+                      document.getElementById("search-tip").style.display = "none";
+                      tmpl = "<article class=\"post\" style=\"border-bottom: 1px solid #e6e6e6;\" >" +
+                        "<header class=\"post-header\">" +
+                        "<h1 class=\"post-title\"><a class=\"post-link\" href=\"" + link + "\" target=\"_blank\">" + title + "</a></h1>" +
+                        "<div class=\"post-meta\">" +
+                        " <span class=\"post-time\">" + time + "</span>" +
+                        "</div>" +
+                        " </header>" +
+                        "<div class=\"post-content\">" +
+                        "<div class=\"post-summary\">" + mark + "</div>" +
+                        "<div class=\"read-more\">" +
+                        "<a href=" + link + " class=\"read-more-link\" target=\"_blank\">阅读更多</a>" +
+                        "</div>" +
+                        " </div>" +
+                        "</article>"
+                      div = document.createElement("div")
+                      div.innerHTML = tmpl;
+                      var el = document.getElementById('blog-listing-medium');
+                      if (el == null) {
+                        el = document.getElementById("blog-post")
+                      }
+                      el.appendChild(div)
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+
+        </script>
+        
+    </div>
+</div>
+
+
+
+
+
+
+
+<div class="panel panel-default sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">归档栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="nav nav-pills nav-stacked">
+            
+            
+            <li>
+                <a href="/categories/bosh">bosh (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloud_controller_ng">cloud_controller_ng (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/cloudfoundry">cloudfoundry (15)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/containerd">containerd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/docker">docker (19)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/etcd">etcd (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/haproxy">haproxy (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/healthmanager">healthmanager (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/karmada">karmada (4)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubeedge">kubeedge (5)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/kubernetes">kubernetes (14)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/network">network (1)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/openyurt">openyurt (2)</a>
+            </li>
+            
+            <li>
+                <a href="/categories/service-mesh">service-mesh (4)</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+<div class="panel sidebar-menu">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">标签栏</h3>
+        
+    </div>
+
+    <div class="panel-body">
+        <ul class="tag-cloud">
+            
+            
+            <li>
+                <a href="/tags/agent"><i class="fas fa-tags"></i> agent</a>
+            </li>
+            
+            <li>
+                <a href="/tags/apiserver"><i class="fas fa-tags"></i> apiserver</a>
+            </li>
+            
+            <li>
+                <a href="/tags/books"><i class="fas fa-tags"></i> books</a>
+            </li>
+            
+            <li>
+                <a href="/tags/bosh"><i class="fas fa-tags"></i> bosh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/ccng"><i class="fas fa-tags"></i> ccng</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cf-release"><i class="fas fa-tags"></i> cf-release</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cgroups"><i class="fas fa-tags"></i> cgroups</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudfoundry"><i class="fas fa-tags"></i> cloudfoundry</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cloudnative"><i class="fas fa-tags"></i> cloudnative</a>
+            </li>
+            
+            <li>
+                <a href="/tags/collector"><i class="fas fa-tags"></i> collector</a>
+            </li>
+            
+            <li>
+                <a href="/tags/containerd"><i class="fas fa-tags"></i> containerd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/cri"><i class="fas fa-tags"></i> cri</a>
+            </li>
+            
+            <li>
+                <a href="/tags/dea"><i class="fas fa-tags"></i> dea</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker"><i class="fas fa-tags"></i> docker</a>
+            </li>
+            
+            <li>
+                <a href="/tags/docker-network"><i class="fas fa-tags"></i> docker-network</a>
+            </li>
+            
+            <li>
+                <a href="/tags/edgecomputing"><i class="fas fa-tags"></i> edgecomputing</a>
+            </li>
+            
+            <li>
+                <a href="/tags/etcd"><i class="fas fa-tags"></i> etcd</a>
+            </li>
+            
+            <li>
+                <a href="/tags/gorouter"><i class="fas fa-tags"></i> gorouter</a>
+            </li>
+            
+            <li>
+                <a href="/tags/haproxy"><i class="fas fa-tags"></i> haproxy</a>
+            </li>
+            
+            <li>
+                <a href="/tags/healthmanager"><i class="fas fa-tags"></i> healthmanager</a>
+            </li>
+            
+            <li>
+                <a href="/tags/istio"><i class="fas fa-tags"></i> istio</a>
+            </li>
+            
+            <li>
+                <a href="/tags/karmada"><i class="fas fa-tags"></i> karmada</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubeedge"><i class="fas fa-tags"></i> kubeedge</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubelet"><i class="fas fa-tags"></i> kubelet</a>
+            </li>
+            
+            <li>
+                <a href="/tags/kubernetes"><i class="fas fa-tags"></i> kubernetes</a>
+            </li>
+            
+            <li>
+                <a href="/tags/libcontainer"><i class="fas fa-tags"></i> libcontainer</a>
+            </li>
+            
+            <li>
+                <a href="/tags/micro-service"><i class="fas fa-tags"></i> micro-service</a>
+            </li>
+            
+            <li>
+                <a href="/tags/namespace"><i class="fas fa-tags"></i> namespace</a>
+            </li>
+            
+            <li>
+                <a href="/tags/nats"><i class="fas fa-tags"></i> nats</a>
+            </li>
+            
+            <li>
+                <a href="/tags/news"><i class="fas fa-tags"></i> news</a>
+            </li>
+            
+            <li>
+                <a href="/tags/openyurt"><i class="fas fa-tags"></i> openyurt</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pipework"><i class="fas fa-tags"></i> pipework</a>
+            </li>
+            
+            <li>
+                <a href="/tags/pouch"><i class="fas fa-tags"></i> pouch</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runc"><i class="fas fa-tags"></i> runc</a>
+            </li>
+            
+            <li>
+                <a href="/tags/runtime"><i class="fas fa-tags"></i> runtime</a>
+            </li>
+            
+            <li>
+                <a href="/tags/security"><i class="fas fa-tags"></i> security</a>
+            </li>
+            
+            <li>
+                <a href="/tags/serverless"><i class="fas fa-tags"></i> serverless</a>
+            </li>
+            
+            <li>
+                <a href="/tags/service-mesh"><i class="fas fa-tags"></i> service-mesh</a>
+            </li>
+            
+            <li>
+                <a href="/tags/syslog_aggregator"><i class="fas fa-tags"></i> syslog_aggregator</a>
+            </li>
+            
+        </ul>
+    </div>
+
+</div>
+
+
+
+
+
+
+                        
+
+                    </div>
+                    
+
+                    
+
+                </div>
+                
+
+            </div>
+            
+        </div>
+        
+
+        <footer id="footer">
+    <div class="container">
+
+        
+        <div class="col-md-4 col-sm-6">
+            <h4></h4>
+
+            <p><strong>关于我们：<strong> <p>浙大SEL实验室</p><p>地址：杭州市浙大路38号曹光彪西楼405室</p><p><strong></strong>
+            <a href="/contact" class="btn btn-small btn-template-main" >跳转到关于</a>
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+        <div class="col-md-4 col-sm-6">
+
+             
+            <h4>最新博客</h4>
+            
+
+            <div class="blog-entries">
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/27/overview.png" class="img-responsive" alt="基于KubeEdge的边缘节点分组管理设计与实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2022/08/26/%E5%9F%BA%E4%BA%8Ekubeedge%E7%9A%84%E8%BE%B9%E7%BC%98%E8%8A%82%E7%82%B9%E5%88%86%E7%BB%84%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">基于KubeEdge的边缘节点分组管理设计与实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">
+                          
+                            <img src="/img/blogs/20/karmada-scheduler.png" class="img-responsive" alt="多云环境下的资源调度：karmada scheduler的框架和实现">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/22/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E8%B5%84%E6%BA%90%E8%B0%83%E5%BA%A6karmada-scheduler%E7%9A%84%E6%A1%86%E6%9E%B6%E5%92%8C%E5%AE%9E%E7%8E%B0/">多云环境下的资源调度：karmada scheduler的框架和实现</a></h5>
+                    </div>
+                </div>
+                
+                <div class="item same-height-row clearfix">
+                    <div class="image same-height-always">
+                        <a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">
+                          
+                            <img src="/img/blogs/19/karmada-arch.jpg" class="img-responsive" alt="多云环境下的成员集群管理，看看开源项目karmada是如何做到的">
+                          
+                        </a>
+                    </div>
+                    <div class="name same-height-always">
+                        <h5><a href="https://Congrool.github.io/blog/2021/09/16/%E5%A4%9A%E4%BA%91%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E6%88%90%E5%91%98%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9C%8B%E7%9C%8B%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AEkarmada%E6%98%AF%E5%A6%82%E4%BD%95%E5%81%9A%E5%88%B0%E7%9A%84/">多云环境下的成员集群管理，看看开源项目karmada是如何做到的</a></h5>
+                    </div>
+                </div>
+                
+            </div>
+
+            <hr class="hidden-md hidden-lg">
+             
+
+        </div>
+        
+
+        
+        <div class="col-md-4 col-sm-6">
+
+          <h4></h4>
+
+            <p><strong>联系我们: 
+                                    <p>团队负责人：丁轶群 yiqunding@zju.edu.cn</p>
+                                    <p>网站维护人：刘佳文 839809484@qq.com</p>                
+    </strong>
+
+            
+
+            <hr class="hidden-md hidden-lg hidden-sm">
+
+        </div>
+        
+        
+
+    </div>
+    
+</footer>
+
+
+
+
+
+
+
+<div id="copyright">
+    <div class="container">
+        <div class="col-md-12">
+            
+            <p class="pull-left">Copyright ©️ 2020 SEL Laboratory , ZJ University all rights reserved.</p>
+            
+            <p class="pull-right">
+               <a href="https://bootstrapious.com/p/universal-business-e-commerce-template">Bootstrapious</a>.
+              
+
+               <a href="https://github.com/devcows/hugo-universal-theme">DevCows</a>.
+            </p>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+    </div>
+    
+
+    
+
+
+<script src="/js/jquery.min.js"></script>
+<script src="/js/bootstrap.min.js"></script>
+
+
+
+<script src="/js/jquery.cookie.min.js"></script>
+<script src="/js/jquery.waypoints.min.js"></script>
+<script src="/js/jquery.counterup.min.js"></script>
+<script src="/js/jquery-parallax.js"></script>
+
+
+<script src="/js/front.js"></script>
+
+
+<script src="/js/owl.carousel.min.js"></script>
+
+
+
+  </body>
+</html>
